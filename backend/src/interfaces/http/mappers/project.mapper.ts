@@ -6,6 +6,7 @@ import type {
   ExportProjectAdrsQuery,
   ProjectKnowledgeMapQuery,
   ProjectTimelineQuery,
+  ProjectCommitsQuery,
 } from '../dto/project.dto.js';
 import type { CreateProjectDto, UpdateProjectDto } from '../../../application/dto/project.dto.js';
 import type { WorkspaceScope } from '../../../application/models/workspace-scope.models.js';
@@ -73,5 +74,17 @@ export function toExportProjectAdrsInput(query: ExportProjectAdrsQuery, scope: W
     file: query.file,
     search: query.search,
     kind: query.kind,
+  };
+}
+
+export function toListProjectCommitsInput(query: ProjectCommitsQuery, scope: WorkspaceScope) {
+  const projectId = scope.projectId && scope.projectId !== 'all' ? scope.projectId : undefined;
+  return {
+    ...(scope.workspaceId ? { workspaceId: scope.workspaceId } : {}),
+    ...(projectId ? { projectId } : {}),
+    page: query.page,
+    pageSize: query.pageSize,
+    onlyLinked: query.onlyLinked,
+    query: query.query,
   };
 }

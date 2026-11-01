@@ -42,6 +42,7 @@ export function toProjectTimelineItemFromSearchMatch(
     path: match.path,
     attachmentCount: match.attachmentCount || 0,
     isPinned: match.isPinned,
+    linkedCommits: match.linkedCommits,
   };
 }
 

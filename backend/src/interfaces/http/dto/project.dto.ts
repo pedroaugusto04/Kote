@@ -113,3 +113,44 @@ export const setProjectFavoriteBodySchema = z
   .strict();
 
 export type SetProjectFavoriteBody = z.infer<typeof setProjectFavoriteBodySchema>;
+
+export const projectCommitsQuerySchema = paginationInputSchema.extend({
+  onlyLinked: z
+    .union([z.boolean(), z.enum(['true', 'false'])])
+    .optional()
+    .default(false)
+    .transform((val) => val === true || val === 'true'),
+  query: z.string().trim().optional(),
+});
+
+export type ProjectCommitsQuery = z.infer<typeof projectCommitsQuerySchema>;
+
+const candidateSessionLinkSchema = z.object({
+  source: z.string().trim().optional(),
+  sessionId: z.string().trim().optional(),
+  noteId: z.string().trim().optional(),
+  linkSource: z.enum(['ai_terminal', 'session_files', 'github_push', 'manual']).optional(),
+  confidence: z.number().int().min(1).max(100).optional(),
+  matchedFiles: z.array(z.string().trim()).optional(),
+});
+
+const syncGitCommitItemSchema = z.object({
+  commitSha: z.string().trim().min(7).max(64),
+  shortSha: z.string().trim().max(16).optional(),
+  message: z.string().trim().max(2000).optional().default(''),
+  authorName: z.string().trim().max(200).optional().default(''),
+  authorEmail: z.string().trim().max(200).optional().default(''),
+  committedAt: z.string().trim(),
+  branch: z.string().trim().max(200).nullable().optional(),
+  parentShas: z.array(z.string().trim()).optional(),
+  changedFiles: z.array(z.string().trim()).optional().default([]),
+  htmlUrl: z.string().trim().max(500).nullable().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  candidateSessionLinks: z.array(candidateSessionLinkSchema).optional(),
+});
+
+export const syncProjectCommitsBodySchema = z.object({
+  commits: z.array(syncGitCommitItemSchema).min(1).max(100),
+});
+
+export type SyncProjectCommitsBody = z.infer<typeof syncProjectCommitsBodySchema>;

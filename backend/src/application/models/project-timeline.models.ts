@@ -1,5 +1,6 @@
 import type { PaginationMeta } from './pagination.models.js';
 import type { CategoryRecord } from './repository-records.models.js';
+import type { LinkedCommitSummary } from './git-commits.models.js';
 import { TimelineCategory } from '../../contracts/enums.js';
 
 export const projectTimelineCategories = [
@@ -33,6 +34,7 @@ export type ProjectTimelineItem = {
   tags: string[];
   path: string;
   attachmentCount: number;
+  linkedCommits?: LinkedCommitSummary[];
 };
 
 export type ListProjectTimelineInput = {

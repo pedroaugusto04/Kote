@@ -16,7 +16,7 @@ import {
   OPEN_CODE_FINAL_FINISH,
 } from '../constants';
 import type { AiHistoryProvider, AiSession, AiTurn, ModelUsageDetail } from '../types';
-import { asRecord, cloneSession, keepFinalAssistantTurns, parseAiRole, safeFileSignature, safeMtime } from './provider.utils';
+import { asRecord, cloneSession, extractGitActivityFromRecords, keepFinalAssistantTurns, parseAiRole, safeFileSignature, safeMtime } from './provider.utils';
 import { calculateTokenUsageCost } from '../token-accounting';
 
 interface OpenCodeRow {
@@ -45,6 +45,7 @@ interface SessionAccumulator {
   usageMessageIds: Set<string>;
   models: Map<string, ModelTokenAccumulator>;
   lastModelID?: string;
+  rawParts: unknown[];
 }
 
 let cachedQueryKey = '';
@@ -73,8 +74,17 @@ function addRow(sessions: Map<string, SessionAccumulator>, row: OpenCodeRow): vo
       messages: new Map(),
       usageMessageIds: new Set(),
       models: new Map(),
+      rawParts: [],
     };
     sessions.set(row.sessionId, accumulator);
+  }
+
+  if (row.partData) {
+    try {
+      accumulator.rawParts.push(JSON.parse(row.partData));
+    } catch {
+      // ignore malformed part JSON
+    }
   }
 
   if (!row.messageId || !row.messageData) return;
@@ -130,11 +140,12 @@ function addRow(sessions: Map<string, SessionAccumulator>, row: OpenCodeRow): vo
 function finalizeSessions(accumulators: Map<string, SessionAccumulator>): AiSession[] {
   const sessions: AiSession[] = [];
   for (const acc of accumulators.values()) {
-    const { session, messages, models, lastModelID } = acc;
+    const { session, messages, models, lastModelID, rawParts } = acc;
     const parsedTurns = [...messages.values()]
       .map(({ role, textParts }) => ({ role, content: textParts.join('\n\n').trim() }))
       .filter((turn) => turn.content);
     session.turns = keepFinalAssistantTurns(parsedTurns);
+    session.gitActivity = extractGitActivityFromRecords(rawParts);
 
     if (models.size > 0) {
       const byModel: ModelUsageDetail[] = [];

@@ -175,6 +175,29 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
           ) FILTER (WHERE ${categories.id} IS NOT NULL),
           '[]'::json
         )`.as('categories'),
+        linkedCommits: sql<any[]>`COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'id', gc.id,
+                'commit_sha', gc.commit_sha,
+                'short_sha', left(gc.commit_sha, 7),
+                'message', gc.message,
+                'author_name', gc.author_name,
+                'committed_at', gc.committed_at,
+                'branch', nullif(gc.branch, ''),
+                'html_url', nullif(gc.commit_url, ''),
+                'link_source', ncl.link_source,
+                'matched_files', ncl.matched_files
+              )
+              ORDER BY gc.committed_at DESC
+            )
+            FROM kb_note_commit_links ncl
+            JOIN kb_git_commits gc ON gc.id = ncl.commit_id
+            WHERE ncl.note_id = ${notes.id} AND ncl.user_id = ${notes.userId}
+          ),
+          '[]'::json
+        )`.as('linked_commits'),
       })
       .from(notes)
       .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
@@ -255,6 +278,29 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
           ) FILTER (WHERE ${categories.id} IS NOT NULL),
           '[]'::json
         )`.as('categories'),
+        linkedCommits: sql<any[]>`COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'id', gc.id,
+                'commit_sha', gc.commit_sha,
+                'short_sha', left(gc.commit_sha, 7),
+                'message', gc.message,
+                'author_name', gc.author_name,
+                'committed_at', gc.committed_at,
+                'branch', nullif(gc.branch, ''),
+                'html_url', nullif(gc.commit_url, ''),
+                'link_source', ncl.link_source,
+                'matched_files', ncl.matched_files
+              )
+              ORDER BY gc.committed_at DESC
+            )
+            FROM kb_note_commit_links ncl
+            JOIN kb_git_commits gc ON gc.id = ncl.commit_id
+            WHERE ncl.note_id = ${notes.id} AND ncl.user_id = ${notes.userId}
+          ),
+          '[]'::json
+        )`.as('linked_commits'),
       })
       .from(notes)
       .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
@@ -333,6 +379,29 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
           ) FILTER (WHERE ${categories.id} IS NOT NULL),
           '[]'::json
         )`.as('categories'),
+        linkedCommits: sql<any[]>`COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'id', gc.id,
+                'commit_sha', gc.commit_sha,
+                'short_sha', left(gc.commit_sha, 7),
+                'message', gc.message,
+                'author_name', gc.author_name,
+                'committed_at', gc.committed_at,
+                'branch', nullif(gc.branch, ''),
+                'html_url', nullif(gc.commit_url, ''),
+                'link_source', ncl.link_source,
+                'matched_files', ncl.matched_files
+              )
+              ORDER BY gc.committed_at DESC
+            )
+            FROM kb_note_commit_links ncl
+            JOIN kb_git_commits gc ON gc.id = ncl.commit_id
+            WHERE ncl.note_id = ${notes.id} AND ncl.user_id = ${notes.userId}
+          ),
+          '[]'::json
+        )`.as('linked_commits'),
       })
       .from(notes)
       .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))

@@ -24,6 +24,7 @@ import type {
 import type { WebhookSubscriptionRecord } from '../../application/models/webhook-subscription.models.js';
 import type { DependencyWatchRecord } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
 import type { DependencyEcosystem } from '../../contracts/enums.js';
+import type { CommitLinkSource, LinkedCommitSummary } from '../../application/models/git-commits.models.js';
 
 type Row = Record<string, unknown>;
 
@@ -258,12 +259,34 @@ export function categoryFromRow(row: Row): CategoryRecord {
   };
 }
 
+export function linkedCommitFromRow(row: Row): LinkedCommitSummary {
+  const commitSha = fieldString(row, 'commit_sha', 'commitSha');
+  const htmlUrl = fieldNullableString(row, 'html_url', 'htmlUrl') ?? fieldNullableString(row, 'commit_url', 'commitUrl');
+  return {
+    id: String(row.id),
+    commitSha,
+    shortSha: fieldString(row, 'short_sha', 'shortSha') || commitSha.slice(0, 7),
+    message: fieldString(row, 'message', 'message'),
+    authorName: fieldString(row, 'author_name', 'authorName'),
+    committedAt: toIsoTimestamp(field(row, 'committed_at', 'committedAt')),
+    branch: fieldNullableString(row, 'branch', 'branch') || null,
+    htmlUrl: htmlUrl || null,
+    linkSource: fieldString(row, 'link_source', 'linkSource', 'manual') as CommitLinkSource,
+    confidence: fieldNumber(row, 'confidence', 'confidence', 100),
+    matchedFiles: stringArray(field(row, 'matched_files', 'matchedFiles')),
+  };
+}
+
 export function noteFromRow(row: Row): NoteRecord {
   const projectSlug = fieldString(row, 'project_slug', 'projectSlug', '');
   const workspaceSlug = fieldString(row, 'workspace_slug', 'workspaceSlug', '');
   const categoriesList = Array.isArray(row.categories)
     ? row.categories.map((c: Row) => categoryFromRow(c))
     : [];
+  const rawLinkedCommits = field(row, 'linked_commits', 'linkedCommits');
+  const linkedCommitsList = Array.isArray(rawLinkedCommits)
+    ? rawLinkedCommits.filter((c): c is Row => Boolean(c && typeof c === 'object' && (c as Row).id)).map((c) => linkedCommitFromRow(c))
+    : undefined;
 
   const createdAt = toIsoTimestamp(field(row, 'created_at', 'createdAt'));
   const occurredAt = toIsoTimestamp(field(row, 'occurred_at', 'occurredAt')) || createdAt;
@@ -294,6 +317,7 @@ export function noteFromRow(row: Row): NoteRecord {
     isPinned: field(row, 'is_pinned', 'isPinned') === true,
     sizeBytes: fieldNumber(row, 'size_bytes', 'sizeBytes', 0),
     ftsRank: field(row, 'ts_rank', 'tsRank') != null ? fieldNumber(row, 'ts_rank', 'tsRank') : undefined,
+    ...(linkedCommitsList !== undefined ? { linkedCommits: linkedCommitsList } : {}),
   };
 }
 

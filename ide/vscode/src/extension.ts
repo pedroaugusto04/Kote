@@ -20,6 +20,7 @@ import { NoteDetailWebviewProvider } from './providers/note-detail-webview.provi
 import { LineContextProvider } from './providers/line-context.provider';
 import { resolveProjectSlug } from './utils/project';
 import { getKbDecisionStatusLabel } from './types';
+import { GitCommitTracker } from './git/git-commit-tracker';
 
 let kbClient: KbClient;
 let sidebarProvider: SidebarViewProvider;
@@ -206,6 +207,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
 
   historyManager.startWatching(kbClient, context, getActiveProjectSelection);
+
+  const gitCommitTracker = new GitCommitTracker(kbClient, historyManager, getActiveProjectSlug);
+  gitCommitTracker.start();
+  context.subscriptions.push(gitCommitTracker);
 
   registerAskCommand(context, kbClient, getActiveProjectSlug);
   registerSaveNoteCommand(

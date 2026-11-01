@@ -71,14 +71,24 @@ export class PostgresNoteContextRepository implements NoteContextRepository {
 
     const orderByClauses = [];
     if (commitHashes.length > 0) {
-      const originCommitOrder = sql<number>`CASE WHEN EXISTS (
+      const originCommitOrder = sql<number>`CASE WHEN (
+        EXISTS (
           SELECT 1 FROM unnest(ARRAY[${sql.join(commitHashes.map((hash) => sql`${hash}`), sql`, `)}]) AS selected(hash)
           WHERE ${noteCommitHash} <> ''
             AND (
               ${noteCommitHash} LIKE selected.hash || '%'
               OR selected.hash LIKE ${noteCommitHash} || '%'
             )
-        ) THEN 1 ELSE 0 END`;
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM kb_note_commit_links ncl
+          JOIN kb_git_commits gc ON gc.id = ncl.commit_id
+          JOIN unnest(ARRAY[${sql.join(commitHashes.map((hash) => sql`${hash}`), sql`, `)}]) AS selected(hash)
+            ON (gc.commit_sha LIKE selected.hash || '%' OR selected.hash LIKE gc.commit_sha || '%')
+          WHERE ncl.note_id = ${notes.id} AND ncl.user_id = ${notes.userId}
+        )
+      ) THEN 1 ELSE 0 END`;
       orderByClauses.push(desc(originCommitOrder));
     }
     orderByClauses.push(desc(notes.occurredAt));
@@ -106,6 +116,29 @@ export class PostgresNoteContextRepository implements NoteContextRepository {
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
         updatedAt: notes.updatedAt,
+        linkedCommits: sql<unknown[]>`COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'id', gc.id,
+                'commit_sha', gc.commit_sha,
+                'short_sha', left(gc.commit_sha, 7),
+                'message', gc.message,
+                'author_name', gc.author_name,
+                'committed_at', gc.committed_at,
+                'branch', nullif(gc.branch, ''),
+                'html_url', nullif(gc.commit_url, ''),
+                'link_source', ncl.link_source,
+                'matched_files', ncl.matched_files
+              )
+              ORDER BY gc.committed_at DESC
+            )
+            FROM kb_note_commit_links ncl
+            JOIN kb_git_commits gc ON gc.id = ncl.commit_id
+            WHERE ncl.note_id = ${notes.id} AND ncl.user_id = ${notes.userId}
+          ),
+          '[]'::json
+        )`.as('linked_commits'),
       })
       .from(notes)
       .leftJoin(projects, eq(projects.id, notes.projectId))

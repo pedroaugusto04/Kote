@@ -4,6 +4,7 @@ import type { ProjectFolder } from './models/project-folder';
 import type { ProjectKnowledgeMapQuery, ProjectKnowledgeMapResponse } from './models/project-knowledge-map';
 import type { ProjectTimelineCategory, ProjectTimelineItem } from './models/project-timeline';
 import type { ProjectDecisionsResponse, FetchProjectDecisionsParams, ExportProjectAdrsParams } from './models/project-decisions';
+import type { ProjectCommitsResponse, FetchProjectCommitsParams } from './models/project-commits';
 import { DEFAULT_PAGE_SIZE, type PaginatedResponse } from './models/pagination';
 import type { Workspace } from './models/workspace';
 import { request, requestBlob } from './request';
@@ -242,6 +243,17 @@ export async function exportProjectAdrsZip(projectSlug: string, params: ExportPr
   }
 
   return { ok: true, filename };
+}
+
+export function fetchProjectCommits(projectSlug: string, params: FetchProjectCommitsParams = {}) {
+  const search = new URLSearchParams({
+    page: String(params.page || 1),
+    pageSize: String(params.pageSize || 20),
+  });
+  if (params.onlyLinked) search.set('onlyLinked', 'true');
+  if (params.query?.trim()) search.set('query', params.query.trim());
+
+  return request<ProjectCommitsResponse>(`${buildApiPath(API_PATHS.PROJECT_COMMITS, { projectSlug })}?${search.toString()}`);
 }
 
 

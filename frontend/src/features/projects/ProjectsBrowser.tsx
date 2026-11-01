@@ -14,8 +14,9 @@ import { ProjectTimeline } from './ProjectTimeline';
 import { ProjectDependenciesPanel } from './ProjectDependenciesPanel';
 import { ProjectCoverageBadge } from './components/ProjectCoverageBadge';
 import { ProjectDecisionsPanel } from './ProjectDecisionsPanel';
+import { ProjectCommitsPanel } from './ProjectCommitsPanel';
 
-export type ProjectBrowserView = 'timeline' | 'decisions' | 'dependencies';
+export type ProjectBrowserView = 'timeline' | 'commits' | 'decisions' | 'dependencies';
 
 type ProjectsBrowserProps = {
   dashboard: Dashboard;
@@ -205,6 +206,15 @@ export function ProjectsBrowser({
               Timeline
             </button>
             <button
+              aria-selected={projectView === 'commits'}
+              className={projectView === 'commits' ? 'filter-chip active' : 'filter-chip'}
+              role="tab"
+              type="button"
+              onClick={() => onProjectViewChange('commits')}
+            >
+              Commits
+            </button>
+            <button
               aria-selected={projectView === 'decisions'}
               className={projectView === 'decisions' ? 'filter-chip active' : 'filter-chip'}
               role="tab"
@@ -223,7 +233,9 @@ export function ProjectsBrowser({
               Dependencies
             </button>
           </div>
-          {projectView === 'decisions' ? (
+          {projectView === 'commits' ? (
+            <ProjectCommitsPanel projectSlug={project.projectSlug} onOpenNote={onOpenNote} />
+          ) : projectView === 'decisions' ? (
             <ProjectDecisionsPanel projectSlug={project.projectSlug} onOpenNote={onOpenNote} />
           ) : projectView === 'dependencies' ? (
             <ProjectDependenciesPanel projectSlug={project.projectSlug} projectId={project.id || ''} />

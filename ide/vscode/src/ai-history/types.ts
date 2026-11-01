@@ -47,6 +47,14 @@ export interface AiTokenUsage {
   byModel?: ModelUsageDetail[];
 }
 
+export interface AiSessionGitActivity {
+  cwd?: string;
+  branch?: string;
+  headSha?: string;
+  createdCommitShas?: string[];
+  touchedFiles?: string[];
+}
+
 export interface AiSession {
   providerId: AiProviderId;
   sessionId: string;
@@ -57,6 +65,7 @@ export interface AiSession {
   projectSlug?: string;
   attachments?: AiSessionAttachment[];
   tokenUsage?: AiTokenUsage;
+  gitActivity?: AiSessionGitActivity;
 }
 
 export interface AiHistoryProvider {

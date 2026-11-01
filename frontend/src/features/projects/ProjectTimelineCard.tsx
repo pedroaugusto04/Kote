@@ -79,6 +79,28 @@ export function ProjectTimelineCard({
           <span className="meta meta-date">{formatUsDate(item.date)}</span>
           <span className="meta meta-time"> {formatTimeInUserTimeZone(item.date)}</span>
           <span className="meta meta-project">{projectName(dashboard.projects, item.project)}</span>
+          {item.linkedCommits && item.linkedCommits.length > 0 && (
+            <span
+              className="decision-file-chip timeline-commit-pill"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: '11px',
+                padding: '1px 6px',
+              }}
+              title={item.linkedCommits.map((c) => `${c.shortSha}: ${c.message}`).join('\n')}
+            >
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '0.75rem', height: '0.75rem' }} aria-hidden="true">
+                <circle cx="8" cy="8" r="2.3" />
+                <line x1="1.5" y1="8" x2="5.7" y2="8" />
+                <line x1="10.3" y1="8" x2="14.5" y2="8" />
+              </svg>
+              {item.linkedCommits[0].shortSha}
+              {item.linkedCommits.length > 1 ? ` +${item.linkedCommits.length - 1}` : ''}
+            </span>
+          )}
           <AttachmentIndicator count={item.attachmentCount || 0} />
           <Badge value={formatDisplayToken(item.status)} tone={item.status} />
         </div>

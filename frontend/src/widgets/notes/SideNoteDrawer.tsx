@@ -105,16 +105,7 @@ export function SideNoteDrawer({ noteId, onClose, onOpenFullPage, dashboardProje
             </div>
             {visibleTags.length ? <Tags items={visibleTags} /> : null}
             <NoteAttachments attachments={noteQuery.data.attachments} />
-            <NoteBody
-              markdown={noteQuery.data.markdown}
-              rawText={noteQuery.data.editor?.rawText || ''}
-              summary={noteQuery.data.summary}
-              title={noteQuery.data.title}
-              source={noteQuery.data.source}
-              sourceChannel={noteQuery.data.sourceChannel}
-              synthesis={noteQuery.data.synthesis}
-              aiUsage={noteQuery.data.aiUsage}
-            />
+            <NoteBody note={noteQuery.data} />
             <RelatedNotesSection noteId={noteQuery.data.id} openNote={onOpenFullPage} />
           </>
         ) : (

@@ -15,13 +15,13 @@ export function isGitLineageNote(note: Pick<NoteRecord, 'sourceChannel' | 'sourc
 }
 
 export function classifyDirectLineageMatch(
-  note: Pick<NoteRecord, 'sourceChannel' | 'source'>,
+  note: Pick<NoteRecord, 'sourceChannel' | 'source' | 'linkedCommits'>,
   relevance: SnippetRelevance,
 ): Exclude<CodeLineageCategory, 'cross-file-related'> | null {
   if (relevance.isOriginMatch) return 'origin';
   const hasContentRelevance = relevance.contentScore >= CODE_LINEAGE_RELEVANCE_THRESHOLDS.sameFileContent;
-  const hasCloseTemporalRelevance = (relevance.temporalScore ?? 0) >= 0.8 && relevance.contentScore >= 0.2;
-  if (isGitLineageNote(note) && (hasContentRelevance || hasCloseTemporalRelevance)) {
+  const hasExplicitLinkedCommits = Array.isArray(note.linkedCommits) && note.linkedCommits.length > 0;
+  if ((isGitLineageNote(note) || hasExplicitLinkedCommits) && hasContentRelevance) {
     return 'linked-commit';
   }
   if (hasContentRelevance) return 'same-file';

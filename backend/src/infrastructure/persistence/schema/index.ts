@@ -9,11 +9,13 @@ import { pgTable as pgTableV2 } from 'drizzle-orm/pg-core';
 export const noteStatusEnum = pgEnum('note_status_enum', ['active', 'pending', 'resolved', 'archived', 'sent', 'overdue']);
 export const askConfidenceEnum = pgEnum('ask_confidence_enum', ['low', 'medium', 'high']);
 export const credentialStatusEnum = pgEnum('credential_status_enum', ['connected', 'revoked']);
+export const noteCommitLinkSourceEnum = pgEnum('kb_note_commit_link_source_enum', ['ai_terminal', 'session_files', 'github_push', 'manual', 'working_tree']);
 
 // Enum value types for type-safe inserts and updates
 export type NoteStatus = typeof noteStatusEnum.enumValues[number];
 export type AskConfidence = typeof askConfidenceEnum.enumValues[number];
 export type CredentialStatus = typeof credentialStatusEnum.enumValues[number];
+export type NoteCommitLinkSource = typeof noteCommitLinkSourceEnum.enumValues[number];
 
 // Users
 export const users = pgTable('kb_users', {
@@ -134,7 +136,7 @@ export const notes = pgTable('kb_notes', {
   title: text('title').notNull(),
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
   workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
-  folderId: uuid('folder_id'),
+  folderId: uuid('folder_id').references(() => projectFolders.id, { onDelete: 'set null' }),
   status: noteStatusEnum('status').notNull().default('active'),
   tags: jsonb('tags').notNull().default('[]'),
   occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
@@ -154,6 +156,7 @@ export const notes = pgTable('kb_notes', {
   userProjectIdx: index('kb_notes_user_project_idx').on(table.userId, table.projectId),
   userWorkspaceIdx: index('kb_notes_user_workspace_idx').on(table.userId, table.workspaceId),
   userProjectFolderIdx: index('kb_notes_user_project_folder_idx').on(table.userId, table.projectId, table.folderId),
+  folderIdIdx: index('kb_notes_folder_id_idx').on(table.folderId),
   userSourceSessionIdx: index('kb_notes_user_source_session_idx').on(table.userId, table.source, table.sessionId),
   reminderAtIdx: index('kb_notes_reminder_at_idx').on(table.reminderAt),
 }));
@@ -473,6 +476,7 @@ export const notesRelations = relations(notes, ({ one, many }) => ({
   attachments: many(attachments),
   noteLinks: many(noteLinks),
   noteCategories: many(noteCategories),
+  commitLinks: many(noteCommitLinks),
 }));
 
 export const categoriesRelations = relations(categories, ({ one, many }) => ({
@@ -806,13 +810,14 @@ export const dependencyWatch = pgTable('kb_dependency_watch', {
   lastAlertedAt: timestamp('last_alerted_at', { withTimezone: true }),
   lastUrgency: dependencyUrgencyEnum('last_urgency'),
   enabled: boolean('enabled').notNull().default(true),
-  repositoryId: uuid('repository_id'),
+  repositoryId: uuid('repository_id').references(() => repositories.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userWorkspaceIdx: index('kb_dependency_watch_user_workspace_idx').on(table.userId, table.workspaceId),
   ecosystemPackageIdx: uniqueIndex('kb_dependency_watch_ecosystem_package_idx').on(table.userId, table.workspaceId, table.ecosystem, table.packageName),
   lastCheckedIdx: index('kb_dependency_watch_last_checked_idx').on(table.lastCheckedAt),
+  repositoryIdx: index('kb_dependency_watch_repository_id_idx').on(table.repositoryId),
 }));
 
 export const dependencyMonitoredRepositories = pgTable('kb_dependency_monitored_repositories', {
@@ -837,5 +842,74 @@ export const projectMapClusters = pgTable('kb_project_map_clusters', {
 }, (table) => ({
   userWorkspaceProjectUniqueIdx: uniqueIndex('kb_project_map_clusters_user_workspace_project_idx').on(table.userId, table.workspaceId, table.projectId),
 }));
+
+export const gitCommits = pgTable('kb_git_commits', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  repositoryFullName: text('repository_full_name').notNull().default(''),
+  commitSha: text('commit_sha').notNull(),
+  parentSha: text('parent_sha').notNull().default(''),
+  branch: text('branch').notNull().default(''),
+  message: text('message').notNull().default(''),
+  authorName: text('author_name').notNull().default(''),
+  authorEmail: text('author_email').notNull().default(''),
+  committedAt: timestamp('committed_at', { withTimezone: true }).notNull().defaultNow(),
+  commitUrl: text('commit_url').notNull().default(''),
+  changedFiles: jsonb('changed_files').notNull().default('[]'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  userProjectCommitUniqueIdx: uniqueIndex('kb_git_commits_user_project_sha_uidx').on(table.userId, table.projectId, table.commitSha),
+  userProjectCommittedAtIdx: index('kb_git_commits_user_project_committed_at_idx').on(table.userId, table.projectId, table.committedAt),
+  userCommitShaIdx: index('kb_git_commits_user_sha_idx').on(table.userId, table.commitSha),
+}));
+
+export const noteCommitLinks = pgTable('kb_note_commit_links', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  noteId: uuid('note_id').notNull().references(() => notes.id, { onDelete: 'cascade' }),
+  commitId: uuid('commit_id').notNull().references(() => gitCommits.id, { onDelete: 'cascade' }),
+  linkSource: noteCommitLinkSourceEnum('link_source').notNull().default('manual'),
+  matchedFiles: jsonb('matched_files').notNull().default('[]'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  noteCommitUniqueIdx: uniqueIndex('kb_note_commit_links_note_commit_uidx').on(table.noteId, table.commitId),
+  userNoteIdx: index('kb_note_commit_links_user_note_idx').on(table.userId, table.noteId),
+  userCommitIdx: index('kb_note_commit_links_user_commit_idx').on(table.userId, table.commitId),
+}));
+
+export const gitCommitsRelations = relations(gitCommits, ({ one, many }) => ({
+  user: one(users, {
+    fields: [gitCommits.userId],
+    references: [users.id],
+  }),
+  project: one(projects, {
+    fields: [gitCommits.projectId],
+    references: [projects.id],
+  }),
+  workspace: one(workspaces, {
+    fields: [gitCommits.workspaceId],
+    references: [workspaces.id],
+  }),
+  noteLinks: many(noteCommitLinks),
+}));
+
+export const noteCommitLinksRelations = relations(noteCommitLinks, ({ one }) => ({
+  user: one(users, {
+    fields: [noteCommitLinks.userId],
+    references: [users.id],
+  }),
+  note: one(notes, {
+    fields: [noteCommitLinks.noteId],
+    references: [notes.id],
+  }),
+  commit: one(gitCommits, {
+    fields: [noteCommitLinks.commitId],
+    references: [gitCommits.id],
+  }),
+}));
+
 
 

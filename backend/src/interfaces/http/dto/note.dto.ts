@@ -88,6 +88,17 @@ export const noteAttachmentContentParamSchema = z.object({
   attachmentId: z.string().trim().min(1),
 });
 
+export const linkNoteCommitBodySchema = z.object({
+  commitId: z.string().trim().min(1),
+});
+export type LinkNoteCommitBody = z.infer<typeof linkNoteCommitBodySchema>;
+
+export const noteCommitParamSchema = z.object({
+  id: z.string().trim().min(1),
+  commitId: z.string().trim().min(1),
+});
+export type NoteCommitParam = z.infer<typeof noteCommitParamSchema>;
+
 export const updateNoteBodySchema = z
   .object({
     ...commonNoteFields,

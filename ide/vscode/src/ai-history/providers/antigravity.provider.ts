@@ -19,6 +19,7 @@ import type { AiHistoryProvider, AiSession, AiSessionAttachment, AiTurn, AiToken
 import {
   asRecord,
   buildSessionTitle,
+  extractGitActivityFromRecords,
   FileSessionCache,
   keepFinalAssistantTurns,
   latestRecordTimestamp,
@@ -475,6 +476,7 @@ function parseSession(sessionDir: string, sessionId: string): AiSession | null {
         projectSlug: workspace ? resolveProjectSlugFromDir(workspace) : undefined,
         attachments: loadAttachments(sessionDir),
         tokenUsage,
+        gitActivity: extractGitActivityFromRecords(records, workspace),
       };
     } catch {
       return null;

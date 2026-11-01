@@ -19,6 +19,7 @@ import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage, ModelUsageDeta
 import {
   asRecord,
   buildSessionTitle,
+  extractGitActivityFromRecords,
   extractTextContent,
   FileSessionCache,
   keepFinalAssistantTurns,
@@ -185,6 +186,7 @@ function parseFile(filePath: string): AiSession | null {
         timestampIsInternal: internalTimestamp !== null,
         projectSlug: resolveProjectSlug(filePath),
         tokenUsage: extractClaudeTokenUsage(records),
+        gitActivity: extractGitActivityFromRecords(records),
       };
     } catch {
       return null;

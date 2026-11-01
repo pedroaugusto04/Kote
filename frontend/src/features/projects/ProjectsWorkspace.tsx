@@ -48,6 +48,7 @@ import {
 import { ProjectTimeline } from './ProjectTimeline';
 import { ProjectTimelineCard } from './ProjectTimelineCard';
 import { ProjectDecisionsPanel } from './ProjectDecisionsPanel';
+import { ProjectCommitsPanel } from './ProjectCommitsPanel';
 import { SideNoteDrawer } from '../../widgets/notes/SideNoteDrawer';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import { DownloadIcon, SearchIcon } from '../../shared/ui/icons';
@@ -452,6 +453,15 @@ export function ProjectsWorkspace({
                   Timeline
                 </button>
                 <button
+                  aria-selected={projectView === 'commits'}
+                  className={projectView === 'commits' ? 'filter-chip active' : 'filter-chip'}
+                  role="tab"
+                  type="button"
+                  onClick={() => setProjectView('commits')}
+                >
+                  Commits
+                </button>
+                <button
                   aria-selected={projectView === 'decisions'}
                   className={projectView === 'decisions' ? 'filter-chip active' : 'filter-chip'}
                   role="tab"
@@ -461,7 +471,9 @@ export function ProjectsWorkspace({
                   Decisions
                 </button>
               </div>
-              {projectView === 'decisions' ? (
+              {projectView === 'commits' ? (
+                <ProjectCommitsPanel projectSlug="all" onOpenNote={handleOpenNote} />
+              ) : projectView === 'decisions' ? (
                 <ProjectDecisionsPanel projectSlug="all" onOpenNote={handleOpenNote} />
               ) : (
                 <ProjectTimeline

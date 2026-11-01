@@ -28,5 +28,6 @@ export function noteSummary(record: NoteRecord): VaultNoteSummary {
     isPinned: record.isPinned,
     ftsRank: record.ftsRank,
     aiUsage: isNoteAiUsage(record.metadata?.aiUsage) ? record.metadata.aiUsage : undefined,
+    ...(record.linkedCommits && record.linkedCommits.length > 0 ? { linkedCommits: record.linkedCommits } : {}),
   };
 }

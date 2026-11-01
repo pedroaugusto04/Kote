@@ -21,6 +21,7 @@ import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage, ModelUsageDeta
 import {
   asRecord,
   buildSessionTitle,
+  extractGitActivityFromRecords,
   FileSessionCache,
   latestRecordTimestamp,
   latestTreeMtime,
@@ -361,6 +362,7 @@ function parseFile(filePath: string): AiSession | null {
         timestampIsInternal: internalTimestamp !== null,
         projectSlug: cwd ? resolveProjectSlugFromDir(cwd) : undefined,
         tokenUsage: extractCodexTokenUsage(records),
+        gitActivity: extractGitActivityFromRecords(records, cwd || undefined),
       };
     } catch {
       return null;

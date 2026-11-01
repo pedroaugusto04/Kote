@@ -1,4 +1,5 @@
 import type { CredentialRecordStatus, WebhookEventStatus } from '../../contracts/enums.js';
+import type { LinkedCommitSummary } from './git-commits.models.js';
 
 export type { WebhookEventStatus };
 
@@ -163,6 +164,7 @@ export type NoteRecord = {
   isPinned?: boolean;
   sizeBytes?: number;
   ftsRank?: number;
+  linkedCommits?: LinkedCommitSummary[];
   createdAt?: string;
   updatedAt?: string;
 };

@@ -642,5 +642,38 @@ export class KbClient {
       signal: options?.signal,
     });
   }
+
+  async syncProjectCommits(
+    projectSlug: string,
+    commits: Array<{
+      commitSha: string;
+      shortSha?: string;
+      message: string;
+      authorName: string;
+      authorEmail?: string;
+      committedAt: string;
+      branch?: string | null;
+      parentShas?: string[];
+      changedFiles: string[];
+      htmlUrl?: string | null;
+      candidateSessionLinks?: Array<{
+        source?: string;
+        sessionId?: string;
+        linkSource?: 'ai_terminal' | 'session_files';
+        confidence?: number;
+        matchedFiles?: string[];
+      }>;
+    }>,
+  ): Promise<{ ok: boolean; syncedCount: number; linkedCount: number }> {
+    const ws = this.config.workspaceSlug || 'default';
+    const params = new URLSearchParams({ workspaceSlug: ws });
+    return this.fetch<{ ok: boolean; syncedCount: number; linkedCount: number }>(
+      `/api/projects/${encodeURIComponent(projectSlug)}/commits/sync?${params.toString()}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ commits }),
+      },
+    );
+  }
 }
 

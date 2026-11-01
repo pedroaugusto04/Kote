@@ -1,6 +1,7 @@
 import type { PaginationMeta } from './pagination';
 import type { NoteStatus } from './note-status';
 import type { CategoryRecord } from './category';
+import type { LinkedCommitSummary } from './project-commits';
 
 export type QueryResponse = {
   ok: boolean;
@@ -25,5 +26,6 @@ export type QueryResponse = {
     snippet: string;
     attachmentCount?: number;
     isPinned?: boolean;
+    linkedCommits?: LinkedCommitSummary[];
   }>;
 };

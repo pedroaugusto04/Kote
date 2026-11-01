@@ -1,6 +1,8 @@
 import type { CategoryRecord } from './repository-records.models.js';
 import type { CodeLineageCategory } from './code-lineage.models.js';
 import type { NoteSynthesisRecord } from './note-synthesis.models.js';
+import type { LinkedCommitSummary } from './git-commits.models.js';
+import type { NoteAiUsage } from '../../domain/ai-usage.js';
 
 export type VaultNoteSummary = {
   id: string;
@@ -25,7 +27,8 @@ export type VaultNoteSummary = {
   relevanceScore?: number;
   semanticSimilarity?: number;
   lineageCategory?: CodeLineageCategory;
-  aiUsage?: import('../../domain/ai-usage.js').NoteAiUsage;
+  aiUsage?: NoteAiUsage;
+  linkedCommits?: LinkedCommitSummary[];
 };
 
 export type VaultNoteAttachment = {

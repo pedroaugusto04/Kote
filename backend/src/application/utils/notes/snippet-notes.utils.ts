@@ -1,25 +1,8 @@
 import type { NoteRecord } from '../../models/repository-records.models.js';
 import type { GitCommitContext, SnippetRelevance } from '../../dto/snippet-notes.dto.js';
 
-export const TEMPORAL_WINDOWS_HOURS = {
-  DIRECT_MATCH: 12,
-  CLOSE_MATCH: 48,
-  WEEK_MATCH: 168,
-  MONTH_MATCH: 720,
-} as const;
-
-export const RELEVANCE_WEIGHTS = {
-  TEMPORAL: 0.2,
-  CONTENT: 0.8,
-} as const;
-
 export const RELEVANCE_REASONS = {
   DIRECT_COMMIT_HASH_MATCH: 'Direct commit hash match',
-  SAME_DAY_COMMIT: 'Same day as commit (within 12h)',
-  DIRECT_COMMIT_MATCH: 'Direct commit timeframe match (±12h)',
-  CLOSE_TO_COMMIT: 'Close to commit date (±2 days)',
-  SAME_WEEK_COMMIT: 'Same week as commit',
-  SAME_MONTH_COMMIT: 'Same month as commit',
   HIGH_CODE_KEYWORD_MATCH: 'High code keyword similarity',
   MENTIONED_IN_DISCUSSION: 'Mentioned in note discussion',
   FILE_CONTEXT: 'File context discussion',
@@ -61,42 +44,6 @@ export function extractCodeTokens(text?: string): string[] {
 }
 
 /**
- * Calculates temporal proximity score between a note and a git commit.
- */
-export function calculateTemporalProximity(
-  noteDateStr?: string,
-  commitDateStr?: string,
-): { score: number | null; isOriginMatch: boolean; reason?: string } {
-  if (!commitDateStr) {
-    return { score: null, isOriginMatch: false };
-  }
-
-  const commitTime = new Date(commitDateStr).getTime();
-  const noteTime = noteDateStr ? new Date(noteDateStr).getTime() : NaN;
-
-  if (isNaN(commitTime) || isNaN(noteTime)) {
-    return { score: null, isOriginMatch: false };
-  }
-
-  const diffHours = Math.abs(commitTime - noteTime) / (1000 * 60 * 60);
-
-  if (diffHours <= TEMPORAL_WINDOWS_HOURS.DIRECT_MATCH) {
-    return { score: 1.0, isOriginMatch: false, reason: RELEVANCE_REASONS.SAME_DAY_COMMIT };
-  }
-  if (diffHours <= TEMPORAL_WINDOWS_HOURS.CLOSE_MATCH) {
-    return { score: 0.8, isOriginMatch: false, reason: RELEVANCE_REASONS.CLOSE_TO_COMMIT };
-  }
-  if (diffHours <= TEMPORAL_WINDOWS_HOURS.WEEK_MATCH) {
-    return { score: 0.5, isOriginMatch: false, reason: RELEVANCE_REASONS.SAME_WEEK_COMMIT };
-  }
-  if (diffHours <= TEMPORAL_WINDOWS_HOURS.MONTH_MATCH) {
-    return { score: 0.2, isOriginMatch: false, reason: RELEVANCE_REASONS.SAME_MONTH_COMMIT };
-  }
-
-  return { score: 0.05, isOriginMatch: false };
-}
-
-/**
  * Calculates content token overlap similarity score.
  */
 export function calculateContentSimilarity(
@@ -133,8 +80,35 @@ export function calculateContentSimilarity(
   return { score: 0.1 };
 }
 
+function extractNoteCommitShas(note: NoteRecord): string[] {
+  const shas = new Set<string>();
+  const meta = (note.metadata || {}) as Record<string, unknown>;
+
+  for (const field of [meta.commitHash, meta.commit, meta.headSha]) {
+    const val = String(field || '').trim().toLowerCase();
+    if (val && !val.startsWith('00000000')) shas.add(val);
+  }
+
+  const gitActivity = meta.gitActivity as Record<string, unknown> | undefined;
+  if (Array.isArray(gitActivity?.createdCommitShas)) {
+    for (const sha of gitActivity.createdCommitShas) {
+      const val = String(sha || '').trim().toLowerCase();
+      if (val && !val.startsWith('00000000')) shas.add(val);
+    }
+  }
+
+  if (Array.isArray(note.linkedCommits)) {
+    for (const commit of note.linkedCommits) {
+      const val = String(commit?.commitSha || '').trim().toLowerCase();
+      if (val && !val.startsWith('00000000')) shas.add(val);
+    }
+  }
+
+  return Array.from(shas);
+}
+
 /**
- * Combines temporal proximity and snippet tokens into a unified relevance record.
+ * Computes deterministic commit origin match and snippet token overlap relevance.
  */
 export function computeSnippetRelevance(
   note: NoteRecord,
@@ -147,32 +121,24 @@ export function computeSnippetRelevance(
   ].map((hash) => String(hash || '').trim().toLowerCase()).filter((hash) => (
     hash && !hash.startsWith('00000000')
   )));
-  const noteCommit = String(
-    (note.metadata as Record<string, unknown> | undefined)?.commitHash ||
-    (note.metadata as Record<string, unknown> | undefined)?.commit ||
-    (note.metadata as Record<string, unknown> | undefined)?.headSha ||
-    ''
-  ).trim().toLowerCase();
+
+  const noteCommits = extractNoteCommitShas(note);
 
   if (
     targetCommits.size > 0 &&
-    noteCommit &&
-    Array.from(targetCommits).some((hash) => noteCommit.startsWith(hash) || hash.startsWith(noteCommit))
+    noteCommits.length > 0 &&
+    Array.from(targetCommits).some((target) => (
+      noteCommits.some((noteCommit) => noteCommit.startsWith(target) || target.startsWith(noteCommit))
+    ))
   ) {
     return {
       category: 'origin',
       score: 1.0,
       contentScore: 1.0,
-      temporalScore: 1.0,
       isOriginMatch: true,
       reason: RELEVANCE_REASONS.DIRECT_COMMIT_HASH_MATCH,
     };
   }
-
-  const temporal = calculateTemporalProximity(
-    note.occurredAt || note.createdAt,
-    commitContext?.commitDate,
-  );
 
   const rawTextMeta = typeof note.metadata?.rawText === 'string' ? note.metadata.rawText : '';
   const searchableText = [
@@ -184,22 +150,13 @@ export function computeSnippetRelevance(
   ].filter(Boolean).join(' ');
 
   const content = calculateContentSimilarity(searchableText, queryTokens);
-
-  let finalScore: number;
-  if (temporal.score !== null) {
-    finalScore = (RELEVANCE_WEIGHTS.TEMPORAL * temporal.score) + (RELEVANCE_WEIGHTS.CONTENT * content.score);
-  } else {
-    finalScore = content.score;
-  }
-
-  const reason = temporal.reason || content.reason || RELEVANCE_REASONS.FILE_CONTEXT;
+  const reason = content.reason || RELEVANCE_REASONS.FILE_CONTEXT;
 
   return {
     category: 'same-file',
-    score: Number(finalScore.toFixed(3)),
+    score: Number(content.score.toFixed(3)),
     contentScore: content.score,
-    temporalScore: temporal.score ?? undefined,
-    isOriginMatch: temporal.isOriginMatch,
+    isOriginMatch: false,
     reason,
   };
 }

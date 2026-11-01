@@ -305,17 +305,10 @@ export function VaultPage({
               />
             ) : (
               <NoteBody
-                markdown={noteQuery.data.markdown}
-                rawText={noteQuery.data.editor?.rawText || ''}
-                summary={noteQuery.data.summary}
-                title={noteQuery.data.title}
-                source={noteQuery.data.source}
-                sourceChannel={noteQuery.data.sourceChannel}
-                synthesis={noteQuery.data.synthesis}
+                note={noteQuery.data}
                 onRequestSynthesis={() => requestSynthesisMutation.mutate()}
                 isRequestingSynthesis={requestSynthesisMutation.isPending}
                 isSynthesisManuallyRequested={manuallyRequestedSynthesisHash === noteQuery.data.synthesis?.sourceHash}
-                aiUsage={noteQuery.data.aiUsage}
               />
             )}
             <RelatedNotesSection noteId={noteQuery.data.id} openNote={openNote} />

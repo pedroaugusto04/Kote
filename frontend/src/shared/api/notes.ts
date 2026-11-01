@@ -1,5 +1,6 @@
 import type { NoteDetail, NoteSummary } from './models/note';
 import type { NoteStatusFilter, QuickNoteStatus } from './models/note-status';
+import type { LinkedCommitSummary } from './models/project-commits';
 import { DEFAULT_PAGE_SIZE, type PaginatedResponse } from './models/pagination';
 import { request, requestText } from './request';
 import { API_PATHS, buildApiPath } from './api-paths.constants';
@@ -148,5 +149,19 @@ export function setAutoActionGlobal(input: { enabled: boolean; action: 'none' | 
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(input),
+  });
+}
+
+export function linkNoteCommit(noteId: string, commitId: string) {
+  return request<{ ok: true; commit: LinkedCommitSummary }>(buildApiPath(API_PATHS.NOTE_COMMITS, { id: noteId }), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ commitId }),
+  });
+}
+
+export function unlinkNoteCommit(noteId: string, commitId: string) {
+  return request<{ ok: true; removed: boolean }>(buildApiPath(API_PATHS.NOTE_COMMIT_DETAIL, { id: noteId, commitId }), {
+    method: 'DELETE',
   });
 }

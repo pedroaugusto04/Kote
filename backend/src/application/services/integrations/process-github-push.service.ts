@@ -19,6 +19,8 @@ import { AppLogger } from '../../../observability/logger.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import type { GithubPushPayload } from '../../utils/github/github-audit.utils.js';
 import { SyncProjectFilesService } from '../projects/sync-project-files.service.js';
+import { GitCommitRepository } from '../../ports/projects/git-commit.repository.js';
+import type { SyncGitCommitInput } from '../../models/git-commits.models.js';
 
 export type ProcessGithubPushInput = {
   body: GithubPushPayload;
@@ -46,6 +48,7 @@ export class ProcessGithubPushService {
     @Optional() private readonly credentials?: CredentialRepository,
     @Optional() private readonly whatsappReplySender?: WhatsappReplySender,
     @Optional() private readonly notifyHighSeverity?: NotifyHighSeverityFindingsService,
+    @Optional() private readonly gitCommitRepository?: GitCommitRepository,
   ) {}
 
   async execute(input: ProcessGithubPushInput) {
@@ -121,6 +124,10 @@ export class ProcessGithubPushService {
 
     const ingestResult = await this.ingestEntryUseCase.execute(resolvedPayload, input.userId, input.workspaceSlug);
 
+    if (this.gitCommitRepository) {
+      await this.syncPushCommitsToRepository(input, body, ingestResult.noteId);
+    }
+
     this.logger.info('github_push_review_ingested', {
       repository: repoFullName,
       projectSlug: input.projectSlug,
@@ -185,6 +192,85 @@ export class ProcessGithubPushService {
         tags: [...new Set(['code-review', ...payload.classification.tags.filter((tag) => tag !== payload.event.projectSlug)])],
       },
     };
+  }
+
+  private async syncPushCommitsToRepository(
+    input: ProcessGithubPushInput,
+    body: GithubPushPayload,
+    noteId?: string,
+  ): Promise<void> {
+    if (!this.gitCommitRepository || !input.projectSlug) return;
+    try {
+      const project = await this.contentRepository.getProjectBySlug(input.userId, input.projectSlug);
+      if (!project || !project.workspaceId) return;
+
+      const branch = String(body.ref || '').replace(/^refs\/heads\//, '') || null;
+      const authorName = String(body.pusher?.name || body.sender?.login || '');
+      const headSha = String(body.after || body.head_commit?.id || '').trim().toLowerCase();
+      const rawCommits = Array.isArray(body.commits) ? body.commits : [];
+
+      const commitsBySha = new Map<string, SyncGitCommitInput>();
+      for (const c of rawCommits) {
+        const sha = String(c.id || '').trim().toLowerCase();
+        if (!sha) continue;
+        const files = [
+          ...(Array.isArray(c.added) ? c.added : []),
+          ...(Array.isArray(c.modified) ? c.modified : []),
+          ...(Array.isArray(c.removed) ? c.removed : []),
+        ];
+        commitsBySha.set(sha, {
+          commitSha: sha,
+          shortSha: sha.slice(0, 7),
+          message: String(c.message || '').split('\n')[0] || '',
+          authorName,
+          committedAt: body.head_commit?.timestamp || new Date().toISOString(),
+          branch,
+          changedFiles: files,
+          htmlUrl: sha === headSha && body.head_commit?.url ? String(body.head_commit.url) : null,
+          ...(noteId ? {
+            candidateSessionLinks: [{
+              noteId,
+              linkSource: 'github_push' as const,
+              confidence: 100,
+              matchedFiles: files,
+            }],
+          } : {}),
+        });
+      }
+
+      if (headSha && !commitsBySha.has(headSha)) {
+        commitsBySha.set(headSha, {
+          commitSha: headSha,
+          shortSha: headSha.slice(0, 7),
+          message: String(body.head_commit?.message || '').split('\n')[0] || '',
+          authorName,
+          committedAt: body.head_commit?.timestamp || new Date().toISOString(),
+          branch,
+          changedFiles: [],
+          htmlUrl: body.head_commit?.url ? String(body.head_commit.url) : null,
+          ...(noteId ? {
+            candidateSessionLinks: [{
+              noteId,
+              linkSource: 'github_push' as const,
+              confidence: 100,
+            }],
+          } : {}),
+        });
+      }
+
+      if (commitsBySha.size > 0) {
+        await this.gitCommitRepository.upsertCommitsAndReconcile(
+          input.userId,
+          { workspaceId: project.workspaceId, projectId: project.id },
+          [...commitsBySha.values()],
+        );
+      }
+    } catch (error) {
+      this.logger.warn('github_push_commits_sync_failed', {
+        projectSlug: input.projectSlug,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   private async notifyWhatsappOnHighSeverityFindings(

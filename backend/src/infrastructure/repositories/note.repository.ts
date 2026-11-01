@@ -68,6 +68,29 @@ export const NOTE_BASE_SELECT_FIELDS = {
     ) FILTER (WHERE ${categories.id} IS NOT NULL),
     '[]'::json
   )`.as('categories'),
+  linkedCommits: sql<unknown[]>`COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'id', gc.id,
+          'commit_sha', gc.commit_sha,
+          'short_sha', left(gc.commit_sha, 7),
+          'message', gc.message,
+          'author_name', gc.author_name,
+          'committed_at', gc.committed_at,
+          'branch', nullif(gc.branch, ''),
+          'html_url', nullif(gc.commit_url, ''),
+          'link_source', ncl.link_source,
+          'matched_files', ncl.matched_files
+        )
+        ORDER BY gc.committed_at DESC
+      )
+      FROM kb_note_commit_links ncl
+      JOIN kb_git_commits gc ON gc.id = ncl.commit_id
+      WHERE ncl.note_id = ${notes.id} AND ncl.user_id = ${notes.userId}
+    ),
+    '[]'::json
+  )`.as('linked_commits'),
 };
 
 export const NOTE_FULL_SELECT_FIELDS = {
@@ -77,6 +100,7 @@ export const NOTE_FULL_SELECT_FIELDS = {
 
 import {
   RAW_CATEGORIES_JSON_AGG_SQL,
+  RAW_LINKED_COMMITS_JSON_AGG_SQL,
   projectTimelineItem,
   appendTimelineFolderClause,
   appendTimelineCategoryClause,
@@ -345,7 +369,8 @@ export class PostgresNoteRepository {
 
     const result = await this.database.getPool().query(
       `select n.*, count(distinct a.id)::int as attachment_count,
-              ${RAW_CATEGORIES_JSON_AGG_SQL}
+              ${RAW_CATEGORIES_JSON_AGG_SQL},
+              ${RAW_LINKED_COMMITS_JSON_AGG_SQL}
        from kb_notes n
        ${joinSql}
        left join kb_attachments a on a.user_id = n.user_id and a.note_id = n.id

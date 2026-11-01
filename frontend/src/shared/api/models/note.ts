@@ -1,5 +1,6 @@
 import type { CategoryRecord } from './category';
 import type { NoteStatus } from './note-status';
+import type { LinkedCommitSummary } from './project-commits';
 
 export const NOTE_SYNTHESIS_STATUS = {
   PENDING: 'pending',
@@ -29,6 +30,7 @@ export type NoteSummary = {
   attachmentCount: number;
   isOverdue?: boolean;
   isPinned?: boolean;
+  linkedCommits?: LinkedCommitSummary[];
   aiUsage?: {
     provider: string;
     model: string;

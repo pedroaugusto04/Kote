@@ -21,6 +21,30 @@ export const RAW_CATEGORIES_JSON_AGG_SQL = `coalesce(
   '[]'::json
 ) as categories`;
 
+export const RAW_LINKED_COMMITS_JSON_AGG_SQL = `coalesce(
+  (
+    select json_agg(
+      json_build_object(
+        'id', gc.id,
+        'commit_sha', gc.commit_sha,
+        'short_sha', left(gc.commit_sha, 7),
+        'message', gc.message,
+        'author_name', gc.author_name,
+        'committed_at', gc.committed_at,
+        'branch', nullif(gc.branch, ''),
+        'html_url', nullif(gc.commit_url, ''),
+        'link_source', ncl.link_source,
+        'matched_files', ncl.matched_files
+      )
+      order by gc.committed_at desc
+    )
+    from kb_note_commit_links ncl
+    join kb_git_commits gc on gc.id = ncl.commit_id
+    where ncl.note_id = n.id and ncl.user_id = n.user_id
+  ),
+  '[]'::json
+) as linked_commits`;
+
 export function projectTimelineItem(record: NoteRecord) {
   const summary = noteSummary(record);
   return {

@@ -51,4 +51,27 @@ test('direct lineage categories are decided in the backend', () => {
     ),
     null,
   );
+  assert.equal(
+    classifyDirectLineageMatch(
+      {
+        sourceChannel: 'ai-chat',
+        source: 'claude-code',
+        linkedCommits: [{
+          id: 'c1',
+          commitSha: '1234567',
+          shortSha: '1234567',
+          message: 'fix',
+          authorName: 'Pedro',
+          committedAt: '2026-08-01T00:00:00Z',
+          branch: 'main',
+          htmlUrl: null,
+          linkSource: 'session_files',
+          confidence: 80,
+          matchedFiles: ['src/app.ts'],
+        }],
+      },
+      relevance({ contentScore: CODE_LINEAGE_RELEVANCE_THRESHOLDS.sameFileContent }),
+    ),
+    'linked-commit',
+  );
 });

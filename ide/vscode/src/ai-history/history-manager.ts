@@ -76,8 +76,12 @@ export class AiHistoryManager {
   }
 
   private computeSessionHash(session: AiSession): string {
-    // Create a hash based on the number of turns and their content
-    const content = session.turns.map(t => `${t.role}:${t.content}`).join('|');
+    // Create a hash based on the number of turns, their content, and git activity
+    const turnsContent = session.turns.map(t => `${t.role}:${t.content}`).join('|');
+    const gitContent = session.gitActivity
+      ? `|commits:${(session.gitActivity.createdCommitShas || []).join(',')}|files:${(session.gitActivity.touchedFiles || []).join(',')}`
+      : '';
+    const content = turnsContent + gitContent;
     let hash = 0;
     for (let i = 0; i < content.length; i++) {
       const char = content.charCodeAt(i);
@@ -829,6 +833,26 @@ export class AiHistoryManager {
     }
   }
 
+  private buildSessionNoteMetadata(session: AiSession): Record<string, unknown> | undefined {
+    const metadata: Record<string, unknown> = {};
+    if (session.tokenUsage) {
+      metadata.aiUsage = session.tokenUsage;
+    }
+    if (session.gitActivity) {
+      metadata.gitActivity = session.gitActivity;
+      if (session.gitActivity.touchedFiles && session.gitActivity.touchedFiles.length > 0) {
+        metadata.changedFiles = session.gitActivity.touchedFiles;
+      }
+      if (session.gitActivity.branch) {
+        metadata.branch = session.gitActivity.branch;
+      }
+      if (session.gitActivity.createdCommitShas && session.gitActivity.createdCommitShas.length > 0) {
+        metadata.headSha = session.gitActivity.createdCommitShas[0];
+      }
+    }
+    return Object.keys(metadata).length > 0 ? metadata : undefined;
+  }
+
   private async saveSessionToVault(client: KbClient, session: AiSession, silent: boolean = false): Promise<boolean> {
     try {
       const titleWithDate = this.getTitleWithDate(session);
@@ -843,7 +867,7 @@ export class AiHistoryManager {
         sessionId: session.sessionId,
         occurredAt: new Date(session.timestamp).toISOString(),
         attachments: session.attachments,
-        metadata: session.tokenUsage ? { aiUsage: session.tokenUsage } : undefined,
+        metadata: this.buildSessionNoteMetadata(session),
       });
 
       if (!silent) {
@@ -871,7 +895,7 @@ export class AiHistoryManager {
         sessionId: session.sessionId,
         occurredAt: new Date(session.timestamp).toISOString(),
         attachments: session.attachments,
-        metadata: session.tokenUsage ? { aiUsage: session.tokenUsage } : undefined,
+        metadata: this.buildSessionNoteMetadata(session),
       });
 
       vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);

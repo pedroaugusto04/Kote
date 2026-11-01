@@ -1,8 +1,9 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Optional, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
+import { GitCommitRepository } from '../../../../application/ports/projects/git-commit.repository.js';
 import {
   CreateProjectFolderUseCase,
   CreateProjectUseCase,
@@ -24,7 +25,7 @@ import {
 } from '../../../../application/use-cases/index.js';
 import { ListProjectDependenciesUseCase } from '../../../../application/use-cases/dependency-watcher/list-project-dependencies.use-case.js';
 import { CurrentUser } from '../../auth.decorators.js';
-import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
+import { AccessTokenAuthGuard, BrowserExtensionGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
 import {
   createProjectBodySchema,
   createProjectFolderBodySchema,
@@ -34,6 +35,8 @@ import {
   projectKnowledgeMapQuerySchema,
   projectSlugParamSchema,
   projectTimelineQuerySchema,
+  projectCommitsQuerySchema,
+  syncProjectCommitsBodySchema,
   setProjectFavoriteBodySchema,
   updateProjectBodySchema,
   updateProjectFolderBodySchema,
@@ -46,6 +49,8 @@ import {
   type ProjectKnowledgeMapQuery,
   type ProjectSlugParam,
   type ProjectTimelineQuery,
+  type ProjectCommitsQuery,
+  type SyncProjectCommitsBody,
   type SetProjectFavoriteBody,
   type UpdateProjectBody,
   type UpdateProjectFolderBody,
@@ -63,6 +68,7 @@ import {
   toListProjectKnowledgeMapInput,
   toListProjectDecisionsInput,
   toExportProjectAdrsInput,
+  toListProjectCommitsInput,
 } from '../../mappers/project.mapper.js';
 
 @ApiTags('Projects')
@@ -88,6 +94,7 @@ export class ProjectsController {
     private readonly listProjectDependenciesUseCase: ListProjectDependenciesUseCase,
     private readonly listProjectDecisionsUseCase: ListProjectDecisionsUseCase,
     private readonly exportProjectAdrsUseCase: ExportProjectAdrsUseCase,
+    @Optional() private readonly gitCommitRepository?: GitCommitRepository,
   ) { }
 
   @Post()
@@ -415,6 +422,58 @@ export class ProjectsController {
     res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
     res.setHeader('Content-Length', String(result.buffer.length));
     return res.send(result.buffer);
+  }
+
+  @Get(':projectSlug/commits')
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'required', allowAllProjects: true })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List Git commits and linked notes for a project or all projects' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug or "all"' })
+  @ApiResponse({ status: 200, description: 'Project commits retrieved successfully' })
+  async listCommits(
+    @CurrentUser() user: AuthenticatedUser,
+    @Scope() scope: WorkspaceScope,
+    @Param('projectSlug') _projectSlug: string,
+    @Query(new ZodValidationPipe(projectCommitsQuerySchema, 'invalid_project_commits_query')) query: ProjectCommitsQuery,
+  ) {
+    if (!this.gitCommitRepository) {
+      return { ok: true, commits: [], pagination: { page: query.page, pageSize: query.pageSize, total: 0, totalPages: 1 } };
+    }
+    const input = toListProjectCommitsInput(query, scope);
+    const result = await this.gitCommitRepository.listProjectCommits(user.id, input);
+    return {
+      ok: true,
+      commits: result.items,
+      pagination: result.pagination,
+    };
+  }
+
+  @Post(':projectSlug/commits/sync')
+  @UseGuards(BrowserExtensionGuard, ScopeGuard)
+  @Scoped({ project: 'required' })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Sync local Git commits and reconcile AI session note links' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiResponse({ status: 200, description: 'Project commits synced and reconciled successfully' })
+  async syncCommits(
+    @CurrentUser() user: AuthenticatedUser,
+    @Scope() scope: WorkspaceScope,
+    @Param('projectSlug') _projectSlug: string,
+    @Body(new ZodValidationPipe(syncProjectCommitsBodySchema, 'invalid_sync_project_commits_payload')) body: SyncProjectCommitsBody,
+  ) {
+    if (!this.gitCommitRepository || !scope.projectId) {
+      return { ok: true, syncedCount: 0, linkedCount: 0 };
+    }
+    const result = await this.gitCommitRepository.upsertCommitsAndReconcile(
+      user.id,
+      { workspaceId: scope.workspaceId, projectId: scope.projectId },
+      body.commits,
+    );
+    return {
+      ok: true,
+      ...result,
+    };
   }
 }
 

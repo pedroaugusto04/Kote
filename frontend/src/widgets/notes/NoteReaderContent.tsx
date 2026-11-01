@@ -11,10 +11,49 @@ import { TypewriterMarkdown } from '../markdown/TypewriterMarkdown';
 import { CDNImage } from '../../shared/ui/CDNImage';
 import { SourceBadge } from './SourceBadge';
 import { AiUsagePill } from './AiUsagePill';
+import { NoteLinkedCommitsPills } from './NoteLinkedCommitsPills';
 import { AiConversationView } from './AiConversationView';
 import { parseAiConversationTurns } from './ai-conversation';
 import { getSynthesisState, groupSynthesisMemory, NOTE_SYNTHESIS_ACTION_LABEL } from './note-synthesis.constants';
-import type { NoteSummary } from '../../shared/api/models/note';
+import type { NoteDetail, NoteSummary } from '../../shared/api/models/note';
+import type { LinkedCommitSummary } from '../../shared/api/models/project-commits';
+
+export type NoteBodyProps = {
+  note?: Pick<NoteDetail, 'id' | 'project' | 'title' | 'markdown' | 'summary' | 'source' | 'sourceChannel' | 'aiUsage' | 'linkedCommits'> & {
+    editor?: { rawText: string } | null;
+    synthesis?: {
+      status: NoteSynthesisStatus;
+      overview: string;
+      memory: Array<{ kind: string; text: string; status: string; turnRefs: number[] }>;
+      availableAt?: string | null;
+      mode?: string;
+      generatedAt?: string | null;
+      sourceHash?: string;
+    } | null;
+  };
+  markdown?: string;
+  rawText?: string;
+  summary?: string;
+  title?: string;
+  source?: string;
+  sourceChannel?: string;
+  synthesis?: {
+    status: NoteSynthesisStatus;
+    overview: string;
+    memory: Array<{ kind: string; text: string; status: string; turnRefs: number[] }>;
+    availableAt?: string | null;
+    mode?: string;
+    generatedAt?: string | null;
+    sourceHash?: string;
+  } | null;
+  onRequestSynthesis?: () => void;
+  isRequestingSynthesis?: boolean;
+  isSynthesisManuallyRequested?: boolean;
+  aiUsage?: NoteSummary['aiUsage'];
+  noteId?: string;
+  projectSlug?: string;
+  linkedCommits?: LinkedCommitSummary[];
+};
 
 type AttachmentPreviewKind = 'image' | 'audio' | 'video' | 'pdf' | 'markdown' | 'text' | 'none';
 
@@ -89,7 +128,26 @@ const TEXT_MIME_TYPES = new Set([
   'image/svg+xml',
 ]);
 
-export function NoteBody({ markdown, rawText, summary, title, source, sourceChannel, synthesis, onRequestSynthesis, isRequestingSynthesis = false, isSynthesisManuallyRequested = false, aiUsage }: { markdown: string; rawText: string; summary: string; title: string; source?: string; sourceChannel?: string; synthesis?: { status: NoteSynthesisStatus; overview: string; memory: Array<{ kind: string; text: string; status: string; turnRefs: number[] }>; availableAt?: string | null } | null; onRequestSynthesis?: () => void; isRequestingSynthesis?: boolean; isSynthesisManuallyRequested?: boolean; aiUsage?: NoteSummary['aiUsage'] }) {
+export function NoteBody(props: NoteBodyProps) {
+  const {
+    note,
+    onRequestSynthesis,
+    isRequestingSynthesis = false,
+    isSynthesisManuallyRequested = false,
+  } = props;
+
+  const markdown = props.markdown ?? note?.markdown ?? '';
+  const rawText = props.rawText ?? note?.editor?.rawText ?? '';
+  const summary = props.summary ?? note?.summary ?? '';
+  const title = props.title ?? note?.title ?? '';
+  const source = props.source ?? note?.source;
+  const sourceChannel = props.sourceChannel ?? note?.sourceChannel;
+  const synthesis = props.synthesis !== undefined ? props.synthesis : note?.synthesis;
+  const aiUsage = props.aiUsage ?? note?.aiUsage;
+  const noteId = props.noteId ?? note?.id;
+  const projectSlug = props.projectSlug ?? note?.project;
+  const linkedCommits = props.linkedCommits ?? note?.linkedCommits;
+
   const extraMarkdown = readerExtraSections(markdown, title);
   const hasExtra = Boolean(extraMarkdown);
   const cleanedRawText = stripSourceHeader(rawText).replace(/^---\n((?:(?!\n#{1,3}\s)[\s\S])*?)\n---\n?/, '');
@@ -106,6 +164,7 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
   const synthesisState = getSynthesisState(synthesis?.status, isSynthesisManuallyRequested, synthesis?.availableAt);
   const canCollapseTranscript = isAiConversation && aiTurns.length >= COLLAPSIBLE_TRANSCRIPT_MIN_TURNS;
   const synthesisGroups = groupSynthesisMemory(synthesis?.memory || []);
+  const hasCommitControls = Boolean((linkedCommits && linkedCommits.length > 0) || (noteId && projectSlug && projectSlug !== 'inbox'));
 
   // For dependency watcher notes, rawText already contains the full formatted content
   // Avoid rendering extra sections
@@ -113,10 +172,17 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
 
   return (
     <div className="note-body">
-      {(activeSource || aiUsage) && (
+      {(activeSource || aiUsage || hasCommitControls) && (
         <div className="note-body-meta" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {activeSource && <SourceBadge source={activeSource} />}
           {aiUsage && <AiUsagePill usage={aiUsage} source={activeSource || source} />}
+          {hasCommitControls && (
+            <NoteLinkedCommitsPills
+              noteId={noteId}
+              projectSlug={projectSlug}
+              linkedCommits={linkedCommits}
+            />
+          )}
         </div>
       )}
       {synthesizedOverview ? (

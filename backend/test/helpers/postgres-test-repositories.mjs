@@ -21,6 +21,7 @@ import { PostgresWorkspaceRepository } from '../../dist/infrastructure/repositor
 import { PostgresProjectRepository } from '../../dist/infrastructure/repositories/project.repository.js';
 import { PostgresNoteRepository } from '../../dist/infrastructure/repositories/note.repository.js';
 import { PostgresNoteContextRepository } from '../../dist/infrastructure/repositories/note-context.repository.js';
+import { PostgresGitCommitRepository } from '../../dist/infrastructure/repositories/git-commit.repository.js';
 import { PostgresFolderRepository } from '../../dist/infrastructure/repositories/folder.repository.js';
 import { PostgresAttachmentRepository } from '../../dist/infrastructure/repositories/attachment.repository.js';
 import { PostgresCategoryRepository } from '../../dist/infrastructure/repositories/category.repository.js';
@@ -243,6 +244,7 @@ export async function createPostgresTestRepositories(t) {
   const projectRepository = new PostgresProjectRepository(database);
   const noteRepository = new PostgresNoteRepository(database, contentObjectStorage);
   const noteContextRepository = new PostgresNoteContextRepository(database, contentObjectStorage);
+  const gitCommitRepository = new PostgresGitCommitRepository(database);
   const folderRepository = new PostgresFolderRepository(database);
   const attachmentRepository = new PostgresAttachmentRepository(database, contentObjectStorage);
   const categoryRepository = new PostgresCategoryRepository(database);
@@ -337,13 +339,13 @@ export async function createPostgresTestRepositories(t) {
   };
 
   const noteLifecycleService = new NoteLifecycleService(
-
     contentRepository,
     quotaService,
     embeddingQueuePublisher,
     { dispatch: async () => {} },
     { info() {}, warn() {}, error() {}, debug() {} },
     { scheduleAfterInactivity: async () => {} },
+    gitCommitRepository,
   );
 
   return {
@@ -376,6 +378,7 @@ export async function createPostgresTestRepositories(t) {
     embeddingQueuePublisher,
     noteLifecycleService,
     noteContextRepository,
+    gitCommitRepository,
     database,
   };
 }

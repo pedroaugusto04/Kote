@@ -1,5 +1,6 @@
 import type { NoteStatus } from './note-status';
 import type { CategoryRecord } from './category';
+import type { LinkedCommitSummary } from './project-commits';
 
 export const projectTimelineCategoryValues = ['all', 'whatsapp', 'github', 'manual', 'reminder', 'ai-chat', 'dependency-watcher'] as const;
 
@@ -25,4 +26,5 @@ export type ProjectTimelineItem = {
   path: string;
   attachmentCount: number;
   isPinned?: boolean;
+  linkedCommits?: LinkedCommitSummary[];
 }; 

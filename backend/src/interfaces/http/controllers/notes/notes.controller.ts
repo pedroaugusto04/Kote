@@ -1,8 +1,9 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Optional, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
+import { GitCommitRepository } from '../../../../application/ports/projects/git-commit.repository.js';
 import {
   CreateManualNoteUseCase,
   DeleteNoteUseCase,
@@ -39,6 +40,8 @@ import {
   relatedNotesByFileQuerySchema,
   notesBySnippetQuerySchema,
   notesBySnippetBodySchema,
+  linkNoteCommitBodySchema,
+  noteCommitParamSchema,
   type CreateNoteBody,
   type NoteAttachmentContentParam,
   type NoteIdParam,
@@ -51,6 +54,8 @@ import {
   type RelatedNotesByFileQuery,
   type NotesBySnippetQuery,
   type NotesBySnippetBody,
+  type LinkNoteCommitBody,
+  type NoteCommitParam,
 } from '../../dto/note.dto.js';
 import {
   sessionHandoffBodySchema,
@@ -94,6 +99,7 @@ export class NotesController {
     private readonly generateFileNotesSummaryByFileUseCase: GenerateFileNotesSummaryByFileUseCase,
     private readonly requestAiSessionSynthesis: RequestAiSessionSynthesisUseCase,
     private readonly generateSessionHandoffUseCase: GenerateSessionHandoffUseCase,
+    @Optional() private readonly gitCommitRepository?: GitCommitRepository,
   ) { }
 
   @Post()
@@ -369,5 +375,37 @@ export class NotesController {
     const note = await this.getNoteDetail.execute(user.id, params.id);
     if (!note) throw new NotFoundException('note_not_found');
     return { ok: true, note };
+  }
+
+  @Post(':id/commits')
+  @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Manually link a Git commit to a note' })
+  @ApiParam({ name: 'id', description: 'Note ID' })
+  @ApiResponse({ status: 200, description: 'Commit linked to note successfully' })
+  async linkCommit(
+    @Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: NoteIdParam,
+    @Body(new ZodValidationPipe(linkNoteCommitBodySchema, 'invalid_link_note_commit_payload')) body: LinkNoteCommitBody,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (!this.gitCommitRepository) throw new NotFoundException('commit_or_note_not_found');
+    const commit = await this.gitCommitRepository.linkNoteCommitManually(user.id, params.id, body.commitId);
+    return { ok: true, commit };
+  }
+
+  @Delete(':id/commits/:commitId')
+  @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Unlink a Git commit from a note' })
+  @ApiParam({ name: 'id', description: 'Note ID' })
+  @ApiParam({ name: 'commitId', description: 'Commit ID' })
+  @ApiResponse({ status: 200, description: 'Commit unlinked from note successfully' })
+  async unlinkCommit(
+    @Param(new ZodValidationPipe(noteCommitParamSchema, 'invalid_note_commit_id')) params: NoteCommitParam,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (!this.gitCommitRepository) return { ok: true, removed: false };
+    const removed = await this.gitCommitRepository.unlinkNoteCommit(user.id, params.id, params.commitId);
+    return { ok: true, removed };
   }
 }

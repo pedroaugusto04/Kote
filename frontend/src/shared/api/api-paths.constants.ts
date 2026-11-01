@@ -25,6 +25,7 @@ export const API_PATHS = {
   PROJECT_COVERAGE: '/api/projects/{projectSlug}/coverage',
   PROJECT_DECISIONS: '/api/projects/{projectSlug}/decisions',
   PROJECT_DECISIONS_EXPORT_ADR: '/api/projects/{projectSlug}/decisions/export-adr',
+  PROJECT_COMMITS: '/api/projects/{projectSlug}/commits',
   PROJECTS_EXPORT_ZIP: '/api/projects/export/zip',
   EXPORT_GLOBAL: '/api/export/global',
 
@@ -34,6 +35,8 @@ export const API_PATHS = {
   NOTE_PIN: '/api/notes/{id}/pin',
   NOTE_SYNTHESIS: '/api/notes/{id}/synthesis',
   NOTE_RELATED: '/api/notes/{id}/related',
+  NOTE_COMMITS: '/api/notes/{id}/commits',
+  NOTE_COMMIT_DETAIL: '/api/notes/{id}/commits/{commitId}',
   NOTES_BULK_STATUS: '/api/notes/bulk/status',
   NOTES_AUTO_GLOBAL: '/api/notes/auto/global',
 

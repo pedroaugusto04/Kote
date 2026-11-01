@@ -115,17 +115,79 @@ test('FindNotesBySnippetUseCase prioritizes selected-code overlap over commit ti
   assert.equal(result.matches[0].note.id, 'note-commit-day');
   assert.equal(result.matches[1].note.id, 'note-recent');
 
-  // A same-day note is relevant, but only a matching SHA is a direct origin.
+  // A same-day note without a linked commit is evaluated purely by content overlap (no temporal guessing).
   const commitMatch = result.matches.find((m) => m.note.id === 'note-commit-day');
   assert.equal(commitMatch.relevance.isOriginMatch, false);
   assert.equal(commitMatch.relevance.category, 'same-file');
-  assert.ok(commitMatch.relevance.score >= 0.8);
+  assert.ok(commitMatch.relevance.score >= 0.65);
 
   // note-recent should have high snippet score
   const recentNote = result.matches.find((m) => m.note.id === 'note-recent');
   assert.ok(recentNote.relevance.score > 0.1);
   assert.ok(commitMatch.relevance.contentScore > recentNote.relevance.contentScore);
-  assert.equal(typeof commitMatch.relevance.temporalScore, 'number');
+  assert.equal(commitMatch.relevance.temporalScore, undefined);
+});
+
+test('FindNotesBySnippetUseCase matches deterministic linkedCommits on a note', async () => {
+  const logger = { info: () => {}, warn: () => {} };
+
+  const mockNotes = [
+    {
+      id: 'note-linked-commit',
+      title: 'AI Session: refactor billing webhook',
+      summary: 'Refactored billing webhook handler',
+      path: 'src/services/billing.ts',
+      markdown: 'Refactored billing webhook',
+      metadata: {},
+      linkedCommits: [
+        {
+          id: 'commit-1',
+          commitSha: '9f8e7d6c5b4a32109f8e7d6c5b4a32109f8e7d6c',
+          shortSha: '9f8e7d6',
+          message: 'feat: refactor billing webhook',
+          authorName: 'Pedro',
+          committedAt: '2026-08-10T12:00:00.000Z',
+          branch: 'main',
+          htmlUrl: null,
+          linkSource: 'session_files',
+          confidence: 90,
+          matchedFiles: ['src/services/billing.ts'],
+        },
+      ],
+      categories: [],
+      tags: [],
+      occurredAt: '2026-08-10T11:45:00.000Z',
+      createdAt: '2026-08-10T11:45:00.000Z',
+      projectSlug: 'kote-app',
+      workspaceSlug: 'default',
+      status: 'active',
+      source: 'claude-code',
+      sourceChannel: 'ai-chat',
+      projectId: 'p1',
+      workspaceId: 'w1',
+    },
+  ];
+
+  const mockNoteContextRepo = {
+    findNotesByFile: async () => mockNotes,
+  };
+
+  const useCase = new FindNotesBySnippetUseCase(mockNoteContextRepo, logger);
+  const result = await useCase.execute('user-1', {
+    filePath: 'src/services/billing.ts',
+    codeSnippet: 'export function handleWebhook() {}',
+    gitContext: {
+      commitHash: '9f8e7d6',
+      commitHashes: ['9f8e7d6'],
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.matches.length, 1);
+  assert.equal(result.matches[0].note.id, 'note-linked-commit');
+  assert.equal(result.matches[0].relevance.isOriginMatch, true);
+  assert.equal(result.matches[0].relevance.category, 'origin');
+  assert.equal(result.matches[0].relevance.score, 1.0);
 });
 
 test('FindNotesBySnippetUseCase matches direct GitHub headSha in note metadata', async () => {

@@ -20,7 +20,7 @@ export {
   fetchDependencyMonitoredRepositories,
   saveDependencyMonitoredRepositories,
 } from './integrations';
-export { createNote, deleteNote, fetchNote, fetchNotes, updateNote, pinNote, requestNoteSynthesis, fetchRelatedNotes, bulkUpdateNoteStatuses } from './notes';
+export { createNote, deleteNote, fetchNote, fetchNotes, updateNote, pinNote, requestNoteSynthesis, fetchRelatedNotes, bulkUpdateNoteStatuses, linkNoteCommit, unlinkNoteCommit } from './notes';
 export {
   createProject,
   createProjectFolder,
@@ -42,8 +42,10 @@ export {
   exportProjectNotesZip,
   fetchProjectDecisions,
   exportProjectAdrsZip,
+  fetchProjectCommits,
 } from './projects';
 export type { ProjectDecisionItem, ProjectDecisionsResponse, FetchProjectDecisionsParams, ExportProjectAdrsParams } from './models/project-decisions';
+export type { ProjectCommitItem, ProjectCommitsResponse, FetchProjectCommitsParams, LinkedCommitSummary, LinkedCommitNoteSummary, CommitLinkSource } from './models/project-commits';
 export { PROJECT_DECISION_STATUS_LABELS, getProjectDecisionStatusLabel } from './models/project-decisions';
 export { fetchReminderBoard, fetchReminders, updateReminderStatus, bulkUpdateReminderStatuses } from './reminders';
 export { runQuery } from './query';
