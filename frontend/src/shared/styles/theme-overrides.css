@@ -458,6 +458,11 @@
   background: var(--surface-2);
 }
 
+:root[data-theme="light"] .commits-search-wrap {
+  border-color: var(--line);
+  background: var(--surface-2);
+}
+
 :root[data-theme="light"] .timeline-filter-row button {
   border-color: transparent;
   background: transparent;
@@ -645,9 +650,15 @@
   color: var(--text);
 }
 
-/* Timeline cards */
-:root[data-theme="light"] .project-timeline-card {
+/* Timeline and commit cards */
+:root[data-theme="light"] .project-timeline-card,
+:root[data-theme="light"] .commit-card {
   box-shadow: var(--shadow);
+}
+
+:root[data-theme="light"] .commit-linked-note-row {
+  background: var(--surface-2);
+  border-color: var(--line);
 }
 
 /* Folder browser */

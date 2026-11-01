@@ -798,6 +798,10 @@
   color: var(--text-soft);
   background: transparent;
   font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .timeline-filter-row button.active {
@@ -830,6 +834,28 @@
 
   .timeline-category-filter-wrap {
     width: 100%;
+  }
+
+  .commits-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .commits-filter-section {
+    width: 100%;
+  }
+
+  .commits-search-section {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .commits-search-wrap {
+    height: 36px;
+    min-height: 36px;
   }
 
   .timeline-filter-row-container .bulk-actions {
@@ -2328,6 +2354,64 @@
   min-width: 180px;
 }
 
+/* Commits Toolbar & Search */
+.commits-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.commits-filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.commits-search-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 0 1 280px;
+  min-width: 200px;
+}
+
+.commits-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface-3);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.commits-search-wrap input {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 0.85rem;
+  outline: none;
+  width: 100%;
+  padding: 0;
+}
+
+.commits-search-wrap input::placeholder {
+  color: var(--text-muted);
+}
+
 .decisions-search-input input {
   border: none;
   background: transparent;
@@ -2372,6 +2456,28 @@
 .decision-card.clickable:hover {
   border-color: var(--accent, #3b82f6);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.commit-card {
+  border: 1px solid var(--line-soft);
+  background: var(--surface-1);
+  border-radius: 8px;
+  padding: 1rem 1.15rem;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.commit-card:hover {
+  border-color: var(--line);
+  background: var(--surface-hover-accent, var(--surface-1));
+}
+
+.commit-linked-note-row {
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.commit-linked-note-row:hover {
+  background: var(--surface-hover-strong, var(--surface-3)) !important;
+  border-color: var(--line) !important;
 }
 
 .decision-card-head {
@@ -2445,11 +2551,15 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 0.35rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .decision-file-chip {
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
+  min-width: 0;
   font-family: var(--mono, monospace);
   font-size: 0.75rem;
   padding: 2px 6px;
@@ -2463,6 +2573,19 @@
 .decision-file-chip:hover {
   color: var(--text);
   border-color: var(--border-hover);
+}
+
+.commit-file-chip {
+  max-width: min(220px, 100%);
+}
+
+.commit-file-name {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .decision-note-button {

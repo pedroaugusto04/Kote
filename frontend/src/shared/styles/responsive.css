@@ -202,6 +202,24 @@
     flex: 0 0 auto !important;
     width: auto !important;
   }
+  .commits-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    margin-bottom: 12px !important;
+  }
+  .commits-filter-section {
+    width: 100% !important;
+  }
+  .commits-search-section {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  .commits-search-wrap {
+    height: 36px !important;
+    min-height: 36px !important;
+  }
   .note-reader-top { flex-direction: column; }
   .note-reader-actions { justify-content: flex-start; }
   .auth-layout { padding: 20px; }
@@ -547,6 +565,7 @@
 }
 
 @media (max-width: 560px) {
+  .commit-file-chip { max-width: min(150px, 100%) !important; }
   .home-kpis { grid-template-columns: 1fr; }
   .onboarding-checklist { padding: 16px; }
   .onboarding-checklist-head { flex-direction: column; gap: 12px; }
@@ -664,6 +683,7 @@
 }
 
 @media (max-width: 420px) {
+  .commit-file-chip { max-width: min(130px, 100%) !important; }
   .search-box .filters { grid-template-columns: 1fr; }
 }
 

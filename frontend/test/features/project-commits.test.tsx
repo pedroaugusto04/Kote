@@ -109,17 +109,13 @@ describe('ProjectCommitsPanel and NoteLinkedCommitsPills', () => {
     expect(screen.getByLabelText('1 linked note')).toBeInTheDocument();
     expect(screen.getByText('Committed by AI')).toBeInTheDocument();
     expect(screen.getAllByText('Kote').length).toBeGreaterThan(0);
+    expect(screen.getByText('commits.ts')).toBeInTheDocument();
+    expect(screen.getByText('notes.ts')).toBeInTheDocument();
+    expect(screen.getByText('package.json')).toBeInTheDocument();
+    expect(screen.getByTitle('src/commits.ts')).toHaveClass('commit-file-chip');
 
     fireEvent.click(screen.getByText('Session planning commit linkage'));
     expect(onOpenNote).toHaveBeenCalledWith('note-1');
-
-    fireEvent.click(screen.getByRole('button', { name: /With Notes/i }));
-    await waitFor(() => {
-      expect(apiClient.fetchProjectCommits).toHaveBeenCalledWith(
-        'all',
-        expect.objectContaining({ linkFilter: 'with_notes' }),
-      );
-    });
 
     fireEvent.click(screen.getByRole('button', { name: /AI Sessions/i }));
     await waitFor(() => {

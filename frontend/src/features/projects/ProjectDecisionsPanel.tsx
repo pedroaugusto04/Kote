@@ -164,21 +164,26 @@ export function ProjectDecisionsPanel({ projectSlug, onOpenNote }: ProjectDecisi
                 <div className="decision-card-footer">
                   <div className="decision-files-row">
                     {item.files && item.files.length > 0 ? (
-                      item.files.map((filePath) => (
-                        <button
-                          key={filePath}
-                          type="button"
-                          className="decision-file-chip"
-                          title={`Filter by ${filePath}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFile(filePath);
-                            setPage(1);
-                          }}
-                        >
-                          {filePath.split('/').pop() || filePath}
-                        </button>
-                      ))
+                      item.files.map((filePath) => {
+                        const fileName = filePath.split(/[/\\]/).pop() || filePath;
+                        return (
+                          <button
+                            key={filePath}
+                            type="button"
+                            className="decision-file-chip commit-file-chip"
+                            title={`Filter by ${filePath}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFile(filePath);
+                              setPage(1);
+                            }}
+                          >
+                            <span className="commit-file-name">
+                              {fileName}
+                            </span>
+                          </button>
+                        );
+                      })
                     ) : (
                       <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>No linked files</span>
                     )}

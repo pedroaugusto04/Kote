@@ -124,12 +124,13 @@ export function ProjectCommitsPanel({ projectSlug, onOpenNote }: ProjectCommitsP
   return (
     <div className="project-decisions-panel project-commits-panel">
       {/* Toolbar */}
-      <div className="decisions-toolbar" style={{ flexWrap: 'wrap', gap: '0.65rem' }}>
-        <div className="decisions-filter-group" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
-          <div role="group" aria-label="Commit filter" style={{ display: 'inline-flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+      <div className="commits-toolbar">
+        <div className="commits-filter-section">
+          <span className="timeline-filter-label">Filter</span>
+          <div className="timeline-filter-row timeline-category-chips-scroll" role="group" aria-label="Commit filter">
             <button
               type="button"
-              className={linkFilter === 'all' ? 'filter-chip active' : 'filter-chip'}
+              className={linkFilter === 'all' ? 'active' : ''}
               aria-pressed={linkFilter === 'all'}
               onClick={() => {
                 setLinkFilter('all');
@@ -140,46 +141,31 @@ export function ProjectCommitsPanel({ projectSlug, onOpenNote }: ProjectCommitsP
             </button>
             <button
               type="button"
-              className={linkFilter === 'with_notes' ? 'filter-chip active' : 'filter-chip'}
-              aria-pressed={linkFilter === 'with_notes'}
-              onClick={() => {
-                setLinkFilter('with_notes');
-                setPage(1);
-              }}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
-            >
-              <NoteDocIcon style={{ width: '0.72rem', height: '0.72rem' }} />
-              <span>With Notes</span>
-            </button>
-            <button
-              type="button"
-              className={linkFilter === 'ai' ? 'filter-chip active' : 'filter-chip'}
+              className={linkFilter === 'ai' ? 'active' : ''}
               aria-pressed={linkFilter === 'ai'}
               onClick={() => {
                 setLinkFilter('ai');
                 setPage(1);
               }}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
             >
               <SparklesIcon style={{ width: '0.75rem', height: '0.75rem' }} />
               <span>AI Sessions</span>
             </button>
             <button
               type="button"
-              className={linkFilter === 'github_push' ? 'filter-chip active' : 'filter-chip'}
+              className={linkFilter === 'github_push' ? 'active' : ''}
               aria-pressed={linkFilter === 'github_push'}
               onClick={() => {
                 setLinkFilter('github_push');
                 setPage(1);
               }}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
             >
               <GitHubIcon style={{ width: '0.75rem', height: '0.75rem' }} />
               <span>GitHub Pushes</span>
             </button>
             <button
               type="button"
-              className={linkFilter === 'manual' ? 'filter-chip active' : 'filter-chip'}
+              className={linkFilter === 'manual' ? 'active' : ''}
               aria-pressed={linkFilter === 'manual'}
               onClick={() => {
                 setLinkFilter('manual');
@@ -189,13 +175,15 @@ export function ProjectCommitsPanel({ projectSlug, onOpenNote }: ProjectCommitsP
               Manual Links
             </button>
           </div>
+        </div>
 
-          <div className="decisions-search-input">
-            <SearchIcon style={{ width: '0.85rem', height: '0.85rem', opacity: 0.6 }} />
+        <div className="commits-search-section">
+          <div className="commits-search-wrap">
+            <SearchIcon style={{ width: '0.85rem', height: '0.85rem', opacity: 0.6, flexShrink: 0 }} />
             <input
               type="search"
               aria-label="Search commits"
-              placeholder="Search commit message, SHA, or author..."
+              placeholder="Search commit message, SHA, author..."
               value={searchInput}
               onChange={(e) => handleSearchChange(e.target.value)}
             />
@@ -229,11 +217,7 @@ export function ProjectCommitsPanel({ projectSlug, onOpenNote }: ProjectCommitsP
               return (
                 <article
                   key={commit.id}
-                  className={`decision-card commit-card ${hasLinkedNotes ? 'has-linked-notes' : ''}`}
-                  style={{
-                    borderLeft: hasLinkedNotes ? '3px solid var(--accent, #58a6ff)' : undefined,
-                    background: hasLinkedNotes ? 'rgba(88, 166, 255, 0.04)' : undefined,
-                  }}
+                  className="decision-card commit-card"
                 >
                   <div className="decision-card-head" style={{ gap: '0.5rem', flexWrap: 'wrap' }}>
                     <div className="decision-card-badges" style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
@@ -292,7 +276,7 @@ export function ProjectCommitsPanel({ projectSlug, onOpenNote }: ProjectCommitsP
 
                       {hasLinkedNotes && (
                         <span
-                          className="decision-kind-tag decision-kind-decision"
+                          className="decision-file-chip commit-note-count-pill"
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -303,7 +287,7 @@ export function ProjectCommitsPanel({ projectSlug, onOpenNote }: ProjectCommitsP
                           title={`${commit.linkedNotes.length} ${commit.linkedNotes.length === 1 ? 'linked note' : 'linked notes'}`}
                           aria-label={`${commit.linkedNotes.length} ${commit.linkedNotes.length === 1 ? 'linked note' : 'linked notes'}`}
                         >
-                          <NoteDocIcon />
+                          <NoteDocIcon style={{ width: '0.75rem', height: '0.75rem' }} />
                           <span>{commit.linkedNotes.length}</span>
                         </span>
                       )}
@@ -321,16 +305,21 @@ export function ProjectCommitsPanel({ projectSlug, onOpenNote }: ProjectCommitsP
 
                   {commit.changedFiles.length > 0 && (
                     <div className="decision-files-row" style={{ marginTop: '0.35rem', display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                      {visibleFiles.map((filePath) => (
-                        <span
-                          key={filePath}
-                          className="decision-file-chip"
-                          title={filePath}
-                          style={{ cursor: 'default' }}
-                        >
-                          {filePath.split('/').pop() || filePath}
-                        </span>
-                      ))}
+                      {visibleFiles.map((filePath) => {
+                        const fileName = filePath.split(/[/\\]/).pop() || filePath;
+                        return (
+                          <span
+                            key={filePath}
+                            className="decision-file-chip commit-file-chip"
+                            title={filePath}
+                            style={{ cursor: 'default' }}
+                          >
+                            <span className="commit-file-name">
+                              {fileName}
+                            </span>
+                          </span>
+                        );
+                      })}
                       {hiddenFilesCount > 0 && (
                         <button
                           type="button"
@@ -357,12 +346,12 @@ export function ProjectCommitsPanel({ projectSlug, onOpenNote }: ProjectCommitsP
                     <div
                       className="commit-linked-notes-list"
                       style={{
-                        marginTop: '0.65rem',
-                        paddingTop: '0.55rem',
-                        borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+                        marginTop: '0.55rem',
+                        paddingTop: '0.5rem',
+                        borderTop: '1px solid var(--line-soft)',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: '0.4rem',
+                        gap: '0.35rem',
                       }}
                     >
                       {commit.linkedNotes.map((note: LinkedCommitNoteSummary) => (
@@ -371,6 +360,7 @@ export function ProjectCommitsPanel({ projectSlug, onOpenNote }: ProjectCommitsP
                           onClick={() => onOpenNote?.(note.noteId)}
                           role={onOpenNote ? 'button' : undefined}
                           tabIndex={onOpenNote ? 0 : undefined}
+                          className="commit-linked-note-row"
                           onKeyDown={(e) => {
                             if (onOpenNote && (e.key === 'Enter' || e.key === ' ')) {
                               e.preventDefault();
@@ -384,7 +374,8 @@ export function ProjectCommitsPanel({ projectSlug, onOpenNote }: ProjectCommitsP
                             gap: '0.5rem',
                             padding: '0.35rem 0.55rem',
                             borderRadius: '6px',
-                            background: 'rgba(255, 255, 255, 0.03)',
+                            background: 'var(--surface-2)',
+                            border: '1px solid var(--line-soft)',
                             cursor: onOpenNote ? 'pointer' : 'default',
                             flexWrap: 'wrap',
                           }}
