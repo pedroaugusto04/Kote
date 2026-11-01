@@ -6,9 +6,10 @@ import {
   type LinkedCommitNoteSummary,
   type CommitLinkSource,
 } from '../../shared/api/client';
+import type { ProjectCommitLinkFilter } from '../../shared/api/models/project-commits';
 import { EmptyState, InlineMessage } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
-import { SearchIcon } from '../../shared/ui/icons';
+import { SearchIcon, SparklesIcon, GitHubIcon } from '../../shared/ui/icons';
 import { formatUsDate, formatTimeInUserTimeZone } from '../../shared/utils/format';
 import { SourceBadge } from '../../widgets/notes/SourceBadge';
 import { useDebouncedValue } from '../../shared/ui/use-debounced-value';
@@ -56,8 +57,28 @@ function GitCommitIcon() {
   );
 }
 
+function NoteDocIcon({ style }: { style?: React.CSSProperties }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ width: '0.78rem', height: '0.78rem', flexShrink: 0, ...style }}
+      aria-hidden="true"
+    >
+      <path d="M3.5 2h6l3.5 3.5v8.5a1 1 0 0 1-1 1h-8.5a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1z" />
+      <path d="M9.5 2v3.5h3.5" />
+      <line x1="5.5" y1="8" x2="10.5" y2="8" />
+      <line x1="5.5" y1="10.5" x2="8.5" y2="10.5" />
+    </svg>
+  );
+}
+
 export function ProjectCommitsPanel({ projectSlug, onOpenNote }: ProjectCommitsPanelProps) {
-  const [onlyLinked, setOnlyLinked] = useState<boolean>(false);
+  const [linkFilter, setLinkFilter] = useState<ProjectCommitLinkFilter>('all');
   const [searchInput, setSearchInput] = useState<string>('');
   const debouncedSearch = useDebouncedValue(searchInput, PROJECTS_WORKSPACE_MESSAGES.SEARCH.DEBOUNCE_MS);
   const [page, setPage] = useState<number>(1);
@@ -73,10 +94,10 @@ export function ProjectCommitsPanel({ projectSlug, onOpenNote }: ProjectCommitsP
   };
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: QUERY_KEYS.PROJECTS.COMMITS(projectSlug, onlyLinked, debouncedSearch, page),
+    queryKey: QUERY_KEYS.PROJECTS.COMMITS(projectSlug, linkFilter, debouncedSearch, page),
     queryFn: () =>
       fetchProjectCommits(projectSlug, {
-        onlyLinked,
+        linkFilter,
         query: debouncedSearch.trim() || undefined,
         page,
         pageSize: 20,
@@ -84,18 +105,34 @@ export function ProjectCommitsPanel({ projectSlug, onOpenNote }: ProjectCommitsP
     enabled: Boolean(projectSlug),
   });
 
+  const getEmptyMessage = () => {
+    switch (linkFilter) {
+      case 'ai':
+        return 'No commits linked to AI sessions found for the current filters.';
+      case 'github_push':
+        return 'No commits linked via GitHub push found for the current filters.';
+      case 'manual':
+        return 'No manually linked commits found for the current filters.';
+      case 'with_notes':
+        return 'No commits with linked notes found for the current filters.';
+      case 'all':
+      default:
+        return 'No Git commits synced yet. Commits are synced automatically in the background by the Kote VS Code extension or GitHub webhook.';
+    }
+  };
+
   return (
     <div className="project-decisions-panel project-commits-panel">
       {/* Toolbar */}
       <div className="decisions-toolbar" style={{ flexWrap: 'wrap', gap: '0.65rem' }}>
         <div className="decisions-filter-group" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
-          <div role="group" aria-label="Commit filter" style={{ display: 'inline-flex', gap: '0.35rem' }}>
+          <div role="group" aria-label="Commit filter" style={{ display: 'inline-flex', gap: '0.35rem', flexWrap: 'wrap' }}>
             <button
               type="button"
-              className={!onlyLinked ? 'filter-chip active' : 'filter-chip'}
-              aria-pressed={!onlyLinked}
+              className={linkFilter === 'all' ? 'filter-chip active' : 'filter-chip'}
+              aria-pressed={linkFilter === 'all'}
               onClick={() => {
-                setOnlyLinked(false);
+                setLinkFilter('all');
                 setPage(1);
               }}
             >
@@ -103,14 +140,53 @@ export function ProjectCommitsPanel({ projectSlug, onOpenNote }: ProjectCommitsP
             </button>
             <button
               type="button"
-              className={onlyLinked ? 'filter-chip active' : 'filter-chip'}
-              aria-pressed={onlyLinked}
+              className={linkFilter === 'with_notes' ? 'filter-chip active' : 'filter-chip'}
+              aria-pressed={linkFilter === 'with_notes'}
               onClick={() => {
-                setOnlyLinked(true);
+                setLinkFilter('with_notes');
+                setPage(1);
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+            >
+              <NoteDocIcon style={{ width: '0.72rem', height: '0.72rem' }} />
+              <span>With Notes</span>
+            </button>
+            <button
+              type="button"
+              className={linkFilter === 'ai' ? 'filter-chip active' : 'filter-chip'}
+              aria-pressed={linkFilter === 'ai'}
+              onClick={() => {
+                setLinkFilter('ai');
+                setPage(1);
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+            >
+              <SparklesIcon style={{ width: '0.75rem', height: '0.75rem' }} />
+              <span>AI Sessions</span>
+            </button>
+            <button
+              type="button"
+              className={linkFilter === 'github_push' ? 'filter-chip active' : 'filter-chip'}
+              aria-pressed={linkFilter === 'github_push'}
+              onClick={() => {
+                setLinkFilter('github_push');
+                setPage(1);
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+            >
+              <GitHubIcon style={{ width: '0.75rem', height: '0.75rem' }} />
+              <span>GitHub Pushes</span>
+            </button>
+            <button
+              type="button"
+              className={linkFilter === 'manual' ? 'filter-chip active' : 'filter-chip'}
+              aria-pressed={linkFilter === 'manual'}
+              onClick={() => {
+                setLinkFilter('manual');
                 setPage(1);
               }}
             >
-              With Linked Notes
+              Manual Links
             </button>
           </div>
 
@@ -137,11 +213,7 @@ export function ProjectCommitsPanel({ projectSlug, onOpenNote }: ProjectCommitsP
 
       {/* Empty State */}
       {!isLoading && !isError && (!data?.commits || data.commits.length === 0) && (
-        <EmptyState>
-          {onlyLinked
-            ? 'No commits with linked AI notes found for the current filters.'
-            : 'No Git commits synced yet. Commits are synced automatically in the background by the Kote VS Code extension or GitHub webhook.'}
-        </EmptyState>
+        <EmptyState>{getEmptyMessage()}</EmptyState>
       )}
 
       {/* Commits List */}
@@ -221,9 +293,18 @@ export function ProjectCommitsPanel({ projectSlug, onOpenNote }: ProjectCommitsP
                       {hasLinkedNotes && (
                         <span
                           className="decision-kind-tag decision-kind-decision"
-                          style={{ fontSize: '0.72rem' }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            fontSize: '0.72rem',
+                            padding: '1px 6px',
+                          }}
+                          title={`${commit.linkedNotes.length} ${commit.linkedNotes.length === 1 ? 'linked note' : 'linked notes'}`}
+                          aria-label={`${commit.linkedNotes.length} ${commit.linkedNotes.length === 1 ? 'linked note' : 'linked notes'}`}
                         >
-                          {commit.linkedNotes.length} {commit.linkedNotes.length === 1 ? 'linked note' : 'linked notes'}
+                          <NoteDocIcon />
+                          <span>{commit.linkedNotes.length}</span>
                         </span>
                       )}
                     </div>

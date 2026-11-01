@@ -104,7 +104,9 @@ export function ProjectsWorkspace({
   // Search state
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearchInput = useDebouncedValue(searchInput, PROJECTS_WORKSPACE_MESSAGES.SEARCH.DEBOUNCE_MS);
-  const hasSearchQuery = Boolean(debouncedSearchInput.trim());
+  const hasRawSearchQuery = Boolean(searchInput.trim());
+  const hasDebouncedSearchQuery = Boolean(debouncedSearchInput.trim());
+  const hasSearchQuery = hasRawSearchQuery;
 
   const handleOpenNote = (id: string) => {
     if (isMobile || sideNoteId === id) {
@@ -195,9 +197,15 @@ export function ProjectsWorkspace({
       page: searchPage,
       pageSize: DEFAULT_PAGE_SIZE,
     }),
-    enabled: hasSearchQuery,
+    enabled: hasDebouncedSearchQuery,
     placeholderData: keepPreviousData,
   });
+
+  const isSearchPending = hasRawSearchQuery && (
+    searchInput.trim() !== debouncedSearchInput.trim() ||
+    searchQuery.isFetching ||
+    searchQuery.isLoading
+  );
 
   const searchResults: ProjectTimelineItem[] = useMemo(() => {
     return mapSearchResultsToTimeline(searchQuery.data?.matches);
@@ -380,8 +388,14 @@ export function ProjectsWorkspace({
       />
 
       {/* Search input for filtering notes within the selected project */}
-      <section className="search-box projects-search-box">
-        <SearchIcon className="projects-search-icon" />
+      <section className="search-box projects-search-box" aria-busy={isSearchPending}>
+        <div className="projects-search-icon-slot">
+          {isSearchPending ? (
+            <div className="projects-search-spinner" aria-label={PROJECTS_WORKSPACE_MESSAGES.SEARCH.SEARCHING} />
+          ) : (
+            <SearchIcon className="projects-search-icon" />
+          )}
+        </div>
         <input
           aria-label={UI_MESSAGES.SEARCH_NOTES_IN_PROJECT}
           autoComplete="off"
@@ -393,6 +407,20 @@ export function ProjectsWorkspace({
           onChange={(event) => setSearchInput(event.target.value)}
           placeholder={selected ? `${PROJECTS_WORKSPACE_MESSAGES.SEARCH.IN_PROJECT.replace('{project}', selected.displayName)}...` : PROJECTS_WORKSPACE_MESSAGES.SEARCH.ACROSS_ALL}
         />
+        {hasRawSearchQuery ? (
+          <button
+            type="button"
+            className="projects-search-clear-btn"
+            onClick={() => setSearchInput('')}
+            aria-label={PROJECTS_WORKSPACE_MESSAGES.SEARCH.CLEAR_SEARCH}
+            title={PROJECTS_WORKSPACE_MESSAGES.SEARCH.CLEAR_SEARCH}
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        ) : null}
       </section>
 
       <div
@@ -406,33 +434,60 @@ export function ProjectsWorkspace({
                 <div>
                   <h2>{UI_MESSAGES.SEARCH_RESULTS}</h2>
                   <span className="matching-notes-count">
-                    {searchPagination ? `${searchPagination.total} ${UI_MESSAGES.TOTAL}` : ''}
-                    {selected ? ` in ${selected.displayName}` : ' across all projects'}
+                    {isSearchPending && !paginatedSearchResults.length
+                      ? (selected
+                          ? `Searching in ${selected.displayName}...`
+                          : 'Searching across all projects...')
+                      : (
+                        <>
+                          {searchPagination ? `${searchPagination.total} ${UI_MESSAGES.TOTAL}` : ''}
+                          {selected ? ` in ${selected.displayName}` : ' across all projects'}
+                        </>
+                      )}
                   </span>
                 </div>
               </div>
               {searchQuery.isError ? <InlineMessage tone="error">{UI_MESSAGES.COULD_NOT_LOAD_NOTES_FOR_SEARCH}</InlineMessage> : null}
-              <div className={`project-timeline-list ${searchQuery.isPlaceholderData ? 'stale-data' : ''}`}>
-                {paginatedSearchResults.map((item) => (
-                  <ProjectTimelineCard
-                    key={item.id}
-                    item={item}
-                    dashboard={dashboard}
-                    isPinPending={searchPinMutation.isPending}
-                    onOpen={handleOpenNote}
-                    onOpenFullPage={openNote}
-                    onEdit={() => loadNoteMutation.mutate(item.noteId)}
-                    onDelete={(note) => setConfirmState({ kind: ConfirmKind.Note, note })}
-                    onPin={(noteId, pinned) => searchPinMutation.mutate({ noteId, pinned })}
-                  />
-                ))}
-              </div>
-              {searchPagination ? (
+
+              {isSearchPending && !paginatedSearchResults.length && !searchQuery.isError ? (
+                <div className="projects-search-loading-state" role="status" aria-live="polite">
+                  <div className="projects-search-spinner large" aria-hidden="true" />
+                  <div className="projects-search-loading-text">
+                    <strong>{PROJECTS_WORKSPACE_MESSAGES.SEARCH.SEARCHING}</strong>
+                    <span>
+                      {selected
+                        ? PROJECTS_WORKSPACE_MESSAGES.SEARCH.SEARCHING_IN_PROJECT.replace('{project}', selected.displayName)
+                        : PROJECTS_WORKSPACE_MESSAGES.SEARCH.SEARCHING_ACROSS_ALL}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+
+              {paginatedSearchResults.length > 0 ? (
+                <div className={`project-timeline-list ${isSearchPending || searchQuery.isPlaceholderData ? 'stale-data' : ''}`}>
+                  {paginatedSearchResults.map((item) => (
+                    <ProjectTimelineCard
+                      key={item.id}
+                      item={item}
+                      dashboard={dashboard}
+                      isPinPending={searchPinMutation.isPending}
+                      onOpen={handleOpenNote}
+                      onOpenFullPage={openNote}
+                      onEdit={() => loadNoteMutation.mutate(item.noteId)}
+                      onDelete={(note) => setConfirmState({ kind: ConfirmKind.Note, note })}
+                      onPin={(noteId, pinned) => searchPinMutation.mutate({ noteId, pinned })}
+                    />
+                  ))}
+                </div>
+              ) : null}
+              {searchPagination && paginatedSearchResults.length > 0 ? (
                 isSearchMobilePagination
                   ? <MobileInfinitePagination pagination={searchPagination} isLoading={searchQuery.isFetching || searchPagination.page > searchLoadedMobilePage} onPageChange={setSearchPage} />
                   : <Pagination pagination={searchPagination} onPageChange={setSearchPage} />
               ) : null}
-              {!paginatedSearchResults.length && !searchQuery.isError ? <EmptyState>{UI_MESSAGES.NO_NOTES_FOUND_FOR_SEARCH}</EmptyState> : null}
+              {!isSearchPending && !paginatedSearchResults.length && !searchQuery.isError ? (
+                <EmptyState>{UI_MESSAGES.NO_NOTES_FOUND_FOR_SEARCH}</EmptyState>
+              ) : null}
             </Panel>
           ) : isAllProjectsSelected ? (
             <Panel>

@@ -22,8 +22,8 @@ export const QUERY_KEYS = {
       ['project-timeline', 'all-projects', category, status, page] as const,
     SEARCH: (query: string, projectSlug: string, workspaceSlug: string, status: string, page: number) => 
       ['projects-search', query, projectSlug, workspaceSlug, status, page] as const,
-    COMMITS: (projectSlug: string, onlyLinked: boolean, query: string, page: number) =>
-      ['project-commits', projectSlug, onlyLinked, query, page] as const,
+    COMMITS: (projectSlug: string, filter: string | boolean, query: string, page: number) =>
+      ['project-commits', projectSlug, String(filter), query, page] as const,
   },
   INTEGRATIONS: {
     ALL: (workspaceSlug: string) => ['integrations', workspaceSlug] as const,

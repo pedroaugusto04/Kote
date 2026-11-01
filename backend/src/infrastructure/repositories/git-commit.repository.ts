@@ -520,11 +520,37 @@ export class PostgresGitCommitRepository extends GitCommitRepository {
       clauses.push(`gc.project_id = $${values.length}`);
     }
 
-    if (input.onlyLinked) {
+    const effectiveFilter = input.linkFilter ?? (input.onlyLinked ? 'with_notes' : 'all');
+
+    if (effectiveFilter === 'with_notes') {
       clauses.push(
         `EXISTS (
            SELECT 1 FROM kb_note_commit_links ncl
            WHERE ncl.commit_id = gc.id AND ncl.user_id = gc.user_id
+         )`,
+      );
+    } else if (effectiveFilter === 'ai') {
+      clauses.push(
+        `EXISTS (
+           SELECT 1 FROM kb_note_commit_links ncl
+           WHERE ncl.commit_id = gc.id AND ncl.user_id = gc.user_id
+             AND ncl.link_source IN ('ai_terminal', 'session_files')
+         )`,
+      );
+    } else if (effectiveFilter === 'manual') {
+      clauses.push(
+        `EXISTS (
+           SELECT 1 FROM kb_note_commit_links ncl
+           WHERE ncl.commit_id = gc.id AND ncl.user_id = gc.user_id
+             AND ncl.link_source = 'manual'
+         )`,
+      );
+    } else if (effectiveFilter === 'github_push') {
+      clauses.push(
+        `EXISTS (
+           SELECT 1 FROM kb_note_commit_links ncl
+           WHERE ncl.commit_id = gc.id AND ncl.user_id = gc.user_id
+             AND ncl.link_source = 'github_push'
          )`,
       );
     }

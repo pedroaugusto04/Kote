@@ -120,6 +120,9 @@ export const projectCommitsQuerySchema = paginationInputSchema.extend({
     .optional()
     .default(false)
     .transform((val) => val === true || val === 'true'),
+  linkFilter: z
+    .enum(['all', 'with_notes', 'ai', 'manual', 'github_push'])
+    .optional(),
   query: z.string().trim().optional(),
 });
 

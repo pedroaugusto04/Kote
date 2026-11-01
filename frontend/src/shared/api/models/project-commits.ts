@@ -51,9 +51,12 @@ export type ProjectCommitsResponse = {
   pagination: PaginationMeta;
 };
 
+export type ProjectCommitLinkFilter = 'all' | 'with_notes' | 'ai' | 'manual' | 'github_push';
+
 export type FetchProjectCommitsParams = {
   page?: number;
   pageSize?: number;
   onlyLinked?: boolean;
+  linkFilter?: ProjectCommitLinkFilter;
   query?: string;
 };

@@ -9,6 +9,9 @@ import {
 } from '../../shared/api/client';
 import { QUERY_KEYS } from '../../shared/constants/query-keys.constants';
 import { notifyError, notifySuccess } from '../../shared/ui/notifications';
+import { useDebouncedValue } from '../../shared/ui/use-debounced-value';
+import { SearchIcon } from '../../shared/ui/icons';
+import { formatUsDate, formatTimeInUserTimeZone } from '../../shared/utils/format';
 
 interface NoteLinkedCommitsPillsProps {
   noteId?: string;
@@ -41,26 +44,47 @@ export function NoteLinkedCommitsPills({
   linkedCommits = [],
 }: NoteLinkedCommitsPillsProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [commitShaInput, setCommitShaInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearch = useDebouncedValue(searchTerm, 250);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
   const canLinkCommits = Boolean(noteId && projectSlug && projectSlug !== 'inbox');
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setSearchTerm('');
+      return;
+    }
+    const timer = setTimeout(() => inputRef.current?.focus(), 40);
     const handleOutsideClick = (event: MouseEvent) => {
       if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
     document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, [isOpen]);
 
-  const recentCommitsQuery = useQuery({
-    queryKey: QUERY_KEYS.PROJECTS.COMMITS(projectSlug || '', false, '', 1),
-    queryFn: () => fetchProjectCommits(projectSlug!, { page: 1, pageSize: 15 }),
+  const commitsQuery = useQuery({
+    queryKey: QUERY_KEYS.PROJECTS.COMMITS(projectSlug || '', 'all', debouncedSearch, 1),
+    queryFn: () =>
+      fetchProjectCommits(projectSlug!, {
+        page: 1,
+        pageSize: 20,
+        query: debouncedSearch.trim() || undefined,
+      }),
     enabled: Boolean(isOpen && canLinkCommits && projectSlug),
   });
 
@@ -75,7 +99,7 @@ export function NoteLinkedCommitsPills({
     mutationFn: (commitIdOrSha: string) =>
       linkNoteCommit(noteId!, commitIdOrSha),
     onSuccess: async () => {
-      setCommitShaInput('');
+      setSearchTerm('');
       setIsOpen(false);
       notifySuccess('Commit linked to note');
       await invalidateCommitAndNoteQueries();
@@ -101,9 +125,47 @@ export function NoteLinkedCommitsPills({
   }
 
   const linkedIds = new Set(linkedCommits.map((c) => c.id));
-  const availableCommits = (recentCommitsQuery.data?.commits || []).filter(
+  const serverCommits = (commitsQuery.data?.commits || []).filter(
     (c: ProjectCommitItem) => !linkedIds.has(c.id),
   );
+
+  // Fast client-side filter for immediate typing response
+  const queryLower = searchTerm.trim().toLowerCase();
+  const filteredCommits = serverCommits.filter((c: ProjectCommitItem) => {
+    if (!queryLower) return true;
+    return (
+      c.commitSha.toLowerCase().includes(queryLower) ||
+      c.shortSha.toLowerCase().includes(queryLower) ||
+      c.message.toLowerCase().includes(queryLower) ||
+      c.authorName.toLowerCase().includes(queryLower) ||
+      (c.branch && c.branch.toLowerCase().includes(queryLower))
+    );
+  });
+
+  const isExactMatch = filteredCommits.some(
+    (c) =>
+      c.commitSha.toLowerCase() === queryLower ||
+      c.shortSha.toLowerCase() === queryLower,
+  );
+  const looksLikeSha = /^[0-9a-fA-F]{7,40}$/.test(searchTerm.trim());
+  const canLinkCustomSha = looksLikeSha && !isExactMatch;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = searchTerm.trim();
+    if (!trimmed) return;
+
+    if (canLinkCustomSha) {
+      linkMutation.mutate(trimmed);
+      return;
+    }
+
+    if (filteredCommits.length > 0) {
+      linkMutation.mutate(filteredCommits[0].id);
+    } else if (looksLikeSha) {
+      linkMutation.mutate(trimmed);
+    }
+  };
 
   return (
     <div
@@ -198,109 +260,66 @@ export function NoteLinkedCommitsPills({
           className="note-commit-picker-popover"
           role="dialog"
           aria-label="Link commit to note"
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 6px)',
-            left: 0,
-            zIndex: 40,
-            width: '320px',
-            maxWidth: '90vw',
-            background: 'var(--bg-elevated, #161b22)',
-            border: '1px solid var(--border-subtle, rgba(255,255,255,0.14))',
-            borderRadius: '8px',
-            padding: '10px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
-          }}
         >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const trimmed = commitShaInput.trim();
-              if (!trimmed) return;
-              const matched = availableCommits.find(
-                (c: ProjectCommitItem) =>
-                  c.commitSha.startsWith(trimmed) || c.shortSha === trimmed || c.id === trimmed,
-              );
-              linkMutation.mutate(matched ? matched.id : trimmed);
-            }}
-            style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}
-          >
+          {/* Search box following Kote standards */}
+          <form onSubmit={handleSubmit} className="note-commit-picker-search">
+            <SearchIcon style={{ width: '0.85rem', height: '0.85rem', opacity: 0.65, flexShrink: 0 }} />
             <input
-              type="text"
-              placeholder="Paste commit SHA..."
-              value={commitShaInput}
-              onChange={(e) => setCommitShaInput(e.target.value)}
-              style={{
-                flex: 1,
-                fontSize: '0.78rem',
-                padding: '4px 8px',
-                borderRadius: '5px',
-                border: '1px solid var(--border-subtle, rgba(255,255,255,0.14))',
-                background: 'var(--bg-surface, #0d1117)',
-                color: 'var(--text-primary)',
-              }}
+              ref={inputRef}
+              type="search"
+              placeholder="Search commit message, author, or SHA..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Search commits to link"
             />
-            <button
-              type="submit"
-              className="filter-chip active"
-              disabled={!commitShaInput.trim() || linkMutation.isPending}
-              style={{ fontSize: '0.75rem', padding: '4px 8px' }}
-            >
-              Link
-            </button>
           </form>
 
-          <div
-            style={{
-              maxHeight: '190px',
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '4px',
-            }}
-          >
-            {recentCommitsQuery.isLoading ? (
-              <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)', padding: '4px' }}>
-                Loading recent commits...
+          {/* Action button if user types a specific commit SHA */}
+          {canLinkCustomSha && (
+            <button
+              type="button"
+              className="note-commit-picker-custom-btn"
+              onClick={() => linkMutation.mutate(searchTerm.trim())}
+              disabled={linkMutation.isPending}
+            >
+              <span>
+                Link commit SHA <strong>{searchTerm.trim().slice(0, 12)}</strong>
               </span>
-            ) : availableCommits.length === 0 ? (
-              <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)', padding: '4px' }}>
-                No unlinked recent commits found in this project.
+              <span>&rarr;</span>
+            </button>
+          )}
+
+          {/* Commits List */}
+          <div className="note-commit-picker-list">
+            {commitsQuery.isLoading ? (
+              <span style={{ fontSize: '0.76rem', color: 'var(--muted)', padding: '8px' }}>
+                Loading commits...
+              </span>
+            ) : filteredCommits.length === 0 ? (
+              <span style={{ fontSize: '0.76rem', color: 'var(--muted)', padding: '8px' }}>
+                {searchTerm.trim()
+                  ? `No commits found matching "${searchTerm.trim()}".`
+                  : 'No unlinked commits found in this project.'}
               </span>
             ) : (
-              availableCommits.map((commit: ProjectCommitItem) => (
+              filteredCommits.map((commit: ProjectCommitItem) => (
                 <button
                   key={commit.id}
                   type="button"
+                  className="note-commit-picker-item"
                   disabled={linkMutation.isPending}
                   onClick={() => linkMutation.mutate(commit.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    textAlign: 'left',
-                    padding: '5px 6px',
-                    borderRadius: '5px',
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--text-primary)',
-                    cursor: 'pointer',
-                    fontSize: '0.76rem',
-                  }}
+                  title={`Link commit: ${commit.shortSha} - ${commit.message}`}
                 >
-                  <code style={{ color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>
-                    {commit.shortSha}
-                  </code>
-                  <span
-                    style={{
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      flex: 1,
-                    }}
-                  >
-                    {commit.message}
-                  </span>
+                  <code className="commit-sha">{commit.shortSha}</code>
+                  <div className="commit-details">
+                    <span className="commit-message">{commit.message}</span>
+                    <span className="commit-meta">
+                      {commit.authorName ? `${commit.authorName} • ` : ''}
+                      {formatUsDate(commit.committedAt)} {formatTimeInUserTimeZone(commit.committedAt)}
+                      {commit.branch ? ` • ${commit.branch}` : ''}
+                    </span>
+                  </div>
                 </button>
               ))
             )}

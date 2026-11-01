@@ -76,12 +76,15 @@ export type SyncGitCommitInput = {
   candidateSessionLinks?: SyncGitCommitCandidateLink[];
 };
 
+export type ProjectCommitLinkFilter = 'all' | 'with_notes' | 'ai' | 'manual' | 'github_push';
+
 export type ListProjectCommitsInput = {
   workspaceId?: string;
   projectId?: string | null;
   page: number;
   pageSize: number;
   onlyLinked?: boolean;
+  linkFilter?: ProjectCommitLinkFilter;
   query?: string;
 };
 

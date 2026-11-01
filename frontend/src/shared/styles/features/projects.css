@@ -1684,17 +1684,106 @@
 
 .projects-search-box input {
   padding-left: 42px !important;
+  padding-right: 40px !important;
 }
 
-.projects-search-icon {
+.projects-search-icon-slot {
   position: absolute;
   left: 14px;
   top: 50%;
   transform: translateY(-50%);
   width: 18px;
   height: 18px;
-  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
+  z-index: 2;
+}
+
+.projects-search-icon-slot .projects-search-icon,
+.projects-search-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+
+.projects-search-clear-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all var(--duration-fast, 150ms) ease;
+  z-index: 2;
+}
+
+.projects-search-clear-btn:hover {
+  background: var(--surface-3);
+  color: var(--text-strong);
+  border-color: var(--line);
+}
+
+.projects-search-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(83, 199, 222, 0.2);
+  border-top-color: var(--cyan);
+  animation: projects-search-spin 700ms linear infinite;
+  box-sizing: border-box;
+}
+
+.projects-search-spinner.large {
+  width: 30px;
+  height: 30px;
+  border-width: 3px;
+}
+
+@keyframes projects-search-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.projects-search-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  text-align: center;
+  background: var(--surface-1);
+  border: 1px dashed var(--line-soft);
+  border-radius: 12px;
+  margin: 16px 0;
+}
+
+.projects-search-loading-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.projects-search-loading-text strong {
+  font-size: 14px;
+  color: var(--text-strong);
+}
+
+.projects-search-loading-text span {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .matching-notes-count {
@@ -2390,3 +2479,134 @@
 .decision-note-button:hover {
   color: var(--accent-hover, #60a5fa);
 }
+
+/* Note Commit Picker Popover */
+.note-commit-picker-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  width: 360px;
+  max-width: 90vw;
+  background: var(--panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.note-commit-picker-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  transition: border-color 150ms ease;
+}
+
+.note-commit-picker-search:focus-within {
+  border-color: var(--accent);
+}
+
+.note-commit-picker-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.8rem;
+  outline: none;
+  width: 100%;
+}
+
+.note-commit-picker-search input::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+.note-commit-picker-list {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-right: 2px;
+}
+
+.note-commit-picker-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  width: 100%;
+  font-size: 0.78rem;
+  transition: background 120ms ease;
+}
+
+.note-commit-picker-item:hover,
+.note-commit-picker-item:focus-visible {
+  background: var(--surface-2);
+  outline: none;
+}
+
+.note-commit-picker-item .commit-sha {
+  font-family: var(--mono, monospace);
+  font-weight: 600;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.note-commit-picker-item .commit-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.note-commit-picker-item .commit-message {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.note-commit-picker-item .commit-meta {
+  font-size: 0.7rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-commit-picker-custom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px dashed var(--accent);
+  background: rgba(88, 166, 255, 0.06);
+  color: var(--accent);
+  font-size: 0.78rem;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background 120ms ease;
+}
+
+.note-commit-picker-custom-btn:hover {
+  background: rgba(88, 166, 255, 0.12);
+}
+

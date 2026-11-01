@@ -250,7 +250,11 @@ export function fetchProjectCommits(projectSlug: string, params: FetchProjectCom
     page: String(params.page || 1),
     pageSize: String(params.pageSize || 20),
   });
-  if (params.onlyLinked) search.set('onlyLinked', 'true');
+  if (params.linkFilter && params.linkFilter !== 'all') {
+    search.set('linkFilter', params.linkFilter);
+  } else if (params.onlyLinked) {
+    search.set('onlyLinked', 'true');
+  }
   if (params.query?.trim()) search.set('query', params.query.trim());
 
   return request<ProjectCommitsResponse>(`${buildApiPath(API_PATHS.PROJECT_COMMITS, { projectSlug })}?${search.toString()}`);

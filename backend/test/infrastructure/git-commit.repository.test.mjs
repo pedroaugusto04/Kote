@@ -113,6 +113,24 @@ test('PostgresGitCommitRepository reconciles AI session notes with synced commit
   assert.equal(onlyLinkedResult.items.length, 1);
   assert.equal(onlyLinkedResult.items[0].id, linkedCommitItem.id);
 
+  // Verify filtering with linkFilter: 'ai' vs 'manual'
+  const aiFilterResult = await repositories.gitCommitRepository.listProjectCommits(user.id, {
+    projectId: project.id,
+    page: 1,
+    pageSize: 20,
+    linkFilter: 'ai',
+  });
+  assert.equal(aiFilterResult.items.length, 1);
+  assert.equal(aiFilterResult.items[0].id, linkedCommitItem.id);
+
+  const manualFilterResult = await repositories.gitCommitRepository.listProjectCommits(user.id, {
+    projectId: project.id,
+    page: 1,
+    pageSize: 20,
+    linkFilter: 'manual',
+  });
+  assert.equal(manualFilterResult.items.length, 0);
+
   // Verify All Projects query (no projectId) returns projectSlug and projectName
   const allProjectsResult = await repositories.gitCommitRepository.listProjectCommits(user.id, {
     workspaceId: workspace.id,

@@ -10,6 +10,10 @@ export const PROJECTS_WORKSPACE_MESSAGES = {
     DEBOUNCE_MS: 350,
     IN_PROJECT: 'Search in {project}',
     ACROSS_ALL: 'Search across all projects',
+    SEARCHING: 'Searching notes...',
+    SEARCHING_ACROSS_ALL: 'Searching notes across all projects...',
+    SEARCHING_IN_PROJECT: 'Searching notes in {project}...',
+    CLEAR_SEARCH: 'Clear search',
   },
   
   CONFIRMATION: {
