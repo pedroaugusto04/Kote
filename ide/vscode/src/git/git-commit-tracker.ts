@@ -15,7 +15,7 @@ const COMMIT_RECORD_START = '___KOTE_COMMIT_START___';
 const COMMIT_HEADER_END = '___KOTE_HEADER_END___';
 const SYNC_DEBOUNCE_MS = 2500;
 const RECENT_COMMITS_COUNT = 15;
-const RECENT_SESSION_WINDOW_MS = 24 * 60 * 60 * 1000;
+const RECENT_SESSION_WINDOW_MS = 6 * 60 * 60 * 1000;
 
 interface ParsedLocalCommit {
   commitSha: string;
@@ -41,7 +41,12 @@ function filesOverlap(commitFiles: string[], sessionFiles: string[]): string[] {
     for (const sf of sessionFiles) {
       const normSf = normalizePath(sf);
       if (!normSf) continue;
-      if (normCf === normSf || normCf.endsWith(`/${normSf}`) || normSf.endsWith(`/${normCf}`)) {
+      if (normCf === normSf) {
+        matched.add(normCf);
+        continue;
+      }
+      const [shorter, longer] = normCf.length < normSf.length ? [normCf, normSf] : [normSf, normCf];
+      if (shorter.includes('/') && longer.endsWith(`/${shorter}`)) {
         matched.add(normCf);
       }
     }
@@ -208,7 +213,11 @@ export class GitCommitTracker implements vscode.Disposable {
 
         const githubBaseUrl = await resolveGithubRepoBaseUrl(repoDir);
 
-        const payload = commits.map((commit) => {
+        // Process commits from oldest to newest so session file changes are consumed by the first commit after the session
+        const chronologicalCommits = [...commits].reverse();
+        const consumedSessions = new Set<string>();
+
+        const payload = chronologicalCommits.map((commit) => {
           const commitTimeMs = Date.parse(commit.committedAt) || Date.now();
           const candidateSessionLinks: Array<{
             source?: string;
@@ -219,6 +228,7 @@ export class GitCommitTracker implements vscode.Disposable {
           }> = [];
 
           for (const session of recentSessions) {
+            const sessionKey = `${session.providerId}:${session.sessionId}`;
             const createdShas = session.gitActivity?.createdCommitShas || [];
             const isDirectCommit = createdShas.some(
               (sha) => commit.commitSha.startsWith(sha) || sha.startsWith(commit.commitSha),
@@ -227,6 +237,7 @@ export class GitCommitTracker implements vscode.Disposable {
             const matchedFiles = filesOverlap(commit.changedFiles, touchedFiles);
 
             if (isDirectCommit) {
+              consumedSessions.add(sessionKey);
               candidateSessionLinks.push({
                 source: session.providerId,
                 sessionId: session.sessionId,
@@ -237,9 +248,15 @@ export class GitCommitTracker implements vscode.Disposable {
               continue;
             }
 
+            // If this session explicitly created a different commit SHA in terminal, do not heuristically match it to other commits
+            if (createdShas.length > 0 || consumedSessions.has(sessionKey)) {
+              continue;
+            }
+
             const timeDiffMs = commitTimeMs - session.timestamp;
             const withinSessionWindow = timeDiffMs >= -15 * 60 * 1000 && timeDiffMs <= RECENT_SESSION_WINDOW_MS;
             if (withinSessionWindow && matchedFiles.length > 0) {
+              consumedSessions.add(sessionKey);
               candidateSessionLinks.push({
                 source: session.providerId,
                 sessionId: session.sessionId,

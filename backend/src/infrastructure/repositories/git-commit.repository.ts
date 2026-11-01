@@ -41,7 +41,31 @@ function filesMatch(commitFile: string, noteFile: string): boolean {
   const a = normalizeFilePath(commitFile);
   const b = normalizeFilePath(noteFile);
   if (!a || !b) return false;
-  return a === b || a.endsWith(`/${b}`) || b.endsWith(`/${a}`);
+  if (a === b) return true;
+  const [shorter, longer] = a.length < b.length ? [a, b] : [b, a];
+  // Require at least one directory segment on suffix matches so bare filenames
+  // like "package.json" or "index.ts" do not cross-match unrelated subdirectories.
+  if (!shorter.includes('/')) return false;
+  return longer.endsWith(`/${shorter}`);
+}
+
+const NOISY_LOCKFILES = new Set([
+  'package-lock.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+  'bun.lockb',
+  'bun.lock',
+  'cargo.lock',
+  'poetry.lock',
+  'composer.lock',
+]);
+
+function filterSignalFiles(files: string[]): string[] {
+  const signal = files.filter((f) => {
+    const base = f.split('/').pop()?.toLowerCase() || '';
+    return !NOISY_LOCKFILES.has(base);
+  });
+  return signal.length > 0 ? signal : files;
 }
 
 function intersectFiles(commitFiles: string[], noteFiles: string[]): string[] {
@@ -86,12 +110,50 @@ function extractNoteDeterministicShas(metadata: Record<string, unknown>): Array<
     const sha = normalizeSha(metadata?.[key]);
     if (sha && !seen.has(sha)) {
       seen.add(sha);
-      const isGithub = Boolean(metadata?.repository || metadata?.eventType === 'code-review');
+      const isGithub = Boolean(
+        metadata?.repository ||
+        metadata?.repoFullName ||
+        metadata?.prUrl ||
+        metadata?.eventType === 'code-review',
+      );
       entries.push({ sha, source: isGithub ? 'github_push' : 'ai_terminal' });
     }
   }
 
   return entries;
+}
+
+function extractNoteBranch(metadata: Record<string, unknown>): string {
+  const gitActivity = (metadata?.gitActivity && typeof metadata.gitActivity === 'object')
+    ? (metadata.gitActivity as Record<string, unknown>)
+    : null;
+  if (typeof metadata?.branch === 'string' && metadata.branch.trim()) {
+    return metadata.branch.trim();
+  }
+  if (typeof gitActivity?.branch === 'string' && gitActivity.branch.trim()) {
+    return gitActivity.branch.trim();
+  }
+  return '';
+}
+
+function resolveNoteSessionSpanIso(note: { createdAt?: string | null; occurredAt?: string | null }): {
+  startIso: string;
+  endIso: string;
+} {
+  const occurredMs = note.occurredAt ? Date.parse(note.occurredAt) : Number.NaN;
+  const createdMs = note.createdAt ? Date.parse(note.createdAt) : Number.NaN;
+  const effectiveEndMs = !Number.isNaN(occurredMs)
+    ? occurredMs
+    : !Number.isNaN(createdMs)
+      ? createdMs
+      : Date.now();
+  const effectiveStartMs = !Number.isNaN(createdMs) && createdMs < effectiveEndMs
+    ? createdMs
+    : effectiveEndMs;
+  return {
+    startIso: new Date(effectiveStartMs).toISOString(),
+    endIso: new Date(effectiveEndMs).toISOString(),
+  };
 }
 
 function extractNoteTouchedFiles(note: Pick<NoteRecord, 'path' | 'metadata'>): string[] {
@@ -131,7 +193,15 @@ export class PostgresGitCommitRepository extends GitCommitRepository {
     let syncedCount = 0;
     let linkedCount = 0;
 
-    for (const rawCommit of commits) {
+    // Sort commits chronologically (oldest first) so that an AI session's modified files
+    // are consumed by the first commit after the session rather than duplicated across subsequent commits.
+    const orderedCommits = [...commits].sort((a, b) => {
+      const aTime = a.committedAt ? Date.parse(a.committedAt) : 0;
+      const bTime = b.committedAt ? Date.parse(b.committedAt) : 0;
+      return (Number.isNaN(aTime) ? 0 : aTime) - (Number.isNaN(bTime) ? 0 : bTime);
+    });
+
+    for (const rawCommit of orderedCommits) {
       const commitSha = normalizeSha(rawCommit.commitSha);
       if (!commitSha) continue;
 
@@ -139,6 +209,7 @@ export class PostgresGitCommitRepository extends GitCommitRepository {
       const committedAt = rawCommit.committedAt && !Number.isNaN(Date.parse(rawCommit.committedAt))
         ? new Date(rawCommit.committedAt).toISOString()
         : new Date().toISOString();
+      const commitBranch = rawCommit.branch ? String(rawCommit.branch).trim() : '';
 
       // Upgrade any prefix-only placeholder commit row (e.g. 7-char SHA from terminal output) before upserting full SHA
       if (commitSha.length >= 12) {
@@ -182,7 +253,7 @@ export class PostgresGitCommitRepository extends GitCommitRepository {
            changed_files = CASE WHEN jsonb_array_length(EXCLUDED.changed_files) > 0 THEN EXCLUDED.changed_files ELSE kb_git_commits.changed_files END,
            commit_url = CASE WHEN EXCLUDED.commit_url <> '' THEN EXCLUDED.commit_url ELSE kb_git_commits.commit_url END,
            updated_at = now()
-         RETURNING id, changed_files`,
+         RETURNING id, changed_files, branch`,
         [
           crypto.randomUUID(),
           userId,
@@ -190,7 +261,7 @@ export class PostgresGitCommitRepository extends GitCommitRepository {
           scope.projectId,
           commitSha,
           parentSha,
-          rawCommit.branch ? String(rawCommit.branch).trim() : '',
+          commitBranch,
           String(rawCommit.message || '').trim(),
           String(rawCommit.authorName || '').trim(),
           String(rawCommit.authorEmail || '').trim(),
@@ -205,10 +276,16 @@ export class PostgresGitCommitRepository extends GitCommitRepository {
       syncedCount += 1;
       const commitId = String(commitRow.id);
       const effectiveChangedFiles = normalizeChangedFiles(commitRow.changed_files);
+      const effectiveCommitBranch = String(commitRow.branch || commitBranch || '').trim();
 
-      // 1. Explicit candidate session links from IDE tracker or GitHub push
+      // 1. Explicit candidate links (deterministic links from IDE terminal or GitHub push)
       if (Array.isArray(rawCommit.candidateSessionLinks)) {
         for (const candidate of rawCommit.candidateSessionLinks) {
+          const linkSource = candidate.linkSource || 'session_files';
+          // Only accept deterministic links directly here; session_files candidates are reconciled
+          // against strict database rules below to prevent cross-commit or GitHub note pollution.
+          if (linkSource === 'session_files') continue;
+
           let targetNoteId: string | null = null;
           if (candidate.noteId && isUuid(candidate.noteId)) {
             const found = await pool.query(
@@ -229,7 +306,7 @@ export class PostgresGitCommitRepository extends GitCommitRepository {
               userId,
               noteId: targetNoteId,
               commitId,
-              linkSource: candidate.linkSource || 'session_files',
+              linkSource,
               matchedFiles: normalizeChangedFiles(candidate.matchedFiles),
             });
             linkedCount += 1;
@@ -237,65 +314,168 @@ export class PostgresGitCommitRepository extends GitCommitRepository {
         }
       }
 
-      // 2. Reconcile against existing project notes (deterministic SHA match or AI session file intersection)
-      const candidatesRes = await pool.query(
-        `SELECT n.id, n.path, n.source_channel, n.session_id, n.occurred_at, n.metadata,
-                COALESCE(
-                  (SELECT array_agg(nl.target) FROM kb_note_links nl WHERE nl.note_id = n.id AND nl.user_id = n.user_id),
-                  ARRAY[]::text[]
-                ) AS linked_targets
+      // 2A. Reconcile deterministic SHA matches ONLY (notes carrying headSha, commitHash, commit, or gitActivity.createdCommitShas)
+      const shaCandidatesRes = await pool.query(
+        `SELECT n.id, n.path, n.metadata
          FROM kb_notes n
          WHERE n.user_id = $1
            AND n.project_id = $2
            AND (
-             lower(coalesce(n.metadata->>'headSha', n.metadata->>'commitHash', n.metadata->>'commit', '')) <> ''
-             OR jsonb_typeof(n.metadata->'gitActivity'->'createdCommitShas') = 'array'
-             OR (
-               (n.session_id <> '' OR n.source_channel = 'ai-chat')
-               AND n.occurred_at BETWEEN ($3::timestamptz - interval '24 hours') AND ($3::timestamptz + interval '15 minutes')
+             (
+               length(trim(coalesce(n.metadata->>'headSha', n.metadata->>'commitHash', n.metadata->>'commit', ''))) >= 7
+               AND (
+                 $3 LIKE lower(trim(coalesce(n.metadata->>'headSha', n.metadata->>'commitHash', n.metadata->>'commit', ''))) || '%'
+                 OR lower(trim(coalesce(n.metadata->>'headSha', n.metadata->>'commitHash', n.metadata->>'commit', ''))) LIKE $3 || '%'
+               )
              )
+             OR jsonb_typeof(n.metadata->'gitActivity'->'createdCommitShas') = 'array'
            )`,
-        [userId, scope.projectId, committedAt],
+        [userId, scope.projectId, commitSha],
       );
 
-      for (const noteRow of candidatesRes.rows) {
+      for (const noteRow of shaCandidatesRes.rows) {
         const noteId = String(noteRow.id);
         const metadata = (noteRow.metadata || {}) as Record<string, unknown>;
         const deterministicShas = extractNoteDeterministicShas(metadata);
-
         const directMatch = deterministicShas.find(
           (entry) => commitSha.startsWith(entry.sha) || entry.sha.startsWith(commitSha),
         );
+        if (!directMatch) continue;
 
-        const noteFiles = normalizeChangedFiles([
-          ...extractNoteTouchedFiles({ path: String(noteRow.path || ''), metadata }),
-          ...(Array.isArray(noteRow.linked_targets) ? noteRow.linked_targets : []),
-        ]);
+        const noteFiles = extractNoteTouchedFiles({ path: String(noteRow.path || ''), metadata });
         const matchedFiles = intersectFiles(effectiveChangedFiles, noteFiles);
 
-        if (directMatch) {
-          await this.upsertNoteCommitLink(pool, {
-            userId,
-            noteId,
-            commitId,
-            linkSource: directMatch.source,
-            matchedFiles: matchedFiles.length > 0 ? matchedFiles : effectiveChangedFiles,
-          });
-          linkedCount += 1;
-        } else if (matchedFiles.length > 0) {
-          await this.upsertNoteCommitLink(pool, {
-            userId,
-            noteId,
-            commitId,
-            linkSource: 'session_files',
-            matchedFiles,
-          });
-          linkedCount += 1;
+        await this.upsertNoteCommitLink(pool, {
+          userId,
+          noteId,
+          commitId,
+          linkSource: directMatch.source,
+          matchedFiles: matchedFiles.length > 0 ? matchedFiles : effectiveChangedFiles,
+        });
+        linkedCount += 1;
+      }
+
+      // 2B. Reconcile AI session file intersections (session_files)
+      // Strictly restricted to AI chat sessions (never GitHub push/PR notes) whose duration + 6h window
+      // (LEAST(created_at, occurred_at) - 15m to occurred_at + 6h) covers the commit, using the
+      // Most-Recent-Owner-Per-File rule so each modified file is attributed only to the latest AI session
+      // before the commit that touched it.
+      if (effectiveChangedFiles.length > 0) {
+        const signalCommitFiles = filterSignalFiles(effectiveChangedFiles);
+        const unclaimedCommitFiles = new Set<string>(signalCommitFiles);
+
+        const sessionCandidatesRes = await pool.query(
+          `SELECT n.id, n.path, n.source, n.source_channel, n.created_at, n.occurred_at, n.metadata
+           FROM kb_notes n
+           WHERE n.user_id = $1
+             AND n.project_id = $2
+             AND n.source_channel = 'ai-chat'
+             AND n.source NOT IN ('github', 'github push', 'github pull request')
+             AND coalesce(n.metadata->>'headSha', '') = ''
+             AND $3::timestamptz BETWEEN (LEAST(n.created_at, n.occurred_at) - interval '15 minutes')
+                                     AND (n.occurred_at + interval '6 hours')
+             AND NOT EXISTS (
+               SELECT 1
+               FROM kb_note_commit_links ncl
+               JOIN kb_git_commits gc_prev ON gc_prev.id = ncl.commit_id
+               WHERE ncl.note_id = n.id
+                 AND ncl.user_id = n.user_id
+                 AND gc_prev.id <> $4::uuid
+                 AND gc_prev.committed_at >= (n.occurred_at - interval '15 minutes')
+                 AND gc_prev.committed_at < $3::timestamptz
+             )
+           ORDER BY n.occurred_at DESC, n.created_at DESC`,
+          [userId, scope.projectId, committedAt, commitId],
+        );
+
+        for (const noteRow of sessionCandidatesRes.rows) {
+          if (unclaimedCommitFiles.size === 0) break;
+
+          const noteId = String(noteRow.id);
+          const metadata = (noteRow.metadata || {}) as Record<string, unknown>;
+
+          // Skip if this AI session already has deterministic commit SHAs from terminal execution
+          if (extractNoteDeterministicShas(metadata).length > 0) continue;
+
+          // If both note and commit specify a branch, require them to match
+          const noteBranch = extractNoteBranch(metadata);
+          if (noteBranch && effectiveCommitBranch && noteBranch !== effectiveCommitBranch) {
+            continue;
+          }
+
+          const noteFiles = filterSignalFiles(
+            extractNoteTouchedFiles({ path: String(noteRow.path || ''), metadata }),
+          );
+          const newlyClaimedFiles = intersectFiles([...unclaimedCommitFiles], noteFiles);
+
+          if (newlyClaimedFiles.length > 0) {
+            for (const claimed of newlyClaimedFiles) {
+              unclaimedCommitFiles.delete(claimed);
+            }
+            const allMatchedFiles = intersectFiles(effectiveChangedFiles, noteFiles);
+            await this.upsertNoteCommitLink(pool, {
+              userId,
+              noteId,
+              commitId,
+              linkSource: 'session_files',
+              matchedFiles: allMatchedFiles.length > 0 ? allMatchedFiles : newlyClaimedFiles,
+            });
+            linkedCount += 1;
+          }
         }
       }
     }
 
+    await this.pruneSpuriousSessionFileLinks(pool, userId);
+
     return { syncedCount, linkedCount };
+  }
+
+  private async pruneSpuriousSessionFileLinks(queryable: Queryable, userId: string): Promise<void> {
+    await queryable.query(
+      `DELETE FROM kb_note_commit_links ncl
+       USING kb_notes n, kb_git_commits gc
+       WHERE ncl.user_id = $1
+         AND ncl.note_id = n.id
+         AND ncl.commit_id = gc.id
+         AND ncl.link_source = 'session_files'
+         AND (
+           n.source_channel <> 'ai-chat'
+           OR lower(coalesce(n.source, '')) IN ('github', 'github push', 'github pull request')
+           OR coalesce(n.metadata->>'headSha', '') <> ''
+           OR (
+             jsonb_typeof(n.metadata->'gitActivity'->'createdCommitShas') = 'array'
+             AND jsonb_array_length(n.metadata->'gitActivity'->'createdCommitShas') > 0
+           )
+           OR gc.committed_at < (LEAST(n.created_at, n.occurred_at) - interval '15 minutes')
+           OR gc.committed_at > (n.occurred_at + interval '6 hours')
+         )`,
+      [userId],
+    );
+
+    await queryable.query(
+      `DELETE FROM kb_note_commit_links ncl
+       USING kb_notes n, kb_git_commits gc
+       WHERE ncl.user_id = $1
+         AND ncl.note_id = n.id
+         AND ncl.commit_id = gc.id
+         AND ncl.link_source = 'session_files'
+         AND gc.committed_at >= (n.occurred_at - interval '15 minutes')
+         AND EXISTS (
+           SELECT 1
+           FROM kb_note_commit_links earlier_ncl
+           JOIN kb_git_commits earlier_gc ON earlier_gc.id = earlier_ncl.commit_id
+           WHERE earlier_ncl.note_id = ncl.note_id
+             AND earlier_ncl.user_id = ncl.user_id
+             AND earlier_ncl.id <> ncl.id
+             AND earlier_gc.committed_at >= (n.occurred_at - interval '15 minutes')
+             AND (
+               earlier_gc.committed_at < gc.committed_at
+               OR (earlier_gc.committed_at = gc.committed_at AND earlier_ncl.id::text < ncl.id::text)
+             )
+         )`,
+      [userId],
+    );
   }
 
   async reconcileNoteCommits(
@@ -308,9 +488,7 @@ export class PostgresGitCommitRepository extends GitCommitRepository {
     const metadata = (note.metadata || {}) as Record<string, unknown>;
     const deterministicShas = extractNoteDeterministicShas(metadata);
     const touchedFiles = extractNoteTouchedFiles(note);
-    const gitActivity = (metadata.gitActivity && typeof metadata.gitActivity === 'object')
-      ? (metadata.gitActivity as Record<string, unknown>)
-      : null;
+    const noteBranch = extractNoteBranch(metadata);
 
     // 1. Link deterministic SHAs (creating a commit record if not yet synced)
     for (const { sha, source } of deterministicShas) {
@@ -332,11 +510,6 @@ export class PostgresGitCommitRepository extends GitCommitRepository {
         commitId = String(existingRes.rows[0].id);
         commitChangedFiles = normalizeChangedFiles(existingRes.rows[0].changed_files);
       } else {
-        const branch = typeof metadata.branch === 'string'
-          ? metadata.branch
-          : typeof gitActivity?.branch === 'string'
-            ? gitActivity.branch
-            : '';
         const authorName = typeof metadata.author === 'string' ? metadata.author : '';
         const committedAt = note.occurredAt && !Number.isNaN(Date.parse(note.occurredAt))
           ? new Date(note.occurredAt).toISOString()
@@ -361,7 +534,7 @@ export class PostgresGitCommitRepository extends GitCommitRepository {
             note.workspaceId,
             note.projectId,
             sha,
-            branch,
+            noteBranch,
             note.title || note.summary || '',
             authorName,
             committedAt,
@@ -382,24 +555,33 @@ export class PostgresGitCommitRepository extends GitCommitRepository {
       });
     }
 
-    // 2. If this is an AI session note with touchedFiles, also match recent commits in the project touching those files
-    if (touchedFiles.length > 0 && (note.sessionId || note.sourceChannel === 'ai-chat')) {
-      const occurredAt = note.occurredAt && !Number.isNaN(Date.parse(note.occurredAt))
-        ? new Date(note.occurredAt).toISOString()
-        : new Date().toISOString();
+    // 2. If this is an AI session note without deterministic SHAs and with touchedFiles,
+    // match commits occurring during the session or the first subsequent commit within 6 hours.
+    const isAiChatNote = note.sourceChannel === 'ai-chat'
+      && !['github', 'github push', 'github pull request'].includes((note.source || '').toLowerCase());
+
+    if (isAiChatNote && deterministicShas.length === 0 && touchedFiles.length > 0) {
+      const { startIso, endIso } = resolveNoteSessionSpanIso(note);
+      const endMinusToleranceMs = Date.parse(endIso) - 15 * 60 * 1000;
+      const signalTouchedFiles = filterSignalFiles(touchedFiles);
 
       const recentCommitsRes = await queryable.query(
-        `SELECT id, changed_files
+        `SELECT id, branch, changed_files, committed_at
          FROM kb_git_commits
          WHERE user_id = $1
            AND project_id = $2
-           AND committed_at BETWEEN ($3::timestamptz - interval '15 minutes') AND ($3::timestamptz + interval '24 hours')`,
-        [userId, note.projectId, occurredAt],
+           AND committed_at BETWEEN ($3::timestamptz - interval '15 minutes') AND ($4::timestamptz + interval '6 hours')
+         ORDER BY committed_at ASC`,
+        [userId, note.projectId, startIso, endIso],
       );
 
       for (const commitRow of recentCommitsRes.rows) {
-        const commitFiles = normalizeChangedFiles(commitRow.changed_files);
-        const matchedFiles = intersectFiles(commitFiles, touchedFiles);
+        const commitBranch = String(commitRow.branch || '').trim();
+        if (noteBranch && commitBranch && noteBranch !== commitBranch) {
+          continue;
+        }
+        const commitFiles = filterSignalFiles(normalizeChangedFiles(commitRow.changed_files));
+        const matchedFiles = intersectFiles(commitFiles, signalTouchedFiles);
         if (matchedFiles.length > 0) {
           await this.upsertNoteCommitLink(queryable, {
             userId,
@@ -408,6 +590,11 @@ export class PostgresGitCommitRepository extends GitCommitRepository {
             linkSource: 'session_files',
             matchedFiles,
           });
+          const committedAtMs = Date.parse(String(commitRow.committed_at || ''));
+          if (!Number.isNaN(committedAtMs) && committedAtMs >= endMinusToleranceMs) {
+            // Stop after the first post-session commit that consumes the session's touched files
+            break;
+          }
         }
       }
     }
@@ -505,6 +692,7 @@ export class PostgresGitCommitRepository extends GitCommitRepository {
     input: ListProjectCommitsInput,
   ): Promise<ListProjectCommitsResult> {
     const pool = this.database.getPool();
+    await this.pruneSpuriousSessionFileLinks(pool, userId);
     const values: unknown[] = [userId];
     const clauses: string[] = [
       'gc.user_id = $1',
