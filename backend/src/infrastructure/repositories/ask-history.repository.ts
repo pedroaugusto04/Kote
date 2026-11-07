@@ -16,12 +16,9 @@ import type {
 import { AskHistoryRepository } from '../../application/ports/query/ask-history.repository.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { askHistory } from '../persistence/schema/index.js';
+import { toIsoTimestamp } from '../mappers/row.mappers.js';
 
 type Row = Record<string, unknown>;
-
-function nowIso(value: unknown): string {
-  return value instanceof Date ? value.toISOString() : String(value || new Date().toISOString());
-}
 
 function askHistoryFromRow(row: Row): AskHistoryItem {
   const projectId = row.projectId;
@@ -36,7 +33,7 @@ function askHistoryFromRow(row: Row): AskHistoryItem {
     projectId: projectId ? String(projectId) : null,
     sources: Array.isArray(row.sources) ? row.sources as AskHistorySource[] : [],
     relatedNotes: Array.isArray(relatedNotes) ? relatedNotes as AskHistoryRelatedNote[] : [],
-    createdAt: nowIso(createdAt),
+    createdAt: toIsoTimestamp(createdAt),
   };
 }
 
@@ -158,7 +155,7 @@ export class PostgresAskHistoryRepository extends AskHistoryRepository {
       conversationId: String(row.conversationId),
       title: String(row.title),
       projectId: row.projectId ? String(row.projectId) : null,
-      createdAt: nowIso(row.createdAt),
+      createdAt: toIsoTimestamp(row.createdAt),
     }));
 
     return {

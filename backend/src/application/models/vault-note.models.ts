@@ -49,8 +49,6 @@ export type VaultNoteDetail = VaultNoteSummary & {
   editor: {
     canDelete: boolean;
     rawText: string;
-    reminderDate: string;
-    reminderTime: string;
     reminderAt: string;
   } | null;
   navigation: {

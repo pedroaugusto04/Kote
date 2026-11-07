@@ -44,11 +44,8 @@ async function createStoreWithReminder(t) {
     frontmatter: {},
     metadata: {
       rawText: 'Validar rollout antes da janela de deploy.',
-      reminderDate: '2099-12-31',
-      reminderTime: '09:00',
       reminderAt: '2099-12-31T12:00:00.000Z',
     },
-    reminderDate: '2099-12-31',
     reminderAt: '2099-12-31T12:00:00.000Z',
     origin: 'postgres',
     source: 'test',
@@ -86,29 +83,29 @@ async function insertReminder(repositories, userId, input) {
   }
 
   const rawText = input.rawText || input.title;
-  return repositories.contentRepository.upsertNote(userId, {
-    path: input.path,
-    type: 'event',
-    title: input.title,
-    projectSlug,
-    workspaceSlug,
-    status: input.status || 'pending',
-    tags: [],
-    occurredAt: input.occurredAt || input.metadata.reminderAt || `${input.metadata.reminderDate}T00:00:00.000Z`,
-    sourceChannel: 'test',
-    summary: rawText,
-    markdown: '',
-    frontmatter: {},
-    metadata: {
-      rawText,
-      ...input.metadata,
-    },
-    reminderDate: input.metadata.reminderDate || '',
-    reminderAt: input.metadata.reminderAt || '',
-    origin: 'postgres',
-    source: 'test',
-    links: [],
-  });
+    const reminderAt = input.metadata?.reminderAt || (input.metadata?.reminderDate ? `${input.metadata.reminderDate}T00:00:00.000Z` : '');
+    return repositories.contentRepository.upsertNote(userId, {
+      path: input.path,
+      type: 'event',
+      title: input.title,
+      projectSlug,
+      workspaceSlug,
+      status: input.status || 'pending',
+      tags: [],
+      occurredAt: input.occurredAt || reminderAt || new Date().toISOString(),
+      sourceChannel: 'test',
+      summary: rawText,
+      markdown: '',
+      frontmatter: {},
+      metadata: {
+        rawText,
+        ...input.metadata,
+      },
+      reminderAt,
+      origin: 'postgres',
+      source: 'test',
+      links: [],
+    });
 }
 
 function createLoggerStub() {

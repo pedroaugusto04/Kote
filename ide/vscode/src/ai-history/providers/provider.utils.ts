@@ -9,6 +9,8 @@ import { collapseWhitespace } from '../../utils/text.js';
 export type JsonRecord = Record<string, unknown>;
 
 const MAX_SESSION_CACHE_ENTRIES = 250;
+const MAX_TRAVERSAL_DEPTH = 6;
+const IGNORED_DIRECTORY_NAMES = new Set(['node_modules', '.git', 'dist', 'out', 'build', '.venv', '__pycache__', '.next', '.turbo']);
 
 export function asRecord(value: unknown): JsonRecord | null {
   return value !== null && typeof value === 'object' ? value as JsonRecord : null;
@@ -76,15 +78,16 @@ export function readJsonLines(content: string): unknown[] {
   return records;
 }
 
-export function listFilesRecursively(dir: string): string[] {
-  if (!fs.existsSync(dir)) return [];
+export function listFilesRecursively(dir: string, maxDepth = MAX_TRAVERSAL_DEPTH, currentDepth = 0): string[] {
+  if (currentDepth > maxDepth || !fs.existsSync(dir)) return [];
 
   const files: string[] = [];
   try {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const entryPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        files.push(...listFilesRecursively(entryPath));
+        if (IGNORED_DIRECTORY_NAMES.has(entry.name)) continue;
+        files.push(...listFilesRecursively(entryPath, maxDepth, currentDepth + 1));
         continue;
       }
       files.push(entryPath);
@@ -104,16 +107,18 @@ export function recentFiles(dir: string, predicate: (filePath: string) => boolea
     .map(({ filePath }) => filePath);
 }
 
-export function latestTreeMtime(dir: string, predicate: (filePath: string) => boolean): number {
+export function latestTreeMtime(dir: string, predicate: (filePath: string) => boolean, maxDepth = MAX_TRAVERSAL_DEPTH): number {
   let maxMtime = safeMtime(dir);
   if (maxMtime === 0) return 0;
 
-  const walk = (currentDir: string) => {
+  const walk = (currentDir: string, currentDepth: number) => {
+    if (currentDepth > maxDepth) return;
     try {
       for (const entry of fs.readdirSync(currentDir, { withFileTypes: true })) {
         const entryPath = path.join(currentDir, entry.name);
         if (entry.isDirectory()) {
-          walk(entryPath);
+          if (IGNORED_DIRECTORY_NAMES.has(entry.name)) continue;
+          walk(entryPath, currentDepth + 1);
         } else if (entry.isFile() && predicate(entryPath)) {
           const mtime = safeMtime(entryPath);
           if (mtime > maxMtime) {
@@ -126,7 +131,7 @@ export function latestTreeMtime(dir: string, predicate: (filePath: string) => bo
     }
   };
 
-  walk(dir);
+  walk(dir, 0);
   return maxMtime;
 }
 

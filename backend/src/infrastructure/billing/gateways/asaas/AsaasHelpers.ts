@@ -1,12 +1,8 @@
 import { BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
-import { toMoneyNumber as domainToMoneyNumber, PLAN_PRICE_SCALE } from '../../../../domain/utils/money.utils.js';
+import { toMoneyNumber, PLAN_PRICE_SCALE } from '../../../../domain/utils/money.utils.js';
 
 export const ASAAS_SANDBOX_BASE_URL = 'https://api-sandbox.asaas.com/v3';
-export { PLAN_PRICE_SCALE };
-
-export function toMoneyNumber(value: unknown, scale = PLAN_PRICE_SCALE): number {
-  return domainToMoneyNumber(value, scale);
-}
+export { toMoneyNumber, PLAN_PRICE_SCALE };
 
 export function parseDateTimeInput(value?: string | Date | null): Date | null {
   if (value === null || value === undefined || value === '') return null;

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { slugify } from '../../../domain/strings.js';
 import { isDependencyNote } from '../../../domain/utils/note-embedding.utils.js';
+import { hasReminder } from '../../../domain/note-status.js';
 import type {
   KnowledgeMapLink,
   KnowledgeMapLinkType,
@@ -177,10 +178,6 @@ export function projectKnowledgeMapCategory(record: Pick<NoteRecord, 'metadata' 
   if (record.sourceChannel === SourceChannel.Cli) return TimelineCategory.Manual;
   if (record.sourceChannel === SourceChannel.Ide) return TimelineCategory.Manual;
   return TimelineCategory.Manual;
-}
-
-function hasReminder(record: Pick<NoteRecord, 'reminderAt'>) {
-  return Boolean(record.reminderAt);
 }
 
 function isReviewNote(record: Pick<NoteRecord, 'metadata' | 'sourceChannel'>) {

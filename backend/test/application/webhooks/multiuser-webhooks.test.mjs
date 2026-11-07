@@ -536,6 +536,7 @@ test('github pull request webhook processes event, searches context, and posts c
     repositories.scopeResolver,);
   const embeddingQueueMock = { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] };
 
+  const prLoggerMock = { info() {}, warn() {}, error() {}, debug() {} };
   const handler = new HandleGithubPullRequestUseCase(
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
@@ -548,7 +549,7 @@ test('github pull request webhook processes event, searches context, and posts c
     githubRepositoryResolution,
     embeddingQueueMock,
     repositories.contentRepository,
-    loggerMock,
+    prLoggerMock,
   );
 
   const result = await handler.execute(signedGithubPrInput(githubPrBody('opened', 77)), { synchronous: true });
@@ -623,6 +624,7 @@ test('github pull request webhook skips processing when title contains skip-kote
     repositories.runtimeEnvironmentProvider,
     githubPrGatewayMock,
   );
+  const prLoggerMock = { info() {}, warn() {}, error() {}, debug() {} };
   const handler = new HandleGithubPullRequestUseCase(
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
@@ -635,7 +637,7 @@ test('github pull request webhook skips processing when title contains skip-kote
     githubRepositoryResolution,
     {},
     repositories.contentRepository,
-    loggerMock,
+    prLoggerMock,
   );
 
   const payload = githubPrBody('opened', 78);
@@ -710,6 +712,7 @@ test('github pull request webhook skips posting comments when a comment already 
     repositories.runtimeEnvironmentProvider,
     githubPrGatewayMock,
   );
+  const prLoggerMock = { info() {}, warn() {}, error() {}, debug() {} };
   const handler = new HandleGithubPullRequestUseCase(
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
@@ -722,7 +725,7 @@ test('github pull request webhook skips posting comments when a comment already 
     githubRepositoryResolution,
     {},
     repositories.contentRepository,
-    loggerMock,
+    prLoggerMock,
   );
 
   const result = await handler.execute(signedGithubPrInput(githubPrBody('opened', 79)), { synchronous: true });

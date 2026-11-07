@@ -349,6 +349,27 @@ export class RagRetrievalService {
     const aiNotes = notes.filter(
       (note) => note.sourceChannel === SourceChannel.AiChat || note.source === SourceChannel.AiChat,
     );
+    if (aiNotes.length === 0) return result;
+
+    if (this.synthesisRepository.getByNoteIds) {
+      const synthesisMap = await this.synthesisRepository.getByNoteIds(
+        userId,
+        aiNotes.map((note) => note.id),
+      );
+      for (const note of aiNotes) {
+        const synthesis = synthesisMap.get(note.id);
+        const sourceHash = getAiSessionSourceHash(note.markdown);
+        if (
+          synthesis?.status === NoteSynthesisStatus.Completed &&
+          synthesis.sourceHash === sourceHash &&
+          Boolean(synthesis.overview.trim())
+        ) {
+          result.set(note.id, synthesis);
+        }
+      }
+      return result;
+    }
+
     const records = await Promise.all(
       aiNotes.map(async (note) => {
         const synthesis = await this.synthesisRepository!.getByNoteId(userId, note.id);

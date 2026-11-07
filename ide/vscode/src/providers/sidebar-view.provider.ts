@@ -406,7 +406,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     try {
       const projects = await this._client.listProjects();
       const savedOverride = this._context.workspaceState.get<string | null>('kote.activeProjectSlug', null);
-      const detected = await detectActiveProject(this._client, vscode.workspace.workspaceFolders ?? []);
+      const detected = await detectActiveProject(this._client, vscode.workspace.workspaceFolders ?? [], projects);
       if (!savedOverride || savedOverride === 'auto') {
         this.activeProject = detected;
       }

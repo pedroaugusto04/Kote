@@ -36,7 +36,7 @@ export class FindNotesBySnippetUseCase {
       .map((hash) => String(hash || '').trim())
       .filter(Boolean);
     const fileNotes = await this.noteContextRepository.findNotesByFile(userId, filePath, {
-      limit: 200,
+      limit: 50,
       projectSlug,
       commitHashes,
     });

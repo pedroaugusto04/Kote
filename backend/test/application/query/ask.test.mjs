@@ -1427,3 +1427,59 @@ test('AskKnowledgeUseCase logs provider response status and body when AI gateway
   assert.equal(genError.payload.model, 'gpt-4o-mini');
 });
 
+test('RagRetrievalService.loadValidSyntheses batches queries via getByNoteIds', async () => {
+  let batchCalledWith = null;
+  let singleCalls = 0;
+
+  const mockSynthesisRepo = {
+    async getByNoteIds(userId, noteIds) {
+      batchCalledWith = { userId, noteIds };
+      const hash = crypto.createHash('sha256').update('Session conversation text').digest('hex');
+      return new Map([
+        [
+          'note-ai-1',
+          {
+            status: 'completed',
+            sourceHash: hash,
+            overview: 'Generated synthesis summary',
+          },
+        ],
+      ]);
+    },
+    async getByNoteId() {
+      singleCalls++;
+      return null;
+    },
+  };
+
+  const service = new RagRetrievalService(
+    {},
+    {},
+    {},
+    {},
+    {},
+    { info() {}, warn() {}, error() {}, debug() {} },
+    mockSynthesisRepo,
+  );
+
+  const notes = [
+    {
+      id: 'note-ai-1',
+      sourceChannel: 'ai-chat',
+      markdown: 'Session conversation text',
+    },
+    {
+      id: 'note-manual-2',
+      sourceChannel: 'manual',
+      markdown: 'Manual note text',
+    },
+  ];
+
+  const result = await service.loadValidSyntheses('user-1', notes);
+  assert.equal(singleCalls, 0, 'Single getByNoteId should not be called when batch getByNoteIds is available');
+  assert.deepEqual(batchCalledWith, { userId: 'user-1', noteIds: ['note-ai-1'] });
+  assert.equal(result.size, 1);
+  assert.equal(result.get('note-ai-1').overview, 'Generated synthesis summary');
+});
+
+

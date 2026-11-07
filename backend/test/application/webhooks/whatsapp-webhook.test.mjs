@@ -233,6 +233,7 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
     new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
     knowledgeSearch,
     loggerMock,
+    repositories.scopeResolver,
   );
   const dummyConnections = {
     completeWhatsappFromWebhook: async () => ({ resolvedUserId: 'dummy-user', workspaceSlug: 'default' }),

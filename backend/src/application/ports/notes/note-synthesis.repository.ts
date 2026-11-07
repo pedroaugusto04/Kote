@@ -7,7 +7,7 @@ export abstract class NoteSynthesisRepository {
   abstract markCompleted(input: { userId: string; noteId: string; sourceHash: string; mode: 'ai' | 'deterministic'; overview: string; memory: NoteSynthesisItem[]; provider: string; model: string }): Promise<NoteSynthesisRecord>;
   abstract markFailed(userId: string, noteId: string, sourceHash: string, errorCode: string): Promise<void>;
   abstract markSkipped(userId: string, noteId: string, sourceHash: string, errorCode: string): Promise<void>;
-  abstract getByNoteId(userId: string, noteId: string): Promise<NoteSynthesisRecord | null>;
+  abstract getByNoteId(userId: string, noteId: string, tx?: any): Promise<NoteSynthesisRecord | null>;
   getByNoteIds?(userId: string, noteIds: string[]): Promise<Map<string, NoteSynthesisRecord>>;
   abstract listProjectDecisions(userId: string, input: ListProjectDecisionsInput): Promise<ListProjectDecisionsResult>;
 }

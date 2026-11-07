@@ -55,8 +55,6 @@ export interface BuildIngestPayloadInput {
   };
   actions?: {
     reminderAt?: string;
-    reminderDate?: string;
-    reminderTime?: string;
     followUpBy?: string;
   };
   links?: string[];

@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { trimText } from '../domain/strings.js';
 import { isEligibleFileForCoverage } from '../application/utils/github/coverage-file-filter.utils.js';
 import { RateLimitError, parseRateLimitFromHeaders } from '../application/utils/retry/backoff.utils.js';
+import { isValidCommitSha } from '../application/utils/github/github-review.helpers.js';
 import {
   detectEcosystemFromManifest,
   getAllManifestPatterns,
@@ -238,10 +239,6 @@ export async function fetchRecentCommits(input: {
       parentSha: String(commit.parents?.[0]?.sha || '').trim(),
     }))
     .filter((commit) => commit.sha && commit.parentSha && isValidCommitSha(commit.sha));
-}
-
-function isValidCommitSha(sha: string): boolean {
-  return !/^0+$/.test(String(sha || ''));
 }
 
 export async function postGithubPullRequestComment(

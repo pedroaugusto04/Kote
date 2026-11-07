@@ -70,8 +70,9 @@ export class PostgresNoteSynthesisRepository extends NoteSynthesisRepository {
     await this.database.getPool().query(`UPDATE kb_note_syntheses SET status='${NoteSynthesisStatus.Skipped}',error_code=$4,updated_at=now() WHERE user_id=$1 AND note_id=$2 AND source_hash=$3`, [userId,noteId,sourceHash,errorCode]);
   }
 
-  async getByNoteId(userId: string, noteId: string) {
-    const result = await this.database.getPool().query(
+  async getByNoteId(userId: string, noteId: string, tx?: any) {
+    const queryable = tx && typeof tx.query === 'function' ? tx : this.database.getPool();
+    const result = await queryable.query(
       `SELECT s.*, o.available_at
        FROM kb_note_syntheses s
        LEFT JOIN kb_ai_session_synthesis_outbox o

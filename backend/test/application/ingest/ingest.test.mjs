@@ -46,8 +46,7 @@ function payload() {
       decisionFlag: false,
     },
     actions: {
-      reminderDate: '2026-04-28',
-      reminderTime: '09:30',
+      reminderAt: '2026-04-28T09:30:00.000Z',
       followUpBy: '2026-04-29',
     },
     metadata: {},

@@ -181,8 +181,6 @@ test('buildUpdatedNote strips duplicate title header from new rawText', () => {
       title: 'My Custom Note',
       rawText: '# My Custom Note\n\nSome updated content.',
       tags: [],
-      reminderDate: '',
-      reminderTime: '',
     },
     scope: { reminderTimeZone: 'America/Sao_Paulo' },
   });

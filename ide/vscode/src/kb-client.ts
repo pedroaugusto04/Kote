@@ -80,13 +80,17 @@ interface RequestOptions {
   headers?: Record<string, string>;
   body?: string;
   signal?: AbortSignal;
+  timeout?: number;
 }
+
+const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 
 function makeRequest(url: string, options: RequestOptions = {}): Promise<{ status: number; body: string; headers: Record<string, string | string[]> }> {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     const isHttps = parsed.protocol === 'https:';
     const lib = isHttps ? https : http;
+    let timedOut = false;
 
     const req = lib.request(
       {
@@ -100,6 +104,7 @@ function makeRequest(url: string, options: RequestOptions = {}): Promise<{ statu
         let body = '';
         res.on('data', (chunk: Buffer) => { body += chunk.toString(); });
         res.on('end', () => {
+          if (timedOut) return;
           const headers: Record<string, string | string[]> = {};
           for (const [k, v] of Object.entries(res.headers)) {
             if (typeof v === 'string' || Array.isArray(v)) {
@@ -111,7 +116,18 @@ function makeRequest(url: string, options: RequestOptions = {}): Promise<{ statu
       },
     );
 
-    req.on('error', reject);
+    const timeoutMs = options.timeout ?? DEFAULT_REQUEST_TIMEOUT_MS;
+    req.setTimeout(timeoutMs, () => {
+      timedOut = true;
+      req.destroy();
+      reject(new Error(`Request timed out after ${timeoutMs}ms`));
+    });
+
+    req.on('error', (err) => {
+      if (timedOut) return;
+      reject(err);
+    });
+
     if (options.body) req.write(options.body);
 
     if (options.signal) {
@@ -137,9 +153,18 @@ function makeRequest(url: string, options: RequestOptions = {}): Promise<{ statu
 export class KbClient {
   private config: KbConfig;
   public onUnauthorized?: () => void;
+  private lastUnauthorizedTime = 0;
 
   constructor() {
     this.config = loadKbConfig();
+  }
+
+  private triggerUnauthorized(): void {
+    const now = Date.now();
+    // Debounce to at most once every 10 seconds to avoid duplicate popups
+    if (now - this.lastUnauthorizedTime < 10_000) return;
+    this.lastUnauthorizedTime = now;
+    this.onUnauthorized?.();
   }
 
   /** Reload config from disk (e.g. after user runs the CLI init command) */
@@ -194,6 +219,8 @@ export class KbClient {
     // Attempt token refresh on 401
     if (response.status === 401) {
       let refreshed = false;
+      let refreshFailedWithAuthError = false;
+
       if (this.config.cookies.kb_refresh_token) {
         try {
           const refreshResponse = await makeRequest(this.buildUrl('/api/auth/refresh'), {
@@ -208,18 +235,23 @@ export class KbClient {
             headers.Cookie = this.buildCookieHeader();
             response = await makeRequest(url, { ...options, headers });
             refreshed = true;
+          } else if (refreshResponse.status === 400 || refreshResponse.status === 401 || refreshResponse.status === 403) {
+            // Server explicitly rejected the refresh token (session truly expired)
+            refreshFailedWithAuthError = true;
           }
         } catch {
-          // Ignore
+          // Network error or timeout during refresh: do NOT log the user out!
         }
+      } else {
+        refreshFailedWithAuthError = true;
       }
 
-      if (!refreshed) {
+      if (!refreshed && refreshFailedWithAuthError) {
         const wasConfigured = isConfigured();
         this.config.cookies = {};
         saveKbConfig({ cookies: {} });
         if (wasConfigured) {
-          this.onUnauthorized?.();
+          this.triggerUnauthorized();
         }
       }
     }
@@ -379,7 +411,7 @@ export class KbClient {
     replyText: string;
     payload: unknown;
     ingestResult?: unknown;
-    agent: { selectedProjectSlug?: string; [key: string]: unknown } | null | undefined;
+    agent: { selectedProjectSlug?: string;[key: string]: unknown } | null | undefined;
   }> {
     const ws = workspaceSlug || this.config.workspaceSlug || 'default';
     const params = new URLSearchParams({ workspaceSlug: ws });
@@ -390,7 +422,7 @@ export class KbClient {
       replyText: string;
       payload: unknown;
       ingestResult?: unknown;
-      agent: { selectedProjectSlug?: string; [key: string]: unknown } | null | undefined;
+      agent: { selectedProjectSlug?: string;[key: string]: unknown } | null | undefined;
     }>(`/api/conversation/agent?${params}`, {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -405,9 +437,19 @@ export class KbClient {
     const headers = { 'Content-Type': 'application/json' };
     const body = JSON.stringify({ email, password });
 
-    const response = await makeRequest(url, { method: 'POST', headers, body });
+    let response: { status: number; body: string; headers: Record<string, string | string[]> };
+    try {
+      response = await makeRequest(url, { method: 'POST', headers, body });
+    } catch (err: unknown) {
+      throw new Error(`Cannot connect to Kote server (${err instanceof Error ? err.message : String(err)}). Please ensure the backend is running.`);
+    }
+
+    if (response.status >= 500) {
+      throw new Error(`Kote server error (${response.status}). The server may be restarting or experiencing database issues.`);
+    }
+
     if (response.status >= 400) {
-      let errorMsg = 'Login failed';
+      let errorMsg = 'Login failed. Invalid email or password.';
       try {
         const parsed = JSON.parse(response.body);
         errorMsg = parsed?.message ?? errorMsg;
@@ -445,9 +487,20 @@ export class KbClient {
     const url = this.buildUrl('/api/auth/exchange-connection-token');
     const headers = { 'Content-Type': 'application/json' };
     const body = JSON.stringify({ connectionToken: token });
-    const response = await makeRequest(url, { method: 'POST', headers, body });
+
+    let response: { status: number; body: string; headers: Record<string, string | string[]> };
+    try {
+      response = await makeRequest(url, { method: 'POST', headers, body });
+    } catch (err: unknown) {
+      throw new Error(`Cannot connect to Kote server (${err instanceof Error ? err.message : String(err)}). Try again later.`);
+    }
+
+    if (response.status >= 500) {
+      throw new Error(`Kote server error (${response.status}). Try again later.`);
+    }
+
     if (response.status >= 400) {
-      let errorMsg = 'Failed to exchange connection token';
+      let errorMsg = 'Failed to exchange connection token. Token may be expired or invalid.';
       try {
         const parsed = JSON.parse(response.body);
         errorMsg = parsed?.message ?? errorMsg;

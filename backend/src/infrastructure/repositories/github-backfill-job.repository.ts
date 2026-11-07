@@ -10,10 +10,7 @@ import {
 import type { GithubBackfillJobStatus } from '../../application/use-cases/integrations/github-backfill.use-case.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { githubBackfillJobs } from '../persistence/schema/index.js';
-
-function nowIso(value: unknown): string {
-  return value instanceof Date ? value.toISOString() : String(value || new Date().toISOString());
-}
+import { toIsoTimestamp } from '../mappers/row.mappers.js';
 
 function rowToRecord(row: Record<string, unknown>): GithubBackfillJobRecord {
   return {
@@ -28,9 +25,9 @@ function rowToRecord(row: Record<string, unknown>): GithubBackfillJobRecord {
     skipped: Number(row.skipped ?? 0),
     limit: Number(row.limit ?? 5),
     error: row.error != null ? String(row.error) : null,
-    startedAt: nowIso(row.startedAt),
-    updatedAt: nowIso(row.updatedAt),
-    completedAt: row.completedAt != null ? nowIso(row.completedAt) : null,
+    startedAt: toIsoTimestamp(row.startedAt),
+    updatedAt: toIsoTimestamp(row.updatedAt),
+    completedAt: row.completedAt != null ? toIsoTimestamp(row.completedAt) : null,
   };
 }
 

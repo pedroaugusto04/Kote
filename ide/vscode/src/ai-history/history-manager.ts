@@ -55,6 +55,10 @@ export class AiHistoryManager {
   private readonly MAX_IGNORED_SESSIONS = 500; // Maximum number of ignored sessions to track
   private readonly SESSION_TTL_DAYS = 60; // Remove sessions older than 60 days
   private readonly lastSeenProviderMtime = new Map<string, number>(); // providerId -> last known source mtime
+  private readonly sessionErrorBackoffs = new Map<string, number>(); // key -> cooldown timestamp on save error
+  private readonly sessionPromptCooldowns = new Map<string, number>(); // key -> cooldown timestamp on prompt timeout
+  private readonly ERROR_BACKOFF_MS = 60_000; // 1 minute backoff on error
+  private readonly PROMPT_TIMEOUT_COOLDOWN_MS = 5 * 60_000; // 5 minute cooldown after prompt timeout
   private currentClient?: KbClient;
   readonly handoff: SessionHandoffManager;
 
@@ -199,10 +203,16 @@ export class AiHistoryManager {
     // Initial check to auto-save any recent active sessions right after startup
     void this.checkAllProviders(client);
 
-    // Watch for window focus to trigger a check immediately
+    // Watch for window focus to trigger a check immediately with a 30s cooldown
+    let lastFocusCheckTime = 0;
+    const FOCUS_CHECK_COOLDOWN_MS = 30_000;
     const focusDisposable = vscode.window.onDidChangeWindowState(async (e) => {
       if (e.focused) {
-        await this.checkAllProviders(client);
+        const now = Date.now();
+        if (now - lastFocusCheckTime >= FOCUS_CHECK_COOLDOWN_MS) {
+          lastFocusCheckTime = now;
+          await this.checkAllProviders(client);
+        }
       }
     });
     this.activeDisposables.push(focusDisposable);
@@ -465,6 +475,12 @@ export class AiHistoryManager {
       return;
     }
 
+    // Skip if session is under error backoff (e.g. server was unreachable)
+    const errorBackoffUntil = this.sessionErrorBackoffs.get(key) ?? 0;
+    if (Date.now() < errorBackoffUntil) {
+      return;
+    }
+
     const isNewSession = !lastHash;
     if (isNewSession) {
       const projectSlug = this.getActiveProjectSelection?.()?.projectSlug || undefined;
@@ -503,8 +519,11 @@ export class AiHistoryManager {
       try {
         const saved = await this.autoSaveSessionToVault(client, session);
         if (saved) {
+          this.sessionErrorBackoffs.delete(key);
           this.rememberSessionHash(key, hash);
           this.markSessionAsSaved(provider.id, session.sessionId);
+        } else {
+          this.sessionErrorBackoffs.set(key, Date.now() + this.ERROR_BACKOFF_MS);
         }
       } finally {
         this.inFlightSaves.delete(key);
@@ -535,8 +554,11 @@ export class AiHistoryManager {
       try {
         const saved = await this.autoSaveSessionToVault(client, session);
         if (saved) {
+          this.sessionErrorBackoffs.delete(key);
           this.markSessionAsSaved(provider.id, session.sessionId);
           this.rememberSessionHash(key, hash);
+        } else {
+          this.sessionErrorBackoffs.set(key, Date.now() + this.ERROR_BACKOFF_MS);
         }
       } finally {
         this.inFlightSaves.delete(key);
@@ -546,6 +568,12 @@ export class AiHistoryManager {
     }
 
     // --- Mode is 'ask' ---
+
+    // Skip prompt if session prompt recently timed out
+    const promptCooldownUntil = this.sessionPromptCooldowns.get(key) ?? 0;
+    if (Date.now() < promptCooldownUntil) {
+      return;
+    }
 
     // If a prompt is already open, keep the newest version pending.
     if (this.promptingSessions.has(key)) {
@@ -560,8 +588,11 @@ export class AiHistoryManager {
       if (action === SESSION_PROMPT_ACTIONS.AUTO_SAVE) {
         const saved = await this.saveSessionToVault(client, session);
         if (saved) {
+          this.sessionErrorBackoffs.delete(key);
           this.markSessionAsSaved(provider.id, session.sessionId);
           this.rememberSessionHash(key, hash);
+        } else {
+          this.sessionErrorBackoffs.set(key, Date.now() + this.ERROR_BACKOFF_MS);
         }
       } else if (action === SESSION_PROMPT_ACTIONS.PREVIEW_EDIT) {
         this.openPreview(session);
@@ -573,7 +604,8 @@ export class AiHistoryManager {
         // User closed/dismissed the popup. Don't spam them for the same content state.
         this.rememberSessionHash(key, hash);
       } else if (action === 'Timed out') {
-        this.forgetSessionHash(key);
+        // Cooldown after timeout so prompt does not re-appear 15s later
+        this.sessionPromptCooldowns.set(key, Date.now() + this.PROMPT_TIMEOUT_COOLDOWN_MS);
         return;
       }
     } finally {
@@ -853,7 +885,12 @@ export class AiHistoryManager {
     return Object.keys(metadata).length > 0 ? metadata : undefined;
   }
 
-  private async saveSessionToVault(client: KbClient, session: AiSession, silent: boolean = false): Promise<boolean> {
+  private async saveSessionToVault(
+    client: KbClient,
+    session: AiSession,
+    silent: boolean = false,
+    triggerRefresh: boolean = true,
+  ): Promise<boolean> {
     try {
       const titleWithDate = this.getTitleWithDate(session);
       const rawText = this.getMarkdownText(session);
@@ -873,7 +910,9 @@ export class AiHistoryManager {
       if (!silent) {
         vscode.window.showInformationMessage('Note saved to Kote successfully!');
       }
-      vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);
+      if (triggerRefresh) {
+        vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);
+      }
       return true;
     } catch (err: unknown) {
       vscode.window.showErrorMessage(`Failed to save note: ${toMessage(err)}`);
@@ -987,6 +1026,7 @@ export class AiHistoryManager {
         completed = false;
       });
 
+      let anySaved = false;
       const total = resolvedSessions.length;
       for (let i = 0; i < total; i++) {
         if (stopped) {
@@ -1001,13 +1041,19 @@ export class AiHistoryManager {
           increment: (1 / total) * 100
         });
 
-        const saved = await this.saveSessionToVault(client, session, true);
+        // Pass triggerRefresh = false to avoid firing full disk/API refreshes per item in the loop
+        const saved = await this.saveSessionToVault(client, session, true, false);
         if (saved) {
+          anySaved = true;
           this.markSessionAsSaved(item.providerId, item.sessionId);
           const key = `${item.providerId}:${item.sessionId}`;
           const hash = this.computeSessionHash(session);
           this.rememberSessionHash(key, hash);
         }
+      }
+
+      if (anySaved) {
+        vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);
       }
     });
     return completed;

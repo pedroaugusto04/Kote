@@ -704,8 +704,6 @@ test('updates any note type and still blocks project deletion while notes exist'
     title: 'Review atualizada',
     rawText: 'texto atualizado',
     tags: ['review'],
-    reminderDate: '2026-05-02',
-    reminderTime: '08:45',
     reminderAt: '2026-05-02T08:45:00.000Z',
   }, user.id);
 

@@ -48,6 +48,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   /** Fetches coverage in the background and updates the status bar. */
   async function setProjectWithCoverage(slug: string): Promise<void> {
+    if (!isConfigured()) {
+      statusBarProvider.setNotConfigured();
+      return;
+    }
     statusBarProvider.setProject(slug);
     const coverage = await kbClient.getProjectCoverage(slug).catch(() => null);
     if (typeof coverage === 'number') {
@@ -67,7 +71,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         activeProject = await detectActiveProject(kbClient, folders);
       }
     } catch { /* silent — will show in sidebar */ }
-    void setProjectWithCoverage(resolveProjectSlug(activeProject, kbClient.defaultProjectSlug));
+    finally {
+      void setProjectWithCoverage(resolveProjectSlug(activeProject, kbClient.defaultProjectSlug));
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -304,11 +310,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   // -------------------------------------------------------------------------
-  // Auto-refresh sidebar when window regains focus
+  // Auto-refresh sidebar when window regains focus (with 30s cooldown)
   // -------------------------------------------------------------------------
+  let lastWindowFocusRefreshTime = 0;
+  const WINDOW_FOCUS_REFRESH_COOLDOWN_MS = 30_000;
   context.subscriptions.push(
     vscode.window.onDidChangeWindowState((e) => {
-      if (e.focused) sidebarProvider.refresh();
+      if (e.focused) {
+        const now = Date.now();
+        if (now - lastWindowFocusRefreshTime >= WINDOW_FOCUS_REFRESH_COOLDOWN_MS) {
+          lastWindowFocusRefreshTime = now;
+          sidebarProvider.refresh();
+        }
+      }
     }),
   );
 

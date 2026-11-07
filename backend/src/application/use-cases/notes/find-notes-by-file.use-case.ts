@@ -7,7 +7,10 @@ export class FindNotesByFileUseCase {
   constructor(private readonly noteContextRepository: NoteContextRepository) {}
 
   async execute(userId: string, filePath: string, options?: { projectSlug?: string }) {
-    const notes = await this.noteContextRepository.findNotesByFile(userId, filePath, options);
+    const notes = await this.noteContextRepository.findNotesByFile(userId, filePath, {
+      ...options,
+      includeContent: false,
+    });
     return notes.map((n) => noteSummary(n));
   }
 }

@@ -8,12 +8,9 @@ import type { ProjectBriefHistoryRecord, SaveProjectBriefHistoryInput } from '..
 import { ProjectBriefHistoryRepository } from '../../application/ports/projects/project-brief-history.repository.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { projectBriefHistory } from '../persistence/schema/index.js';
+import { toIsoTimestamp } from '../mappers/row.mappers.js';
 
 type Row = Record<string, unknown>;
-
-function nowIso(value: unknown): string {
-  return value instanceof Date ? value.toISOString() : String(value || new Date().toISOString());
-}
 
 function projectBriefHistoryFromRow(row: Row): ProjectBriefHistoryRecord {
   return {
@@ -31,8 +28,8 @@ function projectBriefHistoryFromRow(row: Row): ProjectBriefHistoryRecord {
     contextWindow: Number(row.contextWindow ?? 30),
     provider: String(row.provider || ''),
     model: String(row.model || ''),
-    generatedAt: nowIso(row.generatedAt),
-    createdAt: nowIso(row.createdAt),
+    generatedAt: toIsoTimestamp(row.generatedAt),
+    createdAt: toIsoTimestamp(row.createdAt),
   };
 }
 
