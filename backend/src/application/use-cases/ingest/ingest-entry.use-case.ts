@@ -35,7 +35,7 @@ export class IngestEntryUseCase {
   ) {}
 
   async execute(input: IngestPayload, userId: string, workspaceSlug = '', options: IngestExecutionOptions = {}) {
-    return this.database.getDb().transaction(async (tx) => {
+    const run = async (tx?: any) => {
       const result = await saveIngestedNote({
         contentRepository: this.contentRepository,
         noteLifecycleService: this.noteLifecycleService,
@@ -49,7 +49,12 @@ export class IngestEntryUseCase {
       });
 
       return result;
-    });
+    };
+
+    if (this.database && typeof this.database.getDb === 'function') {
+      return this.database.getDb().transaction(run);
+    }
+    return run();
   }
 }
 

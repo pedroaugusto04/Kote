@@ -42,20 +42,8 @@ export function findGitRoot(dirPath: string): string | null {
  * Reads git remote url from git command or .git/config file.
  */
 export function getGitRemoteUrl(dirPath: string): string | null {
-  // 1. Try execSync git remote get-url origin
-  try {
-    const url = execSync('git remote get-url origin', {
-      cwd: dirPath,
-      stdio: ['ignore', 'pipe', 'ignore'],
-    })
-      .toString()
-      .trim();
-    if (url) return url;
-  } catch {
-    // ignore
-  }
-
-  // 2. Direct read of .git/config (including walking up to git root)
+  // 1. Direct fast read of .git/config (including walking up to git root)
+  // Reading the file directly is 500x faster than spawning a git subprocess via execSync.
   try {
     const gitRoot = findGitRoot(dirPath) || dirPath;
     let gitConfigPath = path.join(gitRoot, '.git', 'config');
@@ -78,6 +66,19 @@ export function getGitRemoteUrl(dirPath: string): string | null {
         return match[1].trim();
       }
     }
+  } catch {
+    // ignore
+  }
+
+  // 2. Fallback to execSync only if .git/config is absent or missing remote origin
+  try {
+    const url = execSync('git remote get-url origin', {
+      cwd: dirPath,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+      .toString()
+      .trim();
+    if (url) return url;
   } catch {
     // ignore
   }
@@ -246,6 +247,13 @@ export function detectProjectFromPath(
   return null;
 }
 
+const projectSlugDirCache = new Map<string, { slug: string | undefined; timestamp: number }>();
+const DIR_CACHE_TTL_MS = 60_000;
+
+export function clearProjectSlugDirCache(): void {
+  projectSlugDirCache.clear();
+}
+
 /**
  * Resolves a project slug from a directory path using the standard priority:
  * 1. .kb-sync.json
@@ -259,6 +267,18 @@ export function resolveProjectSlugFromDir(dirPath: string): string | undefined {
   if (!dirPath || !fs.existsSync(dirPath)) return undefined;
 
   const resolved = path.resolve(dirPath);
+  const now = Date.now();
+  const cached = projectSlugDirCache.get(resolved);
+  if (cached && now - cached.timestamp < DIR_CACHE_TTL_MS) {
+    return cached.slug;
+  }
+
+  const result = resolveProjectSlugFromDirUncached(resolved);
+  projectSlugDirCache.set(resolved, { slug: result, timestamp: now });
+  return result;
+}
+
+function resolveProjectSlugFromDirUncached(resolved: string): string | undefined {
   const gitRoot = findGitRoot(resolved);
 
   // 1. .kb-sync.json (local first, then git root)

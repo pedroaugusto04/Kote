@@ -5,10 +5,13 @@ import { logInfo } from '../error-reporter';
 export class KoteCodeLensProvider implements vscode.CodeLensProvider {
   private _onDidChangeCodeLenses = new vscode.EventEmitter<void>();
   readonly onDidChangeCodeLenses = this._onDidChangeCodeLenses.event;
+  private readonly cache = new Map<string, { notes: any[]; timestamp: number }>();
+  private readonly CACHE_TTL_MS = 30_000;
 
   constructor(private readonly kbClient: KbClient) {
     // Register command to force refresh the CodeLenses
     vscode.commands.registerCommand('kote.refreshCodeLenses', () => {
+      this.cache.clear();
       this._onDidChangeCodeLenses.fire();
     });
   }
@@ -31,26 +34,35 @@ export class KoteCodeLensProvider implements vscode.CodeLensProvider {
     }
 
     const relativePath = vscode.workspace.asRelativePath(document.uri);
+    const now = Date.now();
+    const cached = this.cache.get(relativePath);
+    let notes: any[];
 
-    try {
-      const notes = await this.kbClient.findNotesByFile(relativePath);
-      if (!notes || notes.length === 0) {
-        logInfo('CodeLens', `No notes found for ${relativePath}`);
+    if (cached && (now - cached.timestamp < this.CACHE_TTL_MS)) {
+      notes = cached.notes;
+    } else {
+      try {
+        notes = await this.kbClient.findNotesByFile(relativePath);
+        this.cache.set(relativePath, { notes, timestamp: now });
+      } catch (err) {
+        logInfo('CodeLens', `Error providing CodeLens for ${relativePath}: ${err instanceof Error ? err.message : String(err)}`);
         return [];
       }
+    }
 
-      logInfo('CodeLens', `Found ${notes.length} notes for ${relativePath}`);
-      const range = new vscode.Range(0, 0, 0, 0);
-      const command: vscode.Command = {
-        title: `💡 Kote: ${notes.length} ${notes.length === 1 ? 'note' : 'notes'}/decisions about this file`,
-        command: 'kote.showFileNotes',
-        arguments: [relativePath, notes],
-      };
-
-      return [new vscode.CodeLens(range, command)];
-    } catch (err) {
-      logInfo('CodeLens', `Error providing CodeLens for ${relativePath}: ${err instanceof Error ? err.message : String(err)}`);
+    if (!notes || notes.length === 0) {
+      logInfo('CodeLens', `No notes found for ${relativePath}`);
       return [];
     }
+
+    logInfo('CodeLens', `Found ${notes.length} notes for ${relativePath}`);
+    const range = new vscode.Range(0, 0, 0, 0);
+    const command: vscode.Command = {
+      title: `💡 Kote: ${notes.length} ${notes.length === 1 ? 'note' : 'notes'}/decisions about this file`,
+      command: 'kote.showFileNotes',
+      arguments: [relativePath, notes],
+    };
+
+    return [new vscode.CodeLens(range, command)];
   }
 }

@@ -148,6 +148,9 @@ export class PostgresNoteContextRepository implements NoteContextRepository {
 
     const records = result.map(noteFromRow);
     
-    return Promise.all(records.map(note => this.hydrateMarkdown(note)));
+    if (options?.includeContent !== false) {
+      return Promise.all(records.map(note => this.hydrateMarkdown(note)));
+    }
+    return records;
   }
 }

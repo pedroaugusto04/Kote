@@ -125,6 +125,7 @@ async function createFixture(t, handler, askAgentToolsService, aiEntitlementOver
     aiEntitlement,
     knowledgeToolsService,
     loggerMock,
+    repositories.scopeResolver,
   );
 
   const testAgentUseCase = {

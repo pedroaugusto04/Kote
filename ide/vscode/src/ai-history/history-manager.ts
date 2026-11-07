@@ -55,6 +55,10 @@ export class AiHistoryManager {
   private readonly MAX_IGNORED_SESSIONS = 500; // Maximum number of ignored sessions to track
   private readonly SESSION_TTL_DAYS = 60; // Remove sessions older than 60 days
   private readonly lastSeenProviderMtime = new Map<string, number>(); // providerId -> last known source mtime
+  private readonly sessionErrorBackoffs = new Map<string, number>(); // key -> cooldown timestamp on save error
+  private readonly sessionPromptCooldowns = new Map<string, number>(); // key -> cooldown timestamp on prompt timeout
+  private readonly ERROR_BACKOFF_MS = 60_000; // 1 minute backoff on error
+  private readonly PROMPT_TIMEOUT_COOLDOWN_MS = 5 * 60_000; // 5 minute cooldown after prompt timeout
   private currentClient?: KbClient;
   readonly handoff: SessionHandoffManager;
 
@@ -465,6 +469,12 @@ export class AiHistoryManager {
       return;
     }
 
+    // Skip if session is under error backoff (e.g. server was unreachable)
+    const errorBackoffUntil = this.sessionErrorBackoffs.get(key) ?? 0;
+    if (Date.now() < errorBackoffUntil) {
+      return;
+    }
+
     const isNewSession = !lastHash;
     if (isNewSession) {
       const projectSlug = this.getActiveProjectSelection?.()?.projectSlug || undefined;
@@ -503,8 +513,11 @@ export class AiHistoryManager {
       try {
         const saved = await this.autoSaveSessionToVault(client, session);
         if (saved) {
+          this.sessionErrorBackoffs.delete(key);
           this.rememberSessionHash(key, hash);
           this.markSessionAsSaved(provider.id, session.sessionId);
+        } else {
+          this.sessionErrorBackoffs.set(key, Date.now() + this.ERROR_BACKOFF_MS);
         }
       } finally {
         this.inFlightSaves.delete(key);
@@ -535,8 +548,11 @@ export class AiHistoryManager {
       try {
         const saved = await this.autoSaveSessionToVault(client, session);
         if (saved) {
+          this.sessionErrorBackoffs.delete(key);
           this.markSessionAsSaved(provider.id, session.sessionId);
           this.rememberSessionHash(key, hash);
+        } else {
+          this.sessionErrorBackoffs.set(key, Date.now() + this.ERROR_BACKOFF_MS);
         }
       } finally {
         this.inFlightSaves.delete(key);
@@ -546,6 +562,12 @@ export class AiHistoryManager {
     }
 
     // --- Mode is 'ask' ---
+
+    // Skip prompt if session prompt recently timed out
+    const promptCooldownUntil = this.sessionPromptCooldowns.get(key) ?? 0;
+    if (Date.now() < promptCooldownUntil) {
+      return;
+    }
 
     // If a prompt is already open, keep the newest version pending.
     if (this.promptingSessions.has(key)) {
@@ -560,8 +582,11 @@ export class AiHistoryManager {
       if (action === SESSION_PROMPT_ACTIONS.AUTO_SAVE) {
         const saved = await this.saveSessionToVault(client, session);
         if (saved) {
+          this.sessionErrorBackoffs.delete(key);
           this.markSessionAsSaved(provider.id, session.sessionId);
           this.rememberSessionHash(key, hash);
+        } else {
+          this.sessionErrorBackoffs.set(key, Date.now() + this.ERROR_BACKOFF_MS);
         }
       } else if (action === SESSION_PROMPT_ACTIONS.PREVIEW_EDIT) {
         this.openPreview(session);
@@ -573,7 +598,8 @@ export class AiHistoryManager {
         // User closed/dismissed the popup. Don't spam them for the same content state.
         this.rememberSessionHash(key, hash);
       } else if (action === 'Timed out') {
-        this.forgetSessionHash(key);
+        // Cooldown after timeout so prompt does not re-appear 15s later
+        this.sessionPromptCooldowns.set(key, Date.now() + this.PROMPT_TIMEOUT_COOLDOWN_MS);
         return;
       }
     } finally {

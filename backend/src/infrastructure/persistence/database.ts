@@ -57,6 +57,11 @@ export class PostgresDatabase implements OnModuleDestroy {
       idleTimeoutMillis: 30000,
     });
 
+    this.pool.on('error', (err) => {
+      // Prevent unhandled error events on idle clients from crashing the process
+      console.error('[PostgresDatabase] Unexpected error on idle client:', err?.message || err);
+    });
+
     this.pool.on('connect', (client) => {
       client.query("SET timezone = 'UTC'").catch(() => {});
     });

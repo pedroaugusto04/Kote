@@ -4,6 +4,7 @@ export type FindNotesByFileOptions = {
   limit?: number;
   projectSlug?: string;
   commitHashes?: string[];
+  includeContent?: boolean;
 };
 
 export abstract class NoteContextRepository {

@@ -67,9 +67,9 @@ export class LineContextProvider implements vscode.HoverProvider, vscode.Disposa
           this.triggerUpdate(e.textEditor);
         }
       }),
-      vscode.workspace.onDidChangeTextDocument((e) => {
-        // Invalidate cache for modified document
-        const filePath = vscode.workspace.asRelativePath(e.document.uri);
+      vscode.workspace.onDidSaveTextDocument((doc) => {
+        // Invalidate blame cache when document is saved
+        const filePath = vscode.workspace.asRelativePath(doc.uri);
         this.blameCache.delete(filePath);
       }),
       vscode.workspace.onDidChangeConfiguration((e) => {

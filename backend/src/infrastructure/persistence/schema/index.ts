@@ -154,6 +154,7 @@ export const notes = pgTable('kb_notes', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userProjectIdx: index('kb_notes_user_project_idx').on(table.userId, table.projectId),
+  projectIdIdx: index('kb_notes_project_id_idx').on(table.projectId),
   userWorkspaceIdx: index('kb_notes_user_workspace_idx').on(table.userId, table.workspaceId),
   userProjectFolderIdx: index('kb_notes_user_project_folder_idx').on(table.userId, table.projectId, table.folderId),
   folderIdIdx: index('kb_notes_folder_id_idx').on(table.folderId),

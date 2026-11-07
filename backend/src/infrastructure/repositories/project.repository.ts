@@ -145,8 +145,8 @@ export class PostgresProjectRepository {
     return { items: result.map(projectFromRow), pagination };
   }
 
-  async getBySlug(userId: string, projectSlug: string, workspaceId?: string) {
-    const db = this.database.getDb();
+  async getBySlug(userId: string, projectSlug: string, workspaceId?: string, tx?: any) {
+    const db = tx || this.database.getDb();
     const conditions = [
       eq(projects.userId, userId),
       eq(projects.projectSlug, projectSlug),

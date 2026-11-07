@@ -415,7 +415,7 @@ export class HandleWhatsappWebhookUseCase {
   }
 
   private async withDownloadedMedia(context: WhatsappWebhookContext, input: ConversationInput): Promise<ConversationInput> {
-    if (!input.hasMedia || input.media.dataBase64) return input;
+    if (!input.hasMedia || input.media.dataBase64 || !this.whatsappMediaDownloader) return input;
     const result = await this.whatsappMediaDownloader.downloadBase64({ body: context.body });
     if (!result.ok) {
       this.logger.warn('whatsapp.media.download_failed', {

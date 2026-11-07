@@ -115,8 +115,8 @@ export class PostgresContentRepository extends ContentRepository {
     return pageResult as PaginatedProjects;
   }
 
-  async getProjectBySlug(userId: string, projectSlug: string, workspaceId?: string) {
-    return this.projectRepository.getBySlug(userId, projectSlug, workspaceId);
+  async getProjectBySlug(userId: string, projectSlug: string, workspaceId?: string, tx?: any) {
+    return this.projectRepository.getBySlug(userId, projectSlug, workspaceId, tx);
   }
 
   async getProjectById(userId: string, projectId: string) {

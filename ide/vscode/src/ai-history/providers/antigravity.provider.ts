@@ -522,10 +522,8 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
           const dirMtime = safeMtime(sessionDir);
           if (dirMtime > maxMtime) maxMtime = dirMtime;
 
-          for (const fileName of ANTIGRAVITY_LOG_FILES) {
-            const logMtime = safeMtime(path.join(sessionDir, '.system_generated', 'logs', fileName));
-            if (logMtime > maxMtime) maxMtime = logMtime;
-          }
+          const logMtime = safeMtime(path.join(sessionDir, '.system_generated', 'logs', 'transcript.jsonl'));
+          if (logMtime > maxMtime) maxMtime = logMtime;
         }
       } catch {
         // ignore transient directory read errors
@@ -551,12 +549,10 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
         const sessionDir = path.join(historyDir, sessionId);
         try {
           let mtime = safeMtime(sessionDir);
-          for (const fileName of ANTIGRAVITY_LOG_FILES) {
-            const logPath = path.join(sessionDir, '.system_generated', 'logs', fileName);
-            const logMtime = safeMtime(logPath);
-            if (logMtime > mtime) {
-              mtime = logMtime;
-            }
+          const logPath = path.join(sessionDir, '.system_generated', 'logs', 'transcript.jsonl');
+          const logMtime = safeMtime(logPath);
+          if (logMtime > mtime) {
+            mtime = logMtime;
           }
           candidateDirs.push({ sessionDir, sessionId, mtime });
         } catch {

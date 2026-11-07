@@ -53,7 +53,7 @@ export class NoteLifecycleService {
 
     // 1. Calculate size and check quota
     const incomingNoteSize = await this.calculateTotalIncomingSize(userId, noteInput.markdown, incomingAttachments, targetNoteId, tx);
-    const sizeDifference = await this.calculateSizeDifference(userId, targetNoteId, incomingNoteSize, tx);
+    const sizeDifference = await this.calculateSizeDifference(userId, targetNoteId, incomingNoteSize, tx, previousNote);
 
     if (sizeDifference > 0) {
       const quotaResult = await this.quotaService.checkQuota(userId, QuotaResourceType.STORAGE, sizeDifference);
@@ -112,9 +112,12 @@ export class NoteLifecycleService {
     targetNoteId: string | undefined,
     incomingNoteSize: number,
     tx?: any,
+    cachedPreviousNote?: NoteRecord | null,
   ): Promise<number> {
     if (!targetNoteId) return incomingNoteSize;
-    const existingNote = await this.contentRepository.getNoteById(userId, targetNoteId, tx);
+    const existingNote = cachedPreviousNote !== undefined
+      ? cachedPreviousNote
+      : await this.contentRepository.getNoteById(userId, targetNoteId, tx);
     return existingNote ? incomingNoteSize - (existingNote.sizeBytes || 0) : incomingNoteSize;
   }
 

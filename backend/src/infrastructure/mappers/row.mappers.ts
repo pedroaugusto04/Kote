@@ -40,7 +40,8 @@ function fieldString(row: Row, snake: string, camel: string, fallback = ''): str
 
 function fieldNullableString(row: Row, snake: string, camel: string): string | null {
   const value = field(row, snake, camel);
-  return value == null ? null : String(value);
+  if (value == null || value === '') return null;
+  return String(value);
 }
 
 function fieldNumber(row: Row, snake: string, camel: string, fallback = 0): number {
@@ -269,7 +270,7 @@ export function linkedCommitFromRow(row: Row): LinkedCommitSummary {
     message: fieldString(row, 'message', 'message'),
     authorName: fieldString(row, 'author_name', 'authorName'),
     committedAt: toIsoTimestamp(field(row, 'committed_at', 'committedAt')),
-    branch: fieldNullableString(row, 'branch', 'branch') || null,
+    branch: fieldNullableString(row, 'branch', 'branch'),
     htmlUrl: htmlUrl || null,
     linkSource: fieldString(row, 'link_source', 'linkSource', 'manual') as CommitLinkSource,
     confidence: fieldNumber(row, 'confidence', 'confidence', 100),

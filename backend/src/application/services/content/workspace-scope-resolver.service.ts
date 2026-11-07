@@ -67,7 +67,7 @@ export class WorkspaceScopeResolver {
     parsed: IngestPayload,
     tx?: any,
   ): Promise<ResolvedIngestProject> {
-    const existingProject = await this.contentRepository.getProjectBySlug(userId, parsed.event.projectSlug);
+    const existingProject = await this.contentRepository.getProjectBySlug(userId, parsed.event.projectSlug, undefined, tx);
     const isMatchingProject = existingProject && existingProject.enabled && existingProject.workspaceId === workspaceId;
     const projectId = isMatchingProject ? existingProject.id : crypto.randomUUID();
 

@@ -19,7 +19,7 @@ export class AiSessionSynthesisScheduler {
     const { userId, note, previousNote, tx } = input;
     if (!this.isAiSession(note) || !this.hasTranscriptChanged(previousNote, note)) return;
 
-    const existing = await this.syntheses.getByNoteId(userId, note.id);
+    const existing = await this.syntheses.getByNoteId(userId, note.id, tx);
     if (this.hasGeneratedSynthesis(existing)) return;
 
     const sourceHash = this.sourceHash(note);
