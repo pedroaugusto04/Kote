@@ -122,12 +122,13 @@ export class FileNotesSummaryProvider {
       this.panel.webview.html = this.getLoadingHtml();
     }
 
+    let timeoutId: NodeJS.Timeout | undefined;
     try {
       const summary = await Promise.race([
-        this.kbClient.getFileNotesSummary(this.filePath, { signal, projectSlug: this.projectSlug }),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Request timeout after 30 seconds')), 30000)
-        )
+        this.kbClient.getFileNotesSummary(this.filePath, { signal, projectSlug: this.projectSlug, timeout: 60000 }),
+        new Promise((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('Request timeout after 60 seconds')), 60000);
+        }),
       ]) as any;
 
       if (signal.aborted) return;
@@ -143,6 +144,10 @@ export class FileNotesSummaryProvider {
       this.panel.webview.html = this.getErrorHtml(
         error instanceof Error ? error.message : String(error),
       );
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     }
   }
 

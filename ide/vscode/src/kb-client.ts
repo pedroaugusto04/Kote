@@ -83,7 +83,8 @@ interface RequestOptions {
   timeout?: number;
 }
 
-const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
+export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+export const DEFAULT_AI_REQUEST_TIMEOUT_MS = 120_000;
 
 function makeRequest(url: string, options: RequestOptions = {}): Promise<{ status: number; body: string; headers: Record<string, string | string[]> }> {
   return new Promise((resolve, reject) => {
@@ -117,11 +118,13 @@ function makeRequest(url: string, options: RequestOptions = {}): Promise<{ statu
     );
 
     const timeoutMs = options.timeout ?? DEFAULT_REQUEST_TIMEOUT_MS;
-    req.setTimeout(timeoutMs, () => {
-      timedOut = true;
-      req.destroy();
-      reject(new Error(`Request timed out after ${timeoutMs}ms`));
-    });
+    if (timeoutMs > 0) {
+      req.setTimeout(timeoutMs, () => {
+        timedOut = true;
+        req.destroy();
+        reject(new Error(`Request timed out after ${timeoutMs}ms`));
+      });
+    }
 
     req.on('error', (err) => {
       if (timedOut) return;
@@ -374,7 +377,11 @@ export class KbClient {
     }
   }
 
-  async ask(question: string, projectSlug?: string): Promise<KbAskResult> {
+  async ask(
+    question: string,
+    projectSlug?: string,
+    options?: { timeout?: number; signal?: AbortSignal },
+  ): Promise<KbAskResult> {
     return this.fetch<KbAskResult>('/api/ask', {
       method: 'POST',
       body: JSON.stringify({
@@ -382,6 +389,8 @@ export class KbClient {
         projectSlug: projectSlug ?? undefined,
         workspaceSlug: this.config.workspaceSlug,
       }),
+      timeout: options?.timeout ?? DEFAULT_AI_REQUEST_TIMEOUT_MS,
+      signal: options?.signal,
     });
   }
 
@@ -399,14 +408,19 @@ export class KbClient {
     });
   }
 
-  async sendConversationTurn(payload: {
-    messageText: string;
-    senderId: string;
-    chatId: string;
-    messageId: string;
-    hasMedia?: boolean;
-    media?: unknown;
-  }, workspaceSlug?: string, projectSlug?: string): Promise<{
+  async sendConversationTurn(
+    payload: {
+      messageText: string;
+      senderId: string;
+      chatId: string;
+      messageId: string;
+      hasMedia?: boolean;
+      media?: unknown;
+    },
+    workspaceSlug?: string,
+    projectSlug?: string,
+    options?: { timeout?: number; signal?: AbortSignal },
+  ): Promise<{
     action: 'ask' | 'confirm' | 'cancel' | 'submit';
     replyText: string;
     payload: unknown;
@@ -426,6 +440,8 @@ export class KbClient {
     }>(`/api/conversation/agent?${params}`, {
       method: 'POST',
       body: JSON.stringify(payload),
+      timeout: options?.timeout ?? DEFAULT_AI_REQUEST_TIMEOUT_MS,
+      signal: options?.signal,
     });
   }
 
@@ -584,7 +600,7 @@ export class KbClient {
     }
   }
 
-  async getFileNotesSummary(filePath: string, options?: { signal?: AbortSignal; projectSlug?: string }): Promise<{
+  async getFileNotesSummary(filePath: string, options?: { signal?: AbortSignal; projectSlug?: string; timeout?: number }): Promise<{
     summary: string;
     understanding: string;
     timeline: Array<{ date: string; title: string; description: string; noteId: string }>;
@@ -611,6 +627,7 @@ export class KbClient {
       fallbackReason?: 'feature_disabled' | 'quota_exceeded' | 'generation_failed';
     }>(`/api/notes/by-file/summary?${params.toString()}`, {
       signal: options?.signal,
+      timeout: options?.timeout ?? DEFAULT_AI_REQUEST_TIMEOUT_MS,
     });
   }
 
@@ -625,7 +642,7 @@ export class KbClient {
     author?: string;
     commitMessage?: string;
     limit?: number;
-  }, options?: { signal?: AbortSignal }): Promise<SnippetNotesResponse> {
+  }, options?: { signal?: AbortSignal; timeout?: number }): Promise<SnippetNotesResponse> {
     return this.fetch<SnippetNotesResponse>('/api/notes/by-snippet', {
       method: 'POST',
       body: JSON.stringify({
@@ -634,6 +651,7 @@ export class KbClient {
         workspaceSlug: payload.workspaceSlug || this.config.workspaceSlug,
       }),
       signal: options?.signal,
+      timeout: options?.timeout ?? DEFAULT_AI_REQUEST_TIMEOUT_MS,
     });
   }
 
@@ -644,7 +662,7 @@ export class KbClient {
     projectSlug?: string;
     workspaceSlug?: string;
     autoDetectPrevious?: boolean;
-  }): Promise<{
+  }, options?: { timeout?: number; signal?: AbortSignal }): Promise<{
     ok: boolean;
     handoffMarkdown: string;
     sourceProvider?: string;
@@ -666,6 +684,8 @@ export class KbClient {
         workspaceSlug: payload.workspaceSlug || this.config.workspaceSlug || 'default',
         projectSlug: payload.projectSlug || this.config.defaultProjectSlug,
       }),
+      timeout: options?.timeout ?? DEFAULT_AI_REQUEST_TIMEOUT_MS,
+      signal: options?.signal,
     });
   }
 
@@ -717,6 +737,7 @@ export class KbClient {
         matchedFiles?: string[];
       }>;
     }>,
+    options?: { timeout?: number; signal?: AbortSignal },
   ): Promise<{ ok: boolean; syncedCount: number; linkedCount: number }> {
     const ws = this.config.workspaceSlug || 'default';
     const params = new URLSearchParams({ workspaceSlug: ws });
@@ -725,6 +746,8 @@ export class KbClient {
       {
         method: 'POST',
         body: JSON.stringify({ commits }),
+        timeout: options?.timeout ?? 60_000,
+        signal: options?.signal,
       },
     );
   }
