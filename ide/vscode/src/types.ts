@@ -136,6 +136,7 @@ export type SidebarFromWebview =
 // Chat (extension → webview)
 export type ChatToWebview =
   | { type: 'answer'; answer: string; confidence: string | number; sources: Array<{ title: string; path: string }> }
+  | { type: 'agentResponse'; replyText: string; action: string; projectSlug?: string }
   | { type: 'projects'; projects: KbProject[] }
   | { type: 'setProject'; projectSlug: string }
   | { type: 'noteSaved'; noteId: string }
@@ -148,6 +149,7 @@ export type ChatToWebview =
 export type ChatFromWebview =
   | { type: 'ready' }
   | { type: 'ask'; question: string; projectSlug: string }
+  | { type: 'agentMessage'; messageText: string; projectSlug?: string }
   | { type: 'saveNote'; content: string; projectSlug: string; title?: string }
   | { type: 'loadHistory' }
   | { type: 'clearHistory' };

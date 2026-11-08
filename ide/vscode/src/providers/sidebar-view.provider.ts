@@ -220,6 +220,14 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
               media: {},
             }, undefined, projectSlug);
 
+            if (res.replyText) {
+              addAskEntry({
+                question: msg.messageText,
+                answer: res.replyText,
+                projectSlug,
+              });
+            }
+
             this._post({
               type: 'agentResponse',
               replyText: res.replyText,

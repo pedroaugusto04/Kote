@@ -619,10 +619,10 @@
           <img src="${logoUri}" alt="Kote" style="width:52px;height:52px;border-radius:10px;object-fit:cover;opacity:0.7;" />
         </div>
         <h2>Kote</h2>
-        <p>Type normal text to save it as a note, or start with <code>/ask</code> to search your Kote.</p>
+        <p>Ask questions about your project, capture notes, decisions, or tasks — Kote understands your intent automatically.</p>
         <div class="suggestion-chips">
-          <button class="chip" data-suggestion="/ask How is authentication configured?">/ask Auth Configuration</button>
-          <button class="chip" data-suggestion="/ask What decisions were made?">/ask Decisions</button>
+          <button class="chip" data-suggestion="How is authentication configured?">Auth Configuration</button>
+          <button class="chip" data-suggestion="What decisions were made?">Decisions</button>
           <button class="chip" data-suggestion="Task: Remember to deploy database migrations tonight.">Example Note</button>
         </div>
       </div>
@@ -634,12 +634,12 @@
         <textarea
           id="questionInput"
           rows="1"
-          placeholder="Type a note to save, or /ask to search… (Enter to send)"
+          placeholder="Ask a question or capture a note… (Enter to send)"
         ></textarea>
         <button id="sendBtn">Send</button>
       </div>
       <div id="footerRow">
-        <span class="hint" id="chatHint">Normal text saves note, /ask searches</span>
+        <span class="hint" id="chatHint">Chat with Kote to search knowledge or capture notes</span>
       </div>
     </div>
   </div>
@@ -980,7 +980,7 @@
 
     if (rawText.toLowerCase() === '/help') {
       addUserMessage(rawText);
-      addSystemMessage('💡 Kote Commands:\n• Type any normal text to save it as a note in the active project.\n• Type /ask <your question> to search your Kote with AI.\n• Type /help to show this command guide.');
+      addSystemMessage('💡 Kote Agent Chat:\n• Type any question to search your Kote with AI.\n• Type any note, decision, or task to capture it automatically.\n• Kote automatically detects your intent without needing commands.\n• Type /help to show this guide.');
       return;
     }
 
@@ -988,31 +988,17 @@
     const projectSlug = projectSelect.value;
     const projectName = projectSelect.options[projectSelect.selectedIndex]?.text || projectSlug || 'Inbox';
 
-    if (rawText.toLowerCase().startsWith('/ask')) {
-      // Extract question after "/ask" command
-      const question = rawText.substring(4).trim();
-      if (!question) {
-        addUserMessage(rawText);
-        addSystemMessage('⚠ Please provide a question after the /ask command. Example: /ask How is auth configured?');
-        return;
-      }
-      lastQuestion = question;
-      addUserMessage(rawText);
-      setThinking(true);
-      addThinking();
-      vscode.postMessage({ type: 'ask', question, projectSlug });
-    } else {
-      // Normal note saving via Conversational Agent (same as WhatsApp)
-      addUserMessage(rawText);
-      setThinking(true);
-      addThinking();
+    lastQuestion = rawText;
+    addUserMessage(rawText);
+    setThinking(true);
+    addThinking();
 
-      vscode.postMessage({
-        type: 'agentMessage',
-        messageText: rawText,
-        projectSlug
-      });
-    }
+    // Unified agent flow (same conversational agent as WhatsApp)
+    vscode.postMessage({
+      type: 'agentMessage',
+      messageText: rawText,
+      projectSlug
+    });
   }
 
   function setThinking(v) {
@@ -1166,12 +1152,19 @@
   function addAgentReply(replyText) {
     removeThinking();
     setThinking(false);
+    const idx = conversationHistory.length;
+    conversationHistory.push({ question: lastQuestion, answer: replyText });
+    vscode.setState({ ...vscode.getState(), history: conversationHistory });
+
     const el = document.createElement('div');
     el.className = 'msg kb';
     el.innerHTML = `
       <div class="msg-sender">Kote</div>
       <div class="bubble">
         ${renderMarkdown(replyText)}
+      </div>
+      <div class="bubble-actions">
+        <button class="action-btn" data-action="copy" data-idx="${idx}">Copy</button>
       </div>
     `;
     document.getElementById('messages').appendChild(el);
@@ -1324,7 +1317,7 @@
       if (action === 'ask-again') {
         switchTab('chat');
         const input = document.getElementById('questionInput');
-        input.value = `/ask ${entry.question}`;
+        input.value = entry.question;
         autoResize(input);
         input.focus();
       } else if (action === 'save') {

@@ -103,6 +103,35 @@ export class ChatPanelProvider {
         break;
       }
 
+      case 'agentMessage': {
+        this._post({ type: 'thinking' });
+        try {
+          const projectSlug = resolveProjectSlug(msg.projectSlug || this._activeProject, this._client.defaultProjectSlug);
+          const res = await this._client.sendConversationTurn({
+            messageText: msg.messageText,
+            senderId: 'vscode-user',
+            chatId: 'vscode-chat',
+            messageId: crypto.randomUUID(),
+            hasMedia: false,
+            media: {},
+          }, undefined, projectSlug);
+
+          this._post({
+            type: 'agentResponse',
+            replyText: res.replyText,
+            action: res.action,
+            projectSlug: res.agent?.selectedProjectSlug || '',
+          });
+
+          if (res.action === 'submit') {
+            vscode.window.showInformationMessage(`Note saved to Kote — project: ${res.agent?.selectedProjectSlug || 'Inbox'}`);
+          }
+        } catch (err: unknown) {
+          this._post({ type: 'error', message: toMessage(err) });
+        }
+        break;
+      }
+
       case 'saveNote': {
         try {
           const projectSlug = resolveProjectSlug(msg.projectSlug || this._activeProject, this._client.defaultProjectSlug);
