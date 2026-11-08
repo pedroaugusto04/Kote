@@ -178,8 +178,14 @@ export class PostgresGitCommitRepository extends GitCommitRepository {
   }
 
   private getQueryable(tx?: unknown): Queryable {
-    if (tx && typeof (tx as PoolClient).query === 'function') {
-      return tx as PoolClient;
+    if (tx) {
+      if (typeof (tx as PoolClient).query === 'function') {
+        return tx as PoolClient;
+      }
+      const sessionClient = (tx as { session?: { client?: PoolClient } }).session?.client;
+      if (sessionClient && typeof sessionClient.query === 'function') {
+        return sessionClient;
+      }
     }
     return this.database.getPool();
   }

@@ -41,19 +41,19 @@ test('readEnvironment lets Project Brief AI inherit Default Chat AI settings', (
 
 test('readEnvironment parses database pool settings with defaults and overrides', () => {
   const defaultEnv = readEnvironment({});
-  assert.equal(defaultEnv.databasePoolMax, 25);
-  assert.equal(defaultEnv.databaseConnectionTimeoutMs, 10000);
+  assert.equal(defaultEnv.databasePoolMax, 30);
+  assert.equal(defaultEnv.databaseConnectionTimeoutMs, 15000);
   assert.equal(defaultEnv.databaseIdleTimeoutMs, 30000);
   assert.equal(defaultEnv.databaseStatementTimeoutMs, 30000);
 
   const customEnv = readEnvironment({
     KB_DATABASE_POOL_MAX: '50',
-    KB_DATABASE_CONNECTION_TIMEOUT_MS: '15000',
+    KB_DATABASE_CONNECTION_TIMEOUT_MS: '20000',
     KB_DATABASE_IDLE_TIMEOUT_MS: '45000',
     KB_DATABASE_STATEMENT_TIMEOUT_MS: '60000',
   });
   assert.equal(customEnv.databasePoolMax, 50);
-  assert.equal(customEnv.databaseConnectionTimeoutMs, 15000);
+  assert.equal(customEnv.databaseConnectionTimeoutMs, 20000);
   assert.equal(customEnv.databaseIdleTimeoutMs, 45000);
   assert.equal(customEnv.databaseStatementTimeoutMs, 60000);
 });

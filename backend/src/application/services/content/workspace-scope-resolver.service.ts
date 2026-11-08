@@ -92,7 +92,7 @@ export class WorkspaceScopeResolver {
         };
       }
       const projectSaveInput = toProjectSaveInput(project, workspaceId, projectId);
-      await this.contentRepository.upsertProject(userId, projectSaveInput);
+      await this.contentRepository.upsertProject(userId, projectSaveInput, tx);
     }
 
     return { project, projectId };

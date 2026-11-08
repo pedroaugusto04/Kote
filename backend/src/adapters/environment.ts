@@ -162,8 +162,8 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     databaseSslRejectUnauthorized: String(env.KB_DATABASE_SSL_REJECT_UNAUTHORIZED || '').trim() === ''
       ? null
       : String(env.KB_DATABASE_SSL_REJECT_UNAUTHORIZED || '').trim().toLowerCase() === 'true',
-    databasePoolMax: normalizeNumber(env.KB_DATABASE_POOL_MAX, 25),
-    databaseConnectionTimeoutMs: normalizeNumber(env.KB_DATABASE_CONNECTION_TIMEOUT_MS, 10_000),
+    databasePoolMax: normalizeNumber(env.KB_DATABASE_POOL_MAX, 30),
+    databaseConnectionTimeoutMs: normalizeNumber(env.KB_DATABASE_CONNECTION_TIMEOUT_MS, 15_000),
     databaseIdleTimeoutMs: normalizeNumber(env.KB_DATABASE_IDLE_TIMEOUT_MS, 30_000),
     databaseStatementTimeoutMs: normalizeNumber(env.KB_DATABASE_STATEMENT_TIMEOUT_MS, 30_000),
     adminEmail: String(env.KB_ADMIN_EMAIL || '').trim().toLowerCase(),

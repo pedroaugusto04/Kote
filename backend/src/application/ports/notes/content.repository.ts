@@ -48,7 +48,7 @@ export abstract class ContentRepository {
   abstract listProjectsPageWithNoteCount(userId: string, input: ListProjectsInput): Promise<PaginatedProjects>;
   abstract getProjectBySlug(userId: string, projectSlug: string, workspaceId?: string, tx?: any): Promise<SaveProjectInput | null>;
   abstract getProjectById(userId: string, projectId: string): Promise<SaveProjectInput | null>;
-  abstract upsertProject(userId: string, input: SaveProjectInput): Promise<SaveProjectInput>;
+  abstract upsertProject(userId: string, input: SaveProjectInput, tx?: any): Promise<SaveProjectInput>;
   abstract deleteProject(userId: string, projectId: string): Promise<boolean>;
   abstract setProjectFavorite(userId: string, projectId: string, favorite: boolean): Promise<SaveProjectInput | null>;
   abstract listProjectFolders(userId: string, projectId: string): Promise<ProjectFolderRecord[]>;

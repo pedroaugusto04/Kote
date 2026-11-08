@@ -28,6 +28,7 @@ export type FileNotesSummaryCacheScope = {
 export class FileNotesSummaryCacheService {
   private cache = new Map<string, FileNotesSummaryCacheEntry>();
   private readonly TTL_MS = 24 * 60 * 60 * 1000; // 24 hours (1 day)
+  private readonly MAX_CACHE_SIZE = 500;
 
   private generateNotesHash(notes: Array<{ id: string; date: string; revision?: string }>): string {
     const sorted = [...notes].sort((left, right) => left.id.localeCompare(right.id));
@@ -62,6 +63,15 @@ export class FileNotesSummaryCacheService {
     notes: Array<{ id: string; date: string; revision?: string }>,
     summary: FileNotesSummaryResponse,
   ): void {
+    if (this.cache.size >= this.MAX_CACHE_SIZE) {
+      this.cleanup();
+      // If still at capacity after pruning expired, delete the oldest entry
+      if (this.cache.size >= this.MAX_CACHE_SIZE) {
+        const oldestKey = this.cache.keys().next().value;
+        if (oldestKey) this.cache.delete(oldestKey);
+      }
+    }
+
     const notesHash = this.generateNotesHash(notes);
     const key = this.generateKey(scope, notes);
     

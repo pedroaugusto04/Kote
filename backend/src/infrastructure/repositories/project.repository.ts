@@ -196,12 +196,11 @@ export class PostgresProjectRepository {
     return project;
   }
 
-  async upsert(userId: string, input: SaveProjectInput) {
-    const db = this.database.getDb();
-    return db.transaction(async (tx) => {
+  async upsert(userId: string, input: SaveProjectInput, tx?: any) {
+    const run = async (t: any) => {
       let workspaceId = input.workspaceId;
       if (!workspaceId && input.workspaceSlug) {
-        const workspaceResult = await tx
+        const workspaceResult = await t
           .select({ id: workspaces.id })
           .from(workspaces)
           .where(and(eq(workspaces.userId, userId), eq(workspaces.workspaceSlug, input.workspaceSlug)))
@@ -209,7 +208,7 @@ export class PostgresProjectRepository {
         workspaceId = workspaceResult[0]?.id;
       }
 
-      const projectResult = await tx
+      const projectResult = await t
         .insert(projects)
         .values({
           id: input.id || crypto.randomUUID(),
@@ -235,22 +234,22 @@ export class PostgresProjectRepository {
       const project = projectResult[0];
       const { defaultTags = [], repositories = [] } = input;
 
-      await tx
+      await t
         .delete(projectDefaultTags)
         .where(eq(projectDefaultTags.projectId, project.id));
       
       if (defaultTags.length > 0) {
-        await tx
+        await t
           .insert(projectDefaultTags)
           .values(defaultTags.map((tag) => ({ projectId: project.id, tag })));
       }
 
-      await tx
+      await t
         .delete(projectRepositories)
         .where(eq(projectRepositories.projectId, project.id));
 
       if (repositories.length > 0) {
-        await tx
+        await t
           .insert(projectRepositories)
           .values(repositories.map((repo) => ({ projectId: project.id, repositoryId: repo.id })));
       }
@@ -261,7 +260,13 @@ export class PostgresProjectRepository {
         default_tags: defaultTags,
         repositories,
       });
-    });
+    };
+
+    if (tx) {
+      return run(tx);
+    }
+    const db = this.database.getDb();
+    return db.transaction(run);
   }
 
   async setFavorite(userId: string, id: string, favorite: boolean) {

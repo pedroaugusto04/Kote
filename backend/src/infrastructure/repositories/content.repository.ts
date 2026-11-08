@@ -123,8 +123,8 @@ export class PostgresContentRepository extends ContentRepository {
     return this.projectRepository.getById(userId, projectId);
   }
 
-  async upsertProject(userId: string, input: SaveProjectInput) {
-    return this.projectRepository.upsert(userId, input);
+  async upsertProject(userId: string, input: SaveProjectInput, tx?: any) {
+    return this.projectRepository.upsert(userId, input, tx);
   }
 
   async upsertProjectWithRepository(userId: string, projectInput: SaveProjectInput, repositoryInput?: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }, tx?: any): Promise<SaveProjectInput> {
@@ -136,7 +136,7 @@ export class PostgresContentRepository extends ContentRepository {
     }
 
     // Then upsert project
-    return this.projectRepository.upsert(userId, projectInput);
+    return this.projectRepository.upsert(userId, projectInput, tx);
   }
 
   async deleteProject(userId: string, projectId: string) {
