@@ -358,5 +358,5 @@ export async function detectActiveProject(
     }
   }
 
-  return client.defaultProjectSlug || (projects[0]?.projectSlug ?? null);
+  return client.defaultProjectSlug || null;
 }

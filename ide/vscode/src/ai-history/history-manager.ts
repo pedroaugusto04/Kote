@@ -4,7 +4,7 @@ import { getLiveOrCachedPricingTable } from './pricing';
 import { type KbClient, isConfigured } from '../kb-client';
 import { logInfo, toMessage } from '../error-reporter';
 import { resolveProjectSlug } from '../utils/project';
-import { isSessionInWorkspaceFolders } from '../utils/workspace-filter';
+import { isPathInWorkspaceFolders, isSessionInWorkspaceFolders } from '../utils/workspace-filter';
 import { SessionHandoffManager } from './handoff/session-handoff.manager';
 import {
   buildUnifiedSessionQuickPickItems,
@@ -235,6 +235,9 @@ export class AiHistoryManager {
     // Watch for immediate harness session start events (triggered before the first user message)
     const hookStartDisposable = watchActiveSessionStarts((info) => {
       if (info.targetProvider) {
+        if (info.cwd && !isPathInWorkspaceFolders(info.cwd, this.getWorkspaceFolderPaths())) {
+          return;
+        }
         const projectSlug = this.getActiveProjectSelection?.()?.projectSlug || undefined;
         void this.handoff.onHarnessLaunched(info.targetProvider, this.recentSessions, projectSlug);
       }
