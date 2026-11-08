@@ -63,6 +63,7 @@ export interface AiSession {
   timestamp: number;
   timestampIsInternal: boolean;
   projectSlug?: string;
+  workspaceDir?: string;
   attachments?: AiSessionAttachment[];
   tokenUsage?: AiTokenUsage;
   gitActivity?: AiSessionGitActivity;

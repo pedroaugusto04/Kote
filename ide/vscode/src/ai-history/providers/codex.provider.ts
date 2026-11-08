@@ -353,6 +353,8 @@ function parseFile(filePath: string): AiSession | null {
       const internalTimestamp = latestRecordTimestamp(records, ['timestamp', 'created_at', 'updated_at']);
       const timestamp = internalTimestamp ?? (fileSig?.mtimeMs ?? 0);
 
+      const workspaceDir = cwd && fs.existsSync(cwd) ? path.resolve(cwd) : undefined;
+
       return {
         providerId: AI_PROVIDER.CODEX_CLI,
         sessionId,
@@ -360,6 +362,7 @@ function parseFile(filePath: string): AiSession | null {
         turns,
         timestamp,
         timestampIsInternal: internalTimestamp !== null,
+        workspaceDir,
         projectSlug: cwd ? resolveProjectSlugFromDir(cwd) : undefined,
         tokenUsage: extractCodexTokenUsage(records),
         gitActivity: extractGitActivityFromRecords(records, cwd || undefined),

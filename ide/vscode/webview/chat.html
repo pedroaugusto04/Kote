@@ -1,13 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; style-src 'unsafe-inline'; img-src ${cspSource} data:; script-src 'nonce-${nonce}';" />
+    content="default-src 'none'; style-src 'unsafe-inline'; img-src ${cspSource} data:; script-src 'nonce-${nonce}';" />
   <title>Kote: Ask AI</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
     :root {
       --gap: 10px;
@@ -19,7 +26,8 @@
       --bubble-kb-border: var(--vscode-input-border, transparent);
     }
 
-    html, body {
+    html,
+    body {
       height: 100%;
       font-family: var(--font);
       font-size: var(--vscode-font-size, 13px);
@@ -55,6 +63,7 @@
       text-align: center;
       padding: 32px;
     }
+
     .empty-icon {
       opacity: .5;
       display: flex;
@@ -62,14 +71,33 @@
       align-items: center;
       margin-bottom: 4px;
     }
+
     .empty-icon svg {
       width: 44px;
       height: 44px;
       color: var(--vscode-foreground);
     }
-    .empty-state h2 { font-size: 14px; font-weight: 600; color: var(--vscode-foreground); }
-    .empty-state p { font-size: 12px; line-height: 1.6; max-width: 280px; }
-    .suggestion-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 6px; }
+
+    .empty-state h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--vscode-foreground);
+    }
+
+    .empty-state p {
+      font-size: 12px;
+      line-height: 1.6;
+      max-width: 280px;
+    }
+
+    .suggestion-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      margin-top: 6px;
+    }
+
     .chip {
       font-size: 11px;
       padding: 4px 10px;
@@ -81,12 +109,27 @@
       font-family: inherit;
       transition: background .12s;
     }
-    .chip:hover { background: var(--vscode-list-hoverBackground); }
+
+    .chip:hover {
+      background: var(--vscode-list-hoverBackground);
+    }
 
     /* ── Message bubbles ──────────────────────────────── */
-    .msg { display: flex; flex-direction: column; max-width: 88%; }
-    .msg.user { align-self: flex-end; align-items: flex-end; }
-    .msg.kb { align-self: flex-start; align-items: flex-start; }
+    .msg {
+      display: flex;
+      flex-direction: column;
+      max-width: 88%;
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+
+    .msg.kb {
+      align-self: flex-start;
+      align-items: flex-start;
+    }
 
     .msg-sender {
       font-size: 10px;
@@ -105,11 +148,13 @@
       font-size: 13px;
       word-break: break-word;
     }
+
     .msg.user .bubble {
       background: var(--bubble-user-bg);
       color: var(--bubble-user-fg);
       border-radius: var(--radius) var(--radius) 2px var(--radius);
     }
+
     .msg.kb .bubble {
       background: var(--bubble-kb-bg);
       border: 1px solid var(--bubble-kb-border);
@@ -117,8 +162,14 @@
     }
 
     /* Markdown inside kb bubble */
-    .bubble strong { font-weight: 600; }
-    .bubble em { font-style: italic; }
+    .bubble strong {
+      font-weight: 600;
+    }
+
+    .bubble em {
+      font-style: italic;
+    }
+
     .bubble code {
       font-family: var(--vscode-editor-font-family, monospace);
       font-size: 12px;
@@ -126,6 +177,7 @@
       padding: 1px 5px;
       border-radius: 3px;
     }
+
     .bubble pre {
       background: var(--vscode-textCodeBlock-background, #2d2d2d);
       border-radius: 5px;
@@ -133,9 +185,21 @@
       margin: 8px 0;
       overflow-x: auto;
     }
-    .bubble pre code { background: none; padding: 0; }
-    .bubble ul, .bubble ol { padding-left: 18px; margin: 6px 0; }
-    .bubble li { margin: 2px 0; }
+
+    .bubble pre code {
+      background: none;
+      padding: 0;
+    }
+
+    .bubble ul,
+    .bubble ol {
+      padding-left: 18px;
+      margin: 6px 0;
+    }
+
+    .bubble li {
+      margin: 2px 0;
+    }
 
     /* ── Sources ─────────────────────────────────────── */
     .sources {
@@ -143,6 +207,7 @@
       padding-top: 8px;
       border-top: 1px solid var(--vscode-widget-border, #333);
     }
+
     .sources-label {
       font-size: 10px;
       font-weight: 600;
@@ -151,7 +216,13 @@
       color: var(--vscode-descriptionForeground);
       margin-bottom: 6px;
     }
-    .source-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+
+    .source-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
     .source-chip {
       font-size: 11px;
       padding: 3px 9px;
@@ -172,6 +243,7 @@
       margin-top: 6px;
       padding: 0 2px;
     }
+
     .action-btn {
       font-size: 11px;
       padding: 3px 10px;
@@ -183,7 +255,10 @@
       font-family: inherit;
       transition: background .1s;
     }
-    .action-btn:hover { background: var(--vscode-list-hoverBackground); }
+
+    .action-btn:hover {
+      background: var(--vscode-list-hoverBackground);
+    }
 
     /* ── Confidence ──────────────────────────────────── */
     .confidence {
@@ -192,9 +267,18 @@
       margin-top: 6px;
       padding: 0 4px;
     }
-    .conf-high { color: #4ade80; }
-    .conf-medium { color: #facc15; }
-    .conf-low { color: #f87171; }
+
+    .conf-high {
+      color: #4ade80;
+    }
+
+    .conf-medium {
+      color: #facc15;
+    }
+
+    .conf-low {
+      color: #f87171;
+    }
 
     /* ── Thinking indicator ──────────────────────────── */
     .thinking .bubble {
@@ -205,25 +289,47 @@
       font-style: italic;
       font-size: 12px;
     }
+
     .dots span {
       display: inline-block;
-      width: 5px; height: 5px;
+      width: 5px;
+      height: 5px;
       border-radius: 50%;
       background: currentColor;
       animation: bounce 1.2s infinite;
     }
-    .dots span:nth-child(2) { animation-delay: .2s; }
-    .dots span:nth-child(3) { animation-delay: .4s; }
-    @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
+
+    .dots span:nth-child(2) {
+      animation-delay: .2s;
+    }
+
+    .dots span:nth-child(3) {
+      animation-delay: .4s;
+    }
+
+    @keyframes bounce {
+
+      0%,
+      80%,
+      100% {
+        transform: translateY(0)
+      }
+
+      40% {
+        transform: translateY(-5px)
+      }
+    }
 
     /* ── Typewriter effect ────────────────────────────── */
     .typewriter-content {
       position: relative;
       cursor: default;
     }
+
     .typewriter-content.is-typing {
       cursor: pointer;
     }
+
     .typewriter-cursor::after {
       content: '';
       display: inline-block;
@@ -234,10 +340,19 @@
       vertical-align: text-bottom;
       animation: tw-blink 0.8s step-end infinite;
     }
+
     @keyframes tw-blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0; }
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0;
+      }
     }
+
     .typewriter-done .typewriter-cursor {
       display: none;
     }
@@ -281,8 +396,14 @@
       line-height: 1.5;
       transition: border-color .15s;
     }
-    #questionInput:focus { border-color: var(--vscode-focusBorder); }
-    #questionInput::placeholder { color: var(--vscode-input-placeholderForeground); }
+
+    #questionInput:focus {
+      border-color: var(--vscode-focusBorder);
+    }
+
+    #questionInput::placeholder {
+      color: var(--vscode-input-placeholderForeground);
+    }
 
     #sendBtn {
       flex-shrink: 0;
@@ -298,8 +419,15 @@
       transition: opacity .15s;
       height: 36px;
     }
-    #sendBtn:hover { opacity: .88; }
-    #sendBtn:disabled { opacity: .45; cursor: not-allowed; }
+
+    #sendBtn:hover {
+      opacity: .88;
+    }
+
+    #sendBtn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
 
     #footerRow {
       display: flex;
@@ -322,21 +450,26 @@
       flex: 1;
       min-width: 80px;
     }
-    #projectSelect:focus { border-color: var(--vscode-focusBorder); }
+
+    #projectSelect:focus {
+      border-color: var(--vscode-focusBorder);
+    }
 
     .hint {
       font-size: 10px;
       color: var(--vscode-descriptionForeground);
     }
+
     .top-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding: 8px 12px;
       background: var(--vscode-sideBar-background);
-      border-bottom: 1px solid var(--vscode-sideBar-border, rgba(127,127,127,0.1));
+      border-bottom: 1px solid var(--vscode-sideBar-border, rgba(127, 127, 127, 0.1));
       flex-shrink: 0;
     }
+
     .top-title {
       display: inline-flex;
       align-items: center;
@@ -345,12 +478,14 @@
       font-size: 12px;
       color: var(--vscode-foreground);
     }
+
     .top-logo-icon {
       width: 20px;
       height: 20px;
       border-radius: 4px;
       object-fit: cover;
     }
+
     .logout-btn {
       background: none;
       border: none;
@@ -361,8 +496,9 @@
       border-radius: 4px;
       font-family: inherit;
     }
+
     .logout-btn:hover {
-      background: var(--vscode-toolbar-hoverBackground, rgba(127,127,127,0.1));
+      background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.1));
       color: var(--vscode-textLink-activeForeground);
     }
 
@@ -373,6 +509,7 @@
       background: var(--vscode-sideBar-background);
       flex-shrink: 0;
     }
+
     .tab-btn {
       flex: 1;
       padding: 7px 0;
@@ -386,7 +523,11 @@
       cursor: pointer;
       transition: color .12s, border-color .12s;
     }
-    .tab-btn:hover { color: var(--vscode-foreground); }
+
+    .tab-btn:hover {
+      color: var(--vscode-foreground);
+    }
+
     .tab-btn.active {
       color: var(--vscode-foreground);
       border-bottom-color: var(--vscode-button-background);
@@ -400,9 +541,21 @@
       overflow-y: auto;
       flex-direction: column;
     }
-    #historyPanel.visible { display: flex; }
-    #chatPanel { display: flex; flex: 1; flex-direction: column; overflow: hidden; }
-    #chatPanel.hidden { display: none; }
+
+    #historyPanel.visible {
+      display: flex;
+    }
+
+    #chatPanel {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #chatPanel.hidden {
+      display: none;
+    }
 
     .history-toolbar {
       display: flex;
@@ -414,6 +567,7 @@
       border-bottom: 1px solid var(--vscode-widget-border, #333);
       flex-shrink: 0;
     }
+
     .history-clear-btn {
       background: none;
       border: 1px solid var(--vscode-inputValidation-errorBorder, #f88);
@@ -425,7 +579,10 @@
       font-family: inherit;
       transition: background .1s;
     }
-    .history-clear-btn:hover { background: rgba(248,136,136,0.12); }
+
+    .history-clear-btn:hover {
+      background: rgba(248, 136, 136, 0.12);
+    }
 
     .history-empty {
       flex: 1;
@@ -447,9 +604,11 @@
       overflow-y: auto;
       flex: 1;
     }
+
     .history-entry {
-      border-bottom: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.15));
+      border-bottom: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.15));
     }
+
     .history-entry-header {
       display: flex;
       align-items: center;
@@ -459,7 +618,11 @@
       user-select: none;
       gap: 8px;
     }
-    .history-entry-header:hover { background: var(--vscode-list-hoverBackground); }
+
+    .history-entry-header:hover {
+      background: var(--vscode-list-hoverBackground);
+    }
+
     .history-q-preview {
       flex: 1;
       font-size: 12px;
@@ -469,6 +632,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
     .history-meta {
       font-size: 10px;
       color: var(--vscode-descriptionForeground);
@@ -477,20 +641,29 @@
       align-items: center;
       gap: 6px;
     }
+
     .history-chevron {
       font-size: 10px;
       color: var(--vscode-descriptionForeground);
       transition: transform .15s;
       flex-shrink: 0;
     }
-    .history-entry.open .history-chevron { transform: rotate(90deg); }
+
+    .history-entry.open .history-chevron {
+      transform: rotate(90deg);
+    }
+
     .history-body {
       display: none;
       padding: 0 14px 12px;
       flex-direction: column;
       gap: 8px;
     }
-    .history-entry.open .history-body { display: flex; }
+
+    .history-entry.open .history-body {
+      display: flex;
+    }
+
     .history-answer-text {
       font-size: 12px;
       line-height: 1.6;
@@ -502,10 +675,12 @@
       max-height: 200px;
       overflow-y: auto;
     }
+
     .history-actions {
       display: flex;
       gap: 6px;
     }
+
     .history-action-btn {
       font-size: 11px;
       padding: 3px 10px;
@@ -517,7 +692,10 @@
       font-family: inherit;
       transition: background .1s;
     }
-    .history-action-btn:hover { background: var(--vscode-list-hoverBackground); }
+
+    .history-action-btn:hover {
+      background: var(--vscode-list-hoverBackground);
+    }
 
     /* ── Sync panel ─────────────────────────────────── */
     #syncPanel {
@@ -526,10 +704,15 @@
       overflow-y: auto;
       flex-direction: column;
     }
-    #syncPanel.visible { display: flex; }
-    .sync-entry {
-      border-bottom: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.15));
+
+    #syncPanel.visible {
+      display: flex;
     }
+
+    .sync-entry {
+      border-bottom: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.15));
+    }
+
     .sync-entry-header {
       display: flex;
       align-items: center;
@@ -538,13 +721,18 @@
       user-select: none;
       gap: 10px;
     }
-    .sync-entry-header:hover { background: var(--vscode-list-hoverBackground); }
+
+    .sync-entry-header:hover {
+      background: var(--vscode-list-hoverBackground);
+    }
+
     .sync-checkbox {
       cursor: pointer;
       width: 14px;
       height: 14px;
       accent-color: var(--vscode-button-background);
     }
+
     .sync-q-preview {
       flex: 1;
       font-size: 12px;
@@ -554,6 +742,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
     .sync-meta {
       font-size: 10px;
       color: var(--vscode-descriptionForeground);
@@ -562,20 +751,29 @@
       align-items: center;
       gap: 6px;
     }
+
     .sync-chevron {
       font-size: 10px;
       color: var(--vscode-descriptionForeground);
       transition: transform .15s;
       flex-shrink: 0;
     }
-    .sync-entry.open .sync-chevron { transform: rotate(90deg); }
+
+    .sync-entry.open .sync-chevron {
+      transform: rotate(90deg);
+    }
+
     .sync-body {
       display: none;
       padding: 0 14px 12px 38px;
       flex-direction: column;
       gap: 8px;
     }
-    .sync-entry.open .sync-body { display: flex; }
+
+    .sync-entry.open .sync-body {
+      display: flex;
+    }
+
     .sync-turns-text {
       font-size: 12px;
       line-height: 1.6;
@@ -589,6 +787,7 @@
     }
   </style>
 </head>
+
 <body>
 
   <div class="top-bar">
@@ -616,14 +815,16 @@
     <div id="messages">
       <div class="empty-state" id="emptyState">
         <div class="empty-icon">
-          <img src="${logoUri}" alt="Kote" style="width:52px;height:52px;border-radius:10px;object-fit:cover;opacity:0.7;" />
+          <img src="${logoUri}" alt="Kote"
+            style="width:52px;height:52px;border-radius:10px;object-fit:cover;opacity:0.7;" />
         </div>
         <h2>Kote</h2>
-        <p>Ask questions about your project, capture notes, decisions, or tasks — Kote understands your intent automatically.</p>
+        <p>Ask questions, capture notes, decisions, or tasks.</p>
         <div class="suggestion-chips">
           <button class="chip" data-suggestion="How is authentication configured?">Auth Configuration</button>
           <button class="chip" data-suggestion="What decisions were made?">Decisions</button>
-          <button class="chip" data-suggestion="Task: Remember to deploy database migrations tonight.">Example Note</button>
+          <button class="chip" data-suggestion="Task: Remember to deploy database migrations tonight.">Example
+            Note</button>
         </div>
       </div>
     </div>
@@ -631,11 +832,8 @@
     <!-- Input (inside chat panel) -->
     <div id="inputArea">
       <div id="inputRow">
-        <textarea
-          id="questionInput"
-          rows="1"
-          placeholder="Ask a question or capture a note… (Enter to send)"
-        ></textarea>
+        <textarea id="questionInput" rows="1"
+          placeholder="Ask a question or capture a note… (Enter to send)"></textarea>
         <button id="sendBtn">Send</button>
       </div>
       <div id="footerRow">
@@ -658,7 +856,8 @@
 
   <!-- Sync panel -->
   <div id="syncPanel">
-    <div class="history-toolbar" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+    <div class="history-toolbar"
+      style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
       <span id="syncCount">No unsynced sessions</span>
       <div style="display: flex; gap: 6px;">
         <button class="history-action-btn" id="syncSelectedBtn" style="display: none;">Sync Selected</button>
@@ -671,198 +870,198 @@
   </div>
   <!-- /Sync panel -->
 
-<script nonce="${nonce}">
-  const vscode = acquireVsCodeApi();
-  let isThinking = false;
-  let lastQuestion = '';
-  let conversationHistory = vscode.getState()?.history ?? [];
-  let askHistory = vscode.getState()?.askHistory ?? [];
-  let visibleMessageCount = vscode.getState()?.visibleMessageCount ?? 20;
-  let visibleHistoryCount = vscode.getState()?.visibleHistoryCount ?? 20;
+  <script nonce="${nonce}">
+    const vscode = acquireVsCodeApi();
+    let isThinking = false;
+    let lastQuestion = '';
+    let conversationHistory = vscode.getState()?.history ?? [];
+    let askHistory = vscode.getState()?.askHistory ?? [];
+    let visibleMessageCount = vscode.getState()?.visibleMessageCount ?? 20;
+    let visibleHistoryCount = vscode.getState()?.visibleHistoryCount ?? 20;
 
-  let unsyncedSessions = [];
+    let unsyncedSessions = [];
 
-  // ── Tab switching ─────────────────────────────────────────────────────────
+    // ── Tab switching ─────────────────────────────────────────────────────────
 
-  function switchTab(tab) {
-    const isChat = tab === 'chat';
-    const isHistory = tab === 'history';
-    const isSync = tab === 'sync';
+    function switchTab(tab) {
+      const isChat = tab === 'chat';
+      const isHistory = tab === 'history';
+      const isSync = tab === 'sync';
 
-    document.getElementById('chatPanel').classList.toggle('hidden', !isChat);
-    document.getElementById('historyPanel').classList.toggle('visible', isHistory);
-    document.getElementById('syncPanel').classList.toggle('visible', isSync);
+      document.getElementById('chatPanel').classList.toggle('hidden', !isChat);
+      document.getElementById('historyPanel').classList.toggle('visible', isHistory);
+      document.getElementById('syncPanel').classList.toggle('visible', isSync);
 
-    document.getElementById('tabChat').classList.toggle('active', isChat);
-    document.getElementById('tabHistory').classList.toggle('active', isHistory);
-    document.getElementById('tabSync').classList.toggle('active', isSync);
+      document.getElementById('tabChat').classList.toggle('active', isChat);
+      document.getElementById('tabHistory').classList.toggle('active', isHistory);
+      document.getElementById('tabSync').classList.toggle('active', isSync);
 
-    if (isHistory) {
-      // Always show cached data immediately (if available), then refresh from filesystem
-      if (askHistory.length > 0) {
-        renderHistory(askHistory);
-      } else {
-        const container = document.getElementById('historyContent');
-        container.innerHTML = '<div class="history-empty">Loading history…</div>';
+      if (isHistory) {
+        // Always show cached data immediately (if available), then refresh from filesystem
+        if (askHistory.length > 0) {
+          renderHistory(askHistory);
+        } else {
+          const container = document.getElementById('historyContent');
+          container.innerHTML = '<div class="history-empty">Loading history…</div>';
+        }
+        // Always fetch fresh data from the filesystem (source of truth)
+        vscode.postMessage({ type: 'loadHistory' });
+      } else if (isSync) {
+        const container = document.getElementById('syncContent');
+        container.innerHTML = '<div class="history-empty">Loading unsynced sessions…</div>';
+        vscode.postMessage({ type: 'getUnsyncedSessions' });
       }
-      // Always fetch fresh data from the filesystem (source of truth)
-      vscode.postMessage({ type: 'loadHistory' });
-    } else if (isSync) {
-      const container = document.getElementById('syncContent');
-      container.innerHTML = '<div class="history-empty">Loading unsynced sessions…</div>';
-      vscode.postMessage({ type: 'getUnsyncedSessions' });
     }
-  }
 
-  document.getElementById('tabBar').addEventListener('click', (e) => {
-    const btn = e.target.closest('.tab-btn');
-    if (btn) switchTab(btn.getAttribute('data-tab'));
-  });
+    document.getElementById('tabBar').addEventListener('click', (e) => {
+      const btn = e.target.closest('.tab-btn');
+      if (btn) switchTab(btn.getAttribute('data-tab'));
+    });
 
-  // ── Markdown renderer ─────────────────────────────────────────────────────
+    // ── Markdown renderer ─────────────────────────────────────────────────────
 
-  function renderMarkdown(text) {
-    let html = escHtml(text);
+    function renderMarkdown(text) {
+      let html = escHtml(text);
 
-    // Code blocks (``` ... ```)
-    html = html.replace(/```[\w]*\n?([\s\S]*?)```/g, (_, code) =>
-      `<pre><code>${code.trim()}</code></pre>`
-    );
-    // Inline code
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-    // Bold
-    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    // Italic
-    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    // Unordered list
-    html = html.replace(/^[-•] (.+)$/gm, '<li>$1</li>');
-    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
-    // Line breaks (preserve paragraph spacing)
-    html = html.replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');
+      // Code blocks (``` ... ```)
+      html = html.replace(/```[\w]*\n?([\s\S]*?)```/g, (_, code) =>
+        `<pre><code>${code.trim()}</code></pre>`
+      );
+      // Inline code
+      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+      // Bold
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      // Italic
+      html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+      // Unordered list
+      html = html.replace(/^[-•] (.+)$/gm, '<li>$1</li>');
+      html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+      // Line breaks (preserve paragraph spacing)
+      html = html.replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');
 
-    return html;
-  }
+      return html;
+    }
 
-  function escHtml(s) {
-    return String(s || '')
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+    function escHtml(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
 
-  // ── Render messages ───────────────────────────────────────────────────────
+    // ── Render messages ───────────────────────────────────────────────────────
 
-  function addUserMessage(text) {
-    hideEmpty();
-    const el = document.createElement('div');
-    el.className = 'msg user';
-    el.innerHTML = `
+    function addUserMessage(text) {
+      hideEmpty();
+      const el = document.createElement('div');
+      el.className = 'msg user';
+      el.innerHTML = `
       <div class="msg-sender">You</div>
       <div class="bubble">${escHtml(text)}</div>
     `;
-    document.getElementById('messages').appendChild(el);
-    scrollToBottom();
-  }
+      document.getElementById('messages').appendChild(el);
+      scrollToBottom();
+    }
 
-  function addThinking() {
-    hideEmpty();
-    const el = document.createElement('div');
-    el.className = 'msg kb thinking';
-    el.id = 'thinkingBubble';
-    el.innerHTML = `
+    function addThinking() {
+      hideEmpty();
+      const el = document.createElement('div');
+      el.className = 'msg kb thinking';
+      el.id = 'thinkingBubble';
+      el.innerHTML = `
       <div class="msg-sender">KB</div>
       <div class="bubble">
         <span>Searching</span>
         <span class="dots"><span></span><span></span><span></span></span>
       </div>
     `;
-    document.getElementById('messages').appendChild(el);
-    scrollToBottom();
-  }
-
-  function removeThinking() {
-    document.getElementById('thinkingBubble')?.remove();
-  }
-
-  // ── Typewriter effect ─────────────────────────────────────────────────────
-  function startTypewriter(elementId, fullText, speed = 5) {
-    const el = document.getElementById(elementId);
-    if (!el) return;
-    
-    let index = 0;
-    let isTyping = true;
-    
-    el.textContent = '';
-    el.classList.add('typewriter-content', 'is-typing');
-    
-    const cursor = document.createElement('span');
-    cursor.className = 'typewriter-cursor';
-    cursor.setAttribute('aria-hidden', 'true');
-    
-    function tick() {
-      if (index >= fullText.length) {
-        isTyping = false;
-        el.classList.remove('is-typing');
-        el.classList.add('typewriter-done');
-        cursor.remove();
-        return;
-      }
-      
-      const remaining = fullText.slice(index);
-      const firstChar = remaining[0];
-      
-      let delay = speed;
-      if (firstChar === '\\n') {
-        delay = speed * 1.2;
-      } else if (firstChar === '.' || firstChar === '!' || firstChar === '?') {
-        delay = speed * 1.5;
-      } else if (firstChar === ',' || firstChar === ';' || firstChar === ':') {
-        delay = speed * 1.2;
-      }
-      
-      const charsToReveal = firstChar === '\\n' ? 1 : (Math.random() < 0.4 ? 3 : Math.random() < 0.5 ? 4 : 2);
-      const endIndex = Math.min(index + charsToReveal, fullText.length);
-      
-      el.textContent = fullText.slice(0, endIndex);
-      el.appendChild(cursor);
-      index = endIndex;
-      
-      if (endIndex >= fullText.length) {
-        isTyping = false;
-        el.classList.remove('is-typing');
-        el.classList.add('typewriter-done');
-        cursor.remove();
-        return;
-      }
-      
-      setTimeout(tick, delay);
+      document.getElementById('messages').appendChild(el);
+      scrollToBottom();
     }
-    
-    el.addEventListener('click', function skipHandler() {
-      if (!isTyping) return;
-      isTyping = false;
-      el.textContent = fullText;
-      el.classList.remove('is-typing');
-      el.classList.add('typewriter-done');
-      cursor.remove();
-      el.removeEventListener('click', skipHandler);
-    });
-    
-    setTimeout(tick, speed);
-  }
 
-  function addKbAnswer(answer, sources, media) {
-    const idx = conversationHistory.length - 1; // for save-as-note reference
-    const twId = 'tw-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+    function removeThinking() {
+      document.getElementById('thinkingBubble')?.remove();
+    }
 
-    const el = document.createElement('div');
-    el.className = 'msg kb';
+    // ── Typewriter effect ─────────────────────────────────────────────────────
+    function startTypewriter(elementId, fullText, speed = 5) {
+      const el = document.getElementById(elementId);
+      if (!el) return;
 
-    let mediaHtml = '';
-    if (media && media.length > 0) {
-      mediaHtml = `
+      let index = 0;
+      let isTyping = true;
+
+      el.textContent = '';
+      el.classList.add('typewriter-content', 'is-typing');
+
+      const cursor = document.createElement('span');
+      cursor.className = 'typewriter-cursor';
+      cursor.setAttribute('aria-hidden', 'true');
+
+      function tick() {
+        if (index >= fullText.length) {
+          isTyping = false;
+          el.classList.remove('is-typing');
+          el.classList.add('typewriter-done');
+          cursor.remove();
+          return;
+        }
+
+        const remaining = fullText.slice(index);
+        const firstChar = remaining[0];
+
+        let delay = speed;
+        if (firstChar === '\\n') {
+          delay = speed * 1.2;
+        } else if (firstChar === '.' || firstChar === '!' || firstChar === '?') {
+          delay = speed * 1.5;
+        } else if (firstChar === ',' || firstChar === ';' || firstChar === ':') {
+          delay = speed * 1.2;
+        }
+
+        const charsToReveal = firstChar === '\\n' ? 1 : (Math.random() < 0.4 ? 3 : Math.random() < 0.5 ? 4 : 2);
+        const endIndex = Math.min(index + charsToReveal, fullText.length);
+
+        el.textContent = fullText.slice(0, endIndex);
+        el.appendChild(cursor);
+        index = endIndex;
+
+        if (endIndex >= fullText.length) {
+          isTyping = false;
+          el.classList.remove('is-typing');
+          el.classList.add('typewriter-done');
+          cursor.remove();
+          return;
+        }
+
+        setTimeout(tick, delay);
+      }
+
+      el.addEventListener('click', function skipHandler() {
+        if (!isTyping) return;
+        isTyping = false;
+        el.textContent = fullText;
+        el.classList.remove('is-typing');
+        el.classList.add('typewriter-done');
+        cursor.remove();
+        el.removeEventListener('click', skipHandler);
+      });
+
+      setTimeout(tick, speed);
+    }
+
+    function addKbAnswer(answer, sources, media) {
+      const idx = conversationHistory.length - 1; // for save-as-note reference
+      const twId = 'tw-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+
+      const el = document.createElement('div');
+      el.className = 'msg kb';
+
+      let mediaHtml = '';
+      if (media && media.length > 0) {
+        mediaHtml = `
         <div class="media-attachments" style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
           ${media.map(m => {
-            if (m.mediaType === 'image') {
-              return `
+          if (m.mediaType === 'image') {
+            return `
                 <div class="media-item">
                   <img src="data:${m.mimeType};base64,${m.mediaBase64}" style="max-width: 100%; border-radius: 4px; border: 1px solid var(--vscode-widget-border, #ccc);" />
                   <div style="font-size: 0.8em; opacity: 0.8; margin-top: 2px; display: flex; align-items: center; justify-content: space-between;">
@@ -871,8 +1070,8 @@
                   </div>
                 </div>
               `;
-            } else if (m.mediaType === 'audio') {
-              return `
+          } else if (m.mediaType === 'audio') {
+            return `
                 <div class="media-item">
                   <div style="font-size: 0.8em; opacity: 0.8; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;">
                     <span>🔊 ${escHtml(m.fileName)} (${(m.sizeBytes / 1024).toFixed(1)} KB)</span>
@@ -881,20 +1080,20 @@
                   <audio controls src="data:${m.mimeType};base64,${m.mediaBase64}" style="width: 100%; max-height: 40px; margin-top: 4px;"></audio>
                 </div>
               `;
-            } else {
-              return `
+          } else {
+            return `
                 <div class="media-item" style="padding: 6px 8px; background: rgba(0,0,0,0.05); border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">
                   <span style="font-size: 0.9em; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">📄 ${escHtml(m.fileName)} (${(m.sizeBytes / 1024).toFixed(1)} KB)</span>
                   <a href="#" class="download-link" data-filename="${escHtml(m.fileName)}" data-base64="${m.mediaBase64}" style="font-size: 0.8em; color: var(--vscode-textLink-foreground); font-weight: bold; margin-left: 8px;">Download</a>
                 </div>
               `;
-            }
-          }).join('')}
+          }
+        }).join('')}
         </div>
       `;
-    }
+      }
 
-    el.innerHTML = `
+      el.innerHTML = `
       <div class="msg-sender">Kote</div>
       <div class="bubble">
         <span id="${twId}"></span>
@@ -913,168 +1112,168 @@
         <button class="action-btn" data-action="copy" data-idx="${idx}">Copy</button>
       </div>
     `;
-    document.getElementById('messages').appendChild(el);
-    scrollToBottom();
-    
-    // Start typewriter on the answer text
-    startTypewriter(twId, answer);
-  }
+      document.getElementById('messages').appendChild(el);
+      scrollToBottom();
 
-  function addError(message) {
-    removeThinking();
-    const el = document.createElement('div');
-    el.className = 'msg kb';
-    el.innerHTML = `
+      // Start typewriter on the answer text
+      startTypewriter(twId, answer);
+    }
+
+    function addError(message) {
+      removeThinking();
+      const el = document.createElement('div');
+      el.className = 'msg kb';
+      el.innerHTML = `
       <div class="msg-sender">KB</div>
       <div class="bubble error-bubble">⚠ ${escHtml(message)}</div>
     `;
-    document.getElementById('messages').appendChild(el);
-    scrollToBottom();
-  }
-
-  // ── Actions ───────────────────────────────────────────────────────────────
-
-  function saveAnswer(idx) {
-    const turn = conversationHistory[idx];
-    if (!turn) return;
-    vscode.postMessage({
-      type: 'saveNote',
-      title: `Answer: ${turn.question.slice(0, 60)}`,
-      content: `**Q:** ${turn.question}\n\n**A:** ${turn.answer}`,
-      projectSlug: document.getElementById('projectSelect').value,
-    });
-  }
-
-  function copyAnswer(idx) {
-    const turn = conversationHistory[idx];
-    if (!turn) return;
-    navigator.clipboard?.writeText(turn.answer).catch(() => {});
-  }
-
-  function fillSuggestion(text) {
-    const input = document.getElementById('questionInput');
-    input.value = text;
-    input.focus();
-    autoResize(input);
-  }
-
-  function hideEmpty() {
-    const el = document.getElementById('emptyState');
-    if (el) { el.style.display = 'none'; }
-  }
-
-  function scrollToBottom() {
-    const el = document.getElementById('messages');
-    el.scrollTop = el.scrollHeight;
-  }
-
-  // ── Send question ─────────────────────────────────────────────────────────
-
-  function sendQuestion() {
-    const input = document.getElementById('questionInput');
-    const rawText = input.value.trim();
-    if (!rawText || isThinking) return;
-
-    input.value = '';
-    input.style.height = 'auto';
-
-    if (rawText.toLowerCase() === '/help') {
-      addUserMessage(rawText);
-      addSystemMessage('💡 Kote Agent Chat:\n• Type any question to search your Kote with AI.\n• Type any note, decision, or task to capture it automatically.\n• Kote automatically detects your intent without needing commands.\n• Type /help to show this guide.');
-      return;
+      document.getElementById('messages').appendChild(el);
+      scrollToBottom();
     }
 
-    const projectSelect = document.getElementById('projectSelect');
-    const projectSlug = projectSelect.value;
-    const projectName = projectSelect.options[projectSelect.selectedIndex]?.text || projectSlug || 'Inbox';
+    // ── Actions ───────────────────────────────────────────────────────────────
 
-    lastQuestion = rawText;
-    addUserMessage(rawText);
-    setThinking(true);
-    addThinking();
-
-    // Unified agent flow (same conversational agent as WhatsApp)
-    vscode.postMessage({
-      type: 'agentMessage',
-      messageText: rawText,
-      projectSlug
-    });
-  }
-
-  function setThinking(v) {
-    isThinking = v;
-    document.getElementById('sendBtn').disabled = v;
-    document.getElementById('questionInput').disabled = v;
-  }
-
-  // ── Input helpers ─────────────────────────────────────────────────────────
-
-  function autoResize(el) {
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-  }
-
-  function handleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendQuestion();
+    function saveAnswer(idx) {
+      const turn = conversationHistory[idx];
+      if (!turn) return;
+      vscode.postMessage({
+        type: 'saveNote',
+        title: `Answer: ${turn.question.slice(0, 60)}`,
+        content: `**Q:** ${turn.question}\n\n**A:** ${turn.answer}`,
+        projectSlug: document.getElementById('projectSelect').value,
+      });
     }
-  }
 
-  // ── Project selector ──────────────────────────────────────────────────────
-
-  let currentProjects = [];
-  let detectedProjectSlug = 'inbox';
-
-  function renderProjects(projects, selectedSlug, detectedSlug) {
-    if (projects) currentProjects = projects;
-    if (detectedSlug) detectedProjectSlug = detectedSlug;
-
-    const sel = document.getElementById('projectSelect');
-    const detectedProject = currentProjects.find(p => p.projectSlug === detectedProjectSlug);
-    const detectedName = detectedProject ? detectedProject.displayName : (detectedProjectSlug === 'inbox' ? 'Inbox' : detectedProjectSlug || 'Inbox');
-
-    const effectiveSelected = selectedSlug !== undefined ? selectedSlug : (sel.value || 'auto');
-    const isAuto = !effectiveSelected || effectiveSelected === 'auto';
-
-    let optionsHtml = `<option value="auto" ${isAuto ? 'selected' : ''}>Auto (${escHtml(detectedName)})</option>`;
-    for (const p of currentProjects) {
-      const isSelected = !isAuto && p.projectSlug === effectiveSelected;
-      optionsHtml += `<option value="${escHtml(p.projectSlug)}" ${isSelected ? 'selected' : ''}>${escHtml(p.displayName)}</option>`;
+    function copyAnswer(idx) {
+      const turn = conversationHistory[idx];
+      if (!turn) return;
+      navigator.clipboard?.writeText(turn.answer).catch(() => { });
     }
-    sel.innerHTML = optionsHtml;
-  }
 
-  // ── Message handler ───────────────────────────────────────────────────────
+    function fillSuggestion(text) {
+      const input = document.getElementById('questionInput');
+      input.value = text;
+      input.focus();
+      autoResize(input);
+    }
 
-  window.addEventListener('message', ({ data }) => {
-    const msg = data;
-    switch (msg.type) {
-      case 'thinking':
-        // already handled locally
-        break;
+    function hideEmpty() {
+      const el = document.getElementById('emptyState');
+      if (el) { el.style.display = 'none'; }
+    }
 
-      case 'answer': {
-        removeThinking();
-        setThinking(false);
-        // Store in history for save/copy
-        conversationHistory.push({ question: lastQuestion, answer: msg.answer });
-        vscode.setState({ history: conversationHistory });
-        addKbAnswer(msg.answer, msg.sources, msg.media);
-        break;
+    function scrollToBottom() {
+      const el = document.getElementById('messages');
+      el.scrollTop = el.scrollHeight;
+    }
+
+    // ── Send question ─────────────────────────────────────────────────────────
+
+    function sendQuestion() {
+      const input = document.getElementById('questionInput');
+      const rawText = input.value.trim();
+      if (!rawText || isThinking) return;
+
+      input.value = '';
+      input.style.height = 'auto';
+
+      if (rawText.toLowerCase() === '/help') {
+        addUserMessage(rawText);
+        addSystemMessage('💡 Kote Agent Chat:\n• Type any question to search your Kote with AI.\n• Type any note, decision, or task to capture it automatically.\n• Kote automatically detects your intent without needing commands.\n• Type /help to show this guide.');
+        return;
       }
 
-      case 'injectQA': {
-        // Injected from the popup-ask flow — show without a network call
-        hideEmpty();
-        switchTab('chat');
-        addUserMessage(msg.question);
-        const idx = conversationHistory.length;
-        conversationHistory.push({ question: msg.question, answer: msg.answer });
-        vscode.setState({ history: conversationHistory });
-        const el = document.createElement('div');
-        el.className = 'msg kb';
-        el.innerHTML = `
+      const projectSelect = document.getElementById('projectSelect');
+      const projectSlug = projectSelect.value;
+      const projectName = projectSelect.options[projectSelect.selectedIndex]?.text || projectSlug || 'Inbox';
+
+      lastQuestion = rawText;
+      addUserMessage(rawText);
+      setThinking(true);
+      addThinking();
+
+      // Unified agent flow (same conversational agent as WhatsApp)
+      vscode.postMessage({
+        type: 'agentMessage',
+        messageText: rawText,
+        projectSlug
+      });
+    }
+
+    function setThinking(v) {
+      isThinking = v;
+      document.getElementById('sendBtn').disabled = v;
+      document.getElementById('questionInput').disabled = v;
+    }
+
+    // ── Input helpers ─────────────────────────────────────────────────────────
+
+    function autoResize(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+    }
+
+    function handleKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendQuestion();
+      }
+    }
+
+    // ── Project selector ──────────────────────────────────────────────────────
+
+    let currentProjects = [];
+    let detectedProjectSlug = 'inbox';
+
+    function renderProjects(projects, selectedSlug, detectedSlug) {
+      if (projects) currentProjects = projects;
+      if (detectedSlug) detectedProjectSlug = detectedSlug;
+
+      const sel = document.getElementById('projectSelect');
+      const detectedProject = currentProjects.find(p => p.projectSlug === detectedProjectSlug);
+      const detectedName = detectedProject ? detectedProject.displayName : (detectedProjectSlug === 'inbox' ? 'Inbox' : detectedProjectSlug || 'Inbox');
+
+      const effectiveSelected = selectedSlug !== undefined ? selectedSlug : (sel.value || 'auto');
+      const isAuto = !effectiveSelected || effectiveSelected === 'auto';
+
+      let optionsHtml = `<option value="auto" ${isAuto ? 'selected' : ''}>Auto (${escHtml(detectedName)})</option>`;
+      for (const p of currentProjects) {
+        const isSelected = !isAuto && p.projectSlug === effectiveSelected;
+        optionsHtml += `<option value="${escHtml(p.projectSlug)}" ${isSelected ? 'selected' : ''}>${escHtml(p.displayName)}</option>`;
+      }
+      sel.innerHTML = optionsHtml;
+    }
+
+    // ── Message handler ───────────────────────────────────────────────────────
+
+    window.addEventListener('message', ({ data }) => {
+      const msg = data;
+      switch (msg.type) {
+        case 'thinking':
+          // already handled locally
+          break;
+
+        case 'answer': {
+          removeThinking();
+          setThinking(false);
+          // Store in history for save/copy
+          conversationHistory.push({ question: lastQuestion, answer: msg.answer });
+          vscode.setState({ history: conversationHistory });
+          addKbAnswer(msg.answer, msg.sources, msg.media);
+          break;
+        }
+
+        case 'injectQA': {
+          // Injected from the popup-ask flow — show without a network call
+          hideEmpty();
+          switchTab('chat');
+          addUserMessage(msg.question);
+          const idx = conversationHistory.length;
+          conversationHistory.push({ question: msg.question, answer: msg.answer });
+          vscode.setState({ history: conversationHistory });
+          const el = document.createElement('div');
+          el.className = 'msg kb';
+          el.innerHTML = `
           <div class="msg-sender">Kote</div>
           <div class="bubble">${renderMarkdown(msg.answer)}</div>
           <div class="bubble-actions">
@@ -1082,83 +1281,83 @@
             <button class="action-btn" data-action="copy" data-idx="${idx}">Copy</button>
           </div>
         `;
-        document.getElementById('messages').appendChild(el);
-        scrollToBottom();
-        if (msg.projectSlug) {
-          renderProjects(null, msg.projectSlug);
+          document.getElementById('messages').appendChild(el);
+          scrollToBottom();
+          if (msg.projectSlug) {
+            renderProjects(null, msg.projectSlug);
+          }
+          break;
         }
-        break;
-      }
 
-      case 'historyLoaded': {
-        askHistory = msg.entries;
-        vscode.setState({ ...vscode.getState(), askHistory });
-        renderHistory(askHistory);
-        break;
-      }
-
-      case 'projects':
-        renderProjects(msg.projects, msg.selectedProject || 'auto', msg.detectedProject || 'inbox');
-        break;
-
-      case 'setProject':
-        renderProjects(null, msg.projectSlug || 'auto', msg.detectedProject);
-        break;
-
-      case 'noteSaved': {
-        setThinking(false);
-        const pName = msg.projectName || 'Inbox';
-        addSystemMessage(`✅ Note saved successfully in project: ${pName}!`);
-        break;
-      }
-
-      case 'agentResponse': {
-        addAgentReply(msg.replyText);
-        if (msg.projectSlug) {
-          document.getElementById('projectSelect').value = msg.projectSlug;
+        case 'historyLoaded': {
+          askHistory = msg.entries;
+          vscode.setState({ ...vscode.getState(), askHistory });
+          renderHistory(askHistory);
+          break;
         }
-        break;
+
+        case 'projects':
+          renderProjects(msg.projects, msg.selectedProject || 'auto', msg.detectedProject || 'inbox');
+          break;
+
+        case 'setProject':
+          renderProjects(null, msg.projectSlug || 'auto', msg.detectedProject);
+          break;
+
+        case 'noteSaved': {
+          setThinking(false);
+          const pName = msg.projectName || 'Inbox';
+          addSystemMessage(`✅ Note saved successfully in project: ${pName}!`);
+          break;
+        }
+
+        case 'agentResponse': {
+          addAgentReply(msg.replyText);
+          if (msg.projectSlug) {
+            document.getElementById('projectSelect').value = msg.projectSlug;
+          }
+          break;
+        }
+
+        case 'error':
+          setThinking(false);
+          addError(msg.message);
+          break;
+
+        case 'switchTab':
+          switchTab(msg.tab);
+          break;
+
+        case 'unsyncedSessionsLoaded':
+          renderSyncSessions(msg.sessions);
+          break;
       }
+    });
 
-      case 'error':
-        setThinking(false);
-        addError(msg.message);
-        break;
-
-      case 'switchTab':
-        switchTab(msg.tab);
-        break;
-
-      case 'unsyncedSessionsLoaded':
-        renderSyncSessions(msg.sessions);
-        break;
-    }
-  });
-
-  function addSystemMessage(message) {
-    removeThinking();
-    const el = document.createElement('div');
-    el.className = 'msg kb';
-    el.innerHTML = `
+    function addSystemMessage(message) {
+      removeThinking();
+      const el = document.createElement('div');
+      el.className = 'msg kb';
+      el.innerHTML = `
       <div class="msg-sender">System</div>
       <div class="bubble" style="background: var(--vscode-textBlockQuote-background, rgba(0,0,0,0.1)); border-left: 3px solid var(--vscode-button-background); padding: 8px 12px; border-radius: 0 4px 4px 0;">
         ${escHtml(message)}
       </div>
     `;
-    document.getElementById('messages').appendChild(el);
-    scrollToBottom();
-  }
+      document.getElementById('messages').appendChild(el);
+      scrollToBottom();
+    }
 
-  function addAgentReply(replyText) {
-    removeThinking();
-    setThinking(false);
-    const idx = conversationHistory.length;
-    conversationHistory.push({ question: lastQuestion, answer: replyText });
-    vscode.setState({ ...vscode.getState(), history: conversationHistory });
+    function addAgentReply(replyText) {
+      removeThinking();
+      setThinking(false);
+      const idx = conversationHistory.length;
+      conversationHistory.push({ question: lastQuestion, answer: replyText });
+      vscode.setState({ ...vscode.getState(), history: conversationHistory });
 
-    const el = document.createElement('div');
-    el.className = 'msg kb';
-    el.innerHTML = `
+      const el = document.createElement('div');
+      el.className = 'msg kb';
+      el.innerHTML = `
       <div class="msg-sender">Kote</div>
       <div class="bubble">
         ${renderMarkdown(replyText)}
@@ -1167,98 +1366,98 @@
         <button class="action-btn" data-action="copy" data-idx="${idx}">Copy</button>
       </div>
     `;
-    document.getElementById('messages').appendChild(el);
-    scrollToBottom();
-  }
+      document.getElementById('messages').appendChild(el);
+      scrollToBottom();
+    }
 
-  // Bind input events
-  const inputEl = document.getElementById('questionInput');
-  inputEl.addEventListener('input', () => autoResize(inputEl));
-  inputEl.addEventListener('keydown', (e) => {
-    handleKey(e);
-  });
+    // Bind input events
+    const inputEl = document.getElementById('questionInput');
+    inputEl.addEventListener('input', () => autoResize(inputEl));
+    inputEl.addEventListener('keydown', (e) => {
+      handleKey(e);
+    });
 
-  // Bind suggestion chips
-  const chipsContainer = document.querySelector('.suggestion-chips');
-  if (chipsContainer) {
-    chipsContainer.addEventListener('click', (e) => {
-      const chip = e.target.closest('.chip');
-      if (chip) {
-        fillSuggestion(chip.getAttribute('data-suggestion'));
+    // Bind suggestion chips
+    const chipsContainer = document.querySelector('.suggestion-chips');
+    if (chipsContainer) {
+      chipsContainer.addEventListener('click', (e) => {
+        const chip = e.target.closest('.chip');
+        if (chip) {
+          fillSuggestion(chip.getAttribute('data-suggestion'));
+        }
+      });
+    }
+
+    // Bind send button
+    document.getElementById('sendBtn').addEventListener('click', sendQuestion);
+
+    // Bind project selection changes to notify the host
+    document.getElementById('projectSelect').addEventListener('change', (e) => {
+      vscode.postMessage({ type: 'changeProject', projectSlug: e.target.value });
+    });
+
+    // Bind message action button delegation (Save as note / Copy / Download)
+    document.getElementById('messages').addEventListener('click', (e) => {
+      const link = e.target.closest('.download-link');
+      if (link) {
+        e.preventDefault();
+        const fileName = link.getAttribute('data-filename');
+        const mediaBase64 = link.getAttribute('data-base64');
+        vscode.postMessage({ type: 'downloadFile', fileName, mediaBase64 });
+        return;
+      }
+
+      const btn = e.target.closest('.action-btn');
+      if (!btn) return;
+      const action = btn.getAttribute('data-action');
+      const idx = parseInt(btn.getAttribute('data-idx') || '0', 10);
+      if (action === 'save') {
+        saveAnswer(idx);
+      } else if (action === 'copy') {
+        copyAnswer(idx);
       }
     });
-  }
 
-  // Bind send button
-  document.getElementById('sendBtn').addEventListener('click', sendQuestion);
+    // Bind logout button
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      vscode.postMessage({ type: 'logout' });
+    });
 
-  // Bind project selection changes to notify the host
-  document.getElementById('projectSelect').addEventListener('change', (e) => {
-    vscode.postMessage({ type: 'changeProject', projectSlug: e.target.value });
-  });
+    // \u2500\u2500 History rendering \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
-  // Bind message action button delegation (Save as note / Copy / Download)
-  document.getElementById('messages').addEventListener('click', (e) => {
-    const link = e.target.closest('.download-link');
-    if (link) {
-      e.preventDefault();
-      const fileName = link.getAttribute('data-filename');
-      const mediaBase64 = link.getAttribute('data-base64');
-      vscode.postMessage({ type: 'downloadFile', fileName, mediaBase64 });
-      return;
+    function formatRelativeTime(iso) {
+      const diff = Date.now() - new Date(iso).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins}m ago`;
+      const hours = Math.floor(mins / 60);
+      if (hours < 24) return `${hours}h ago`;
+      const days = Math.floor(hours / 24);
+      return `${days}d ago`;
     }
 
-    const btn = e.target.closest('.action-btn');
-    if (!btn) return;
-    const action = btn.getAttribute('data-action');
-    const idx = parseInt(btn.getAttribute('data-idx') || '0', 10);
-    if (action === 'save') {
-      saveAnswer(idx);
-    } else if (action === 'copy') {
-      copyAnswer(idx);
-    }
-  });
+    function renderHistory(entries) {
+      const container = document.getElementById('historyContent');
+      const countEl = document.getElementById('historyCount');
 
-  // Bind logout button
-  document.getElementById('logoutBtn').addEventListener('click', () => {
-    vscode.postMessage({ type: 'logout' });
-  });
+      if (!entries || entries.length === 0) {
+        countEl.textContent = 'No history yet';
+        container.innerHTML = '<div class="history-empty">No questions asked yet.<br>Use Ctrl+Shift+K to ask Kote.</div>';
+        return;
+      }
 
-  // \u2500\u2500 History rendering \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+      countEl.textContent = `${entries.length} question${entries.length !== 1 ? 's' : ''}`;
 
-  function formatRelativeTime(iso) {
-    const diff = Date.now() - new Date(iso).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ago`;
-  }
+      const listEl = document.createElement('div');
+      listEl.className = 'history-list';
 
-  function renderHistory(entries) {
-    const container = document.getElementById('historyContent');
-    const countEl = document.getElementById('historyCount');
+      // Show only the first visibleHistoryCount entries
+      const visibleEntries = entries.slice(0, visibleHistoryCount);
 
-    if (!entries || entries.length === 0) {
-      countEl.textContent = 'No history yet';
-      container.innerHTML = '<div class="history-empty">No questions asked yet.<br>Use Ctrl+Shift+K to ask Kote.</div>';
-      return;
-    }
-
-    countEl.textContent = `${entries.length} question${entries.length !== 1 ? 's' : ''}`;
-
-    const listEl = document.createElement('div');
-    listEl.className = 'history-list';
-
-    // Show only the first visibleHistoryCount entries
-    const visibleEntries = entries.slice(0, visibleHistoryCount);
-
-    visibleEntries.forEach((entry, i) => {
-      const entryEl = document.createElement('div');
-      entryEl.className = 'history-entry';
-      entryEl.innerHTML = `
+      visibleEntries.forEach((entry, i) => {
+        const entryEl = document.createElement('div');
+        entryEl.className = 'history-entry';
+        entryEl.innerHTML = `
         <div class="history-entry-header">
           <span class="history-q-preview">${escHtml(entry.question)}</span>
           <span class="history-meta">
@@ -1276,86 +1475,86 @@
         </div>
       `;
 
-      // Toggle expand/collapse
-      entryEl.querySelector('.history-entry-header').addEventListener('click', () => {
-        entryEl.classList.toggle('open');
-      });
-
-      listEl.appendChild(entryEl);
-    });
-
-    container.innerHTML = '';
-    container.appendChild(listEl);
-
-    // Add Load More button if there are more entries remaining
-    if (entries.length > visibleHistoryCount) {
-      const loadMoreEl = document.createElement('div');
-      loadMoreEl.id = 'loadMoreHistoryIndicator';
-      loadMoreEl.style.textAlign = 'center';
-      loadMoreEl.style.padding = '10px';
-      loadMoreEl.style.color = 'var(--vscode-descriptionForeground)';
-      loadMoreEl.style.fontSize = '11px';
-      loadMoreEl.style.cursor = 'pointer';
-      loadMoreEl.textContent = 'Load older history';
-      loadMoreEl.addEventListener('click', () => {
-        visibleHistoryCount += 20;
-        vscode.setState({ ...vscode.getState(), visibleHistoryCount });
-        renderHistory(entries);
-      });
-      container.appendChild(loadMoreEl);
-    }
-
-    // Delegate history actions
-    listEl.addEventListener('click', (e) => {
-      const btn = e.target.closest('.history-action-btn');
-      if (!btn) return;
-      const action = btn.getAttribute('data-hist-action');
-      const idx = parseInt(btn.getAttribute('data-idx') || '0', 10);
-      const entry = entries[idx];
-      if (!entry) return;
-
-      if (action === 'ask-again') {
-        switchTab('chat');
-        const input = document.getElementById('questionInput');
-        input.value = entry.question;
-        autoResize(input);
-        input.focus();
-      } else if (action === 'save') {
-        vscode.postMessage({
-          type: 'saveNote',
-          title: `Ask: ${entry.question.slice(0, 60)}`,
-          content: `**Q:** ${entry.question}\n\n**A:** ${entry.answer}`,
-          projectSlug: entry.projectSlug || document.getElementById('projectSelect').value,
+        // Toggle expand/collapse
+        entryEl.querySelector('.history-entry-header').addEventListener('click', () => {
+          entryEl.classList.toggle('open');
         });
+
+        listEl.appendChild(entryEl);
+      });
+
+      container.innerHTML = '';
+      container.appendChild(listEl);
+
+      // Add Load More button if there are more entries remaining
+      if (entries.length > visibleHistoryCount) {
+        const loadMoreEl = document.createElement('div');
+        loadMoreEl.id = 'loadMoreHistoryIndicator';
+        loadMoreEl.style.textAlign = 'center';
+        loadMoreEl.style.padding = '10px';
+        loadMoreEl.style.color = 'var(--vscode-descriptionForeground)';
+        loadMoreEl.style.fontSize = '11px';
+        loadMoreEl.style.cursor = 'pointer';
+        loadMoreEl.textContent = 'Load older history';
+        loadMoreEl.addEventListener('click', () => {
+          visibleHistoryCount += 20;
+          vscode.setState({ ...vscode.getState(), visibleHistoryCount });
+          renderHistory(entries);
+        });
+        container.appendChild(loadMoreEl);
       }
-    });
-  }
 
-  // ── Restore conversation history on init ───────────────────────────────────
+      // Delegate history actions
+      listEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('.history-action-btn');
+        if (!btn) return;
+        const action = btn.getAttribute('data-hist-action');
+        const idx = parseInt(btn.getAttribute('data-idx') || '0', 10);
+        const entry = entries[idx];
+        if (!entry) return;
 
-  function restoreConversationHistory() {
-    if (conversationHistory.length > 0) {
-      hideEmpty();
-      renderVisibleMessages();
-      scrollToBottom();
+        if (action === 'ask-again') {
+          switchTab('chat');
+          const input = document.getElementById('questionInput');
+          input.value = entry.question;
+          autoResize(input);
+          input.focus();
+        } else if (action === 'save') {
+          vscode.postMessage({
+            type: 'saveNote',
+            title: `Ask: ${entry.question.slice(0, 60)}`,
+            content: `**Q:** ${entry.question}\n\n**A:** ${entry.answer}`,
+            projectSlug: entry.projectSlug || document.getElementById('projectSelect').value,
+          });
+        }
+      });
     }
-  }
 
-  function renderVisibleMessages() {
-    const messagesContainer = document.getElementById('messages');
-    const startIndex = Math.max(0, conversationHistory.length - visibleMessageCount);
-    const visibleTurns = conversationHistory.slice(startIndex);
+    // ── Restore conversation history on init ───────────────────────────────────
 
-    // Clear existing messages except empty state
-    const existingMessages = messagesContainer.querySelectorAll('.msg');
-    existingMessages.forEach(el => el.remove());
+    function restoreConversationHistory() {
+      if (conversationHistory.length > 0) {
+        hideEmpty();
+        renderVisibleMessages();
+        scrollToBottom();
+      }
+    }
 
-    visibleTurns.forEach((turn) => {
-      const idx = conversationHistory.indexOf(turn);
-      addUserMessage(turn.question);
-      const el = document.createElement('div');
-      el.className = 'msg kb';
-      el.innerHTML = `
+    function renderVisibleMessages() {
+      const messagesContainer = document.getElementById('messages');
+      const startIndex = Math.max(0, conversationHistory.length - visibleMessageCount);
+      const visibleTurns = conversationHistory.slice(startIndex);
+
+      // Clear existing messages except empty state
+      const existingMessages = messagesContainer.querySelectorAll('.msg');
+      existingMessages.forEach(el => el.remove());
+
+      visibleTurns.forEach((turn) => {
+        const idx = conversationHistory.indexOf(turn);
+        addUserMessage(turn.question);
+        const el = document.createElement('div');
+        el.className = 'msg kb';
+        el.innerHTML = `
         <div class="msg-sender">Kote</div>
         <div class="bubble">${renderMarkdown(turn.answer)}</div>
         <div class="bubble-actions">
@@ -1363,95 +1562,95 @@
           <button class="action-btn" data-action="copy" data-idx="${idx}">Copy</button>
         </div>
       `;
-      messagesContainer.appendChild(el);
+        messagesContainer.appendChild(el);
+      });
+
+      // Add load more indicator if there are more messages
+      if (conversationHistory.length > visibleMessageCount) {
+        const loadMoreEl = document.createElement('div');
+        loadMoreEl.id = 'loadMoreIndicator';
+        loadMoreEl.style.textAlign = 'center';
+        loadMoreEl.style.padding = '10px';
+        loadMoreEl.style.color = 'var(--vscode-descriptionForeground)';
+        loadMoreEl.style.fontSize = '11px';
+        loadMoreEl.style.cursor = 'pointer';
+        loadMoreEl.textContent = '↑ Load older messages';
+        loadMoreEl.addEventListener('click', loadOlderMessages);
+        messagesContainer.insertBefore(loadMoreEl, messagesContainer.firstChild);
+      }
+    }
+
+    function loadOlderMessages() {
+      visibleMessageCount += 20;
+      renderVisibleMessages();
+      // Save the visible count to state
+      vscode.setState({ ...vscode.getState(), visibleMessageCount });
+    }
+
+    // Scroll-based lazy loading
+    document.getElementById('messages').addEventListener('scroll', () => {
+      const messagesContainer = document.getElementById('messages');
+      if (messagesContainer.scrollTop < 100 && conversationHistory.length > visibleMessageCount) {
+        loadOlderMessages();
+      }
     });
 
-    // Add load more indicator if there are more messages
-    if (conversationHistory.length > visibleMessageCount) {
-      const loadMoreEl = document.createElement('div');
-      loadMoreEl.id = 'loadMoreIndicator';
-      loadMoreEl.style.textAlign = 'center';
-      loadMoreEl.style.padding = '10px';
-      loadMoreEl.style.color = 'var(--vscode-descriptionForeground)';
-      loadMoreEl.style.fontSize = '11px';
-      loadMoreEl.style.cursor = 'pointer';
-      loadMoreEl.textContent = '↑ Load older messages';
-      loadMoreEl.addEventListener('click', loadOlderMessages);
-      messagesContainer.insertBefore(loadMoreEl, messagesContainer.firstChild);
-    }
-  }
+    // Scroll-based lazy loading for history
+    document.getElementById('historyPanel').addEventListener('scroll', () => {
+      const historyPanel = document.getElementById('historyPanel');
+      if (historyPanel.scrollHeight - historyPanel.scrollTop - historyPanel.clientHeight < 50 && askHistory.length > visibleHistoryCount) {
+        visibleHistoryCount += 20;
+        vscode.setState({ ...vscode.getState(), visibleHistoryCount });
+        renderHistory(askHistory);
+      }
+    });
 
-  function loadOlderMessages() {
-    visibleMessageCount += 20;
-    renderVisibleMessages();
-    // Save the visible count to state
-    vscode.setState({ ...vscode.getState(), visibleMessageCount });
-  }
+    // ── Sync rendering ──────────────────────────────────────────────────────────
 
-  // Scroll-based lazy loading
-  document.getElementById('messages').addEventListener('scroll', () => {
-    const messagesContainer = document.getElementById('messages');
-    if (messagesContainer.scrollTop < 100 && conversationHistory.length > visibleMessageCount) {
-      loadOlderMessages();
-    }
-  });
+    function renderSyncSessions(sessions) {
+      unsyncedSessions = sessions || [];
+      const container = document.getElementById('syncContent');
+      const countEl = document.getElementById('syncCount');
+      const syncSelectedBtn = document.getElementById('syncSelectedBtn');
+      const syncAllBtn = document.getElementById('syncAllBtn');
+      const tabSyncBtn = document.getElementById('tabSync');
 
-  // Scroll-based lazy loading for history
-  document.getElementById('historyPanel').addEventListener('scroll', () => {
-    const historyPanel = document.getElementById('historyPanel');
-    if (historyPanel.scrollHeight - historyPanel.scrollTop - historyPanel.clientHeight < 50 && askHistory.length > visibleHistoryCount) {
-      visibleHistoryCount += 20;
-      vscode.setState({ ...vscode.getState(), visibleHistoryCount });
-      renderHistory(askHistory);
-    }
-  });
-
-  // ── Sync rendering ──────────────────────────────────────────────────────────
-
-  function renderSyncSessions(sessions) {
-    unsyncedSessions = sessions || [];
-    const container = document.getElementById('syncContent');
-    const countEl = document.getElementById('syncCount');
-    const syncSelectedBtn = document.getElementById('syncSelectedBtn');
-    const syncAllBtn = document.getElementById('syncAllBtn');
-    const tabSyncBtn = document.getElementById('tabSync');
-
-    // Update tab label with badge count if count > 0
-    if (unsyncedSessions.length > 0) {
-      tabSyncBtn.textContent = `Sync (${unsyncedSessions.length})`;
-      countEl.textContent = `${unsyncedSessions.length} unsynced session${unsyncedSessions.length !== 1 ? 's' : ''}`;
-      syncSelectedBtn.style.display = 'inline-block';
-      syncAllBtn.style.display = 'inline-block';
-    } else {
-      tabSyncBtn.textContent = 'Sync';
-      countEl.textContent = 'No unsynced sessions';
-      syncSelectedBtn.style.display = 'none';
-      syncAllBtn.style.display = 'none';
-      container.innerHTML = '<div class="history-empty">All sessions are synchronized with Kote!</div>';
-      return;
-    }
-
-    const listEl = document.createElement('div');
-    listEl.className = 'sync-list';
-
-    const visibleSessions = unsyncedSessions.slice(0, 20);
-
-    visibleSessions.forEach((session, i) => {
-      const entryEl = document.createElement('div');
-      entryEl.className = 'sync-entry';
-      
-      // format turns preview text
-      let previewText = '';
-      if (session.turns && session.turns.length > 0) {
-        session.turns.forEach(turn => {
-          const roleName = turn.role === 'user' ? '👤 User' : '✨ Assistant';
-          previewText += `### ${roleName}\n${turn.content}\n\n`;
-        });
+      // Update tab label with badge count if count > 0
+      if (unsyncedSessions.length > 0) {
+        tabSyncBtn.textContent = `Sync (${unsyncedSessions.length})`;
+        countEl.textContent = `${unsyncedSessions.length} unsynced session${unsyncedSessions.length !== 1 ? 's' : ''}`;
+        syncSelectedBtn.style.display = 'inline-block';
+        syncAllBtn.style.display = 'inline-block';
       } else {
-        previewText = '*(No turns found)*';
+        tabSyncBtn.textContent = 'Sync';
+        countEl.textContent = 'No unsynced sessions';
+        syncSelectedBtn.style.display = 'none';
+        syncAllBtn.style.display = 'none';
+        container.innerHTML = '<div class="history-empty">All sessions are synchronized with Kote!</div>';
+        return;
       }
 
-      entryEl.innerHTML = `
+      const listEl = document.createElement('div');
+      listEl.className = 'sync-list';
+
+      const visibleSessions = unsyncedSessions.slice(0, 20);
+
+      visibleSessions.forEach((session, i) => {
+        const entryEl = document.createElement('div');
+        entryEl.className = 'sync-entry';
+
+        // format turns preview text
+        let previewText = '';
+        if (session.turns && session.turns.length > 0) {
+          session.turns.forEach(turn => {
+            const roleName = turn.role === 'user' ? '👤 User' : '✨ Assistant';
+            previewText += `### ${roleName}\n${turn.content}\n\n`;
+          });
+        } else {
+          previewText = '*(No turns found)*';
+        }
+
+        entryEl.innerHTML = `
         <div class="sync-entry-header">
           <input type="checkbox" class="sync-checkbox" data-idx="${i}" />
           <div class="sync-q-preview" style="flex: 1;">${escHtml(session.title)}</div>
@@ -1466,70 +1665,71 @@
         </div>
       `;
 
-      // Prevent checkbox from opening detail, but toggle open when clicking other elements
-      entryEl.querySelector('.sync-q-preview').addEventListener('click', (e) => {
-        entryEl.classList.toggle('open');
+        // Prevent checkbox from opening detail, but toggle open when clicking other elements
+        entryEl.querySelector('.sync-q-preview').addEventListener('click', (e) => {
+          entryEl.classList.toggle('open');
+        });
+        entryEl.querySelector('.sync-meta').addEventListener('click', (e) => {
+          entryEl.classList.toggle('open');
+        });
+
+        entryEl.querySelector('.sync-checkbox').addEventListener('click', (e) => {
+          e.stopPropagation();
+        });
+
+        listEl.appendChild(entryEl);
       });
-      entryEl.querySelector('.sync-meta').addEventListener('click', (e) => {
-        entryEl.classList.toggle('open');
+
+      container.innerHTML = '';
+      container.appendChild(listEl);
+    }
+
+    // Bind sync button clicks
+    document.getElementById('syncSelectedBtn').addEventListener('click', () => {
+      const checkboxes = document.querySelectorAll('.sync-checkbox:checked');
+      const sessionsToSync = [];
+      checkboxes.forEach(cb => {
+        const idx = parseInt(cb.getAttribute('data-idx') || '0', 10);
+        const session = unsyncedSessions[idx];
+        if (session) {
+          sessionsToSync.push({ providerId: session.providerId, sessionId: session.sessionId });
+        }
       });
 
-      entryEl.querySelector('.sync-checkbox').addEventListener('click', (e) => {
-        e.stopPropagation();
-      });
-
-      listEl.appendChild(entryEl);
-    });
-
-    container.innerHTML = '';
-    container.appendChild(listEl);
-  }
-
-  // Bind sync button clicks
-  document.getElementById('syncSelectedBtn').addEventListener('click', () => {
-    const checkboxes = document.querySelectorAll('.sync-checkbox:checked');
-    const sessionsToSync = [];
-    checkboxes.forEach(cb => {
-      const idx = parseInt(cb.getAttribute('data-idx') || '0', 10);
-      const session = unsyncedSessions[idx];
-      if (session) {
-        sessionsToSync.push({ providerId: session.providerId, sessionId: session.sessionId });
+      if (sessionsToSync.length === 0) {
+        return;
       }
+
+      const container = document.getElementById('syncContent');
+      container.innerHTML = '<div class="history-empty">Synchronizing selected sessions…</div>';
+      document.getElementById('syncSelectedBtn').style.display = 'none';
+      document.getElementById('syncAllBtn').style.display = 'none';
+
+      vscode.postMessage({ type: 'syncSessions', sessions: sessionsToSync });
     });
 
-    if (sessionsToSync.length === 0) {
-      return;
-    }
+    document.getElementById('syncAllBtn').addEventListener('click', () => {
+      const sessionsToSync = unsyncedSessions.map(s => ({ providerId: s.providerId, sessionId: s.sessionId }));
 
-    const container = document.getElementById('syncContent');
-    container.innerHTML = '<div class="history-empty">Synchronizing selected sessions…</div>';
-    document.getElementById('syncSelectedBtn').style.display = 'none';
-    document.getElementById('syncAllBtn').style.display = 'none';
+      if (sessionsToSync.length === 0) {
+        return;
+      }
 
-    vscode.postMessage({ type: 'syncSessions', sessions: sessionsToSync });
-  });
+      const container = document.getElementById('syncContent');
+      container.innerHTML = '<div class="history-empty">Synchronizing all sessions…</div>';
+      document.getElementById('syncSelectedBtn').style.display = 'none';
+      document.getElementById('syncAllBtn').style.display = 'none';
 
-  document.getElementById('syncAllBtn').addEventListener('click', () => {
-    const sessionsToSync = unsyncedSessions.map(s => ({ providerId: s.providerId, sessionId: s.sessionId }));
-    
-    if (sessionsToSync.length === 0) {
-      return;
-    }
+      vscode.postMessage({ type: 'syncSessions', sessions: sessionsToSync });
+    });
 
-    const container = document.getElementById('syncContent');
-    container.innerHTML = '<div class="history-empty">Synchronizing all sessions…</div>';
-    document.getElementById('syncSelectedBtn').style.display = 'none';
-    document.getElementById('syncAllBtn').style.display = 'none';
-
-    vscode.postMessage({ type: 'syncSessions', sessions: sessionsToSync });
-  });
-
-  // Init
-  restoreConversationHistory();
-  // Prime the in-memory ask history cache on load so the History tab
-  // shows data immediately if it was already open before a webview reload.
-  vscode.postMessage({ type: 'loadHistory' });
-  vscode.postMessage({ type: 'ready' });
-</script>
+    // Init
+    restoreConversationHistory();
+    // Prime the in-memory ask history cache on load so the History tab
+    // shows data immediately if it was already open before a webview reload.
+    vscode.postMessage({ type: 'loadHistory' });
+    vscode.postMessage({ type: 'ready' });
+  </script>
 </body>
+
 </html>

@@ -74,6 +74,11 @@ export class ChatPanelProvider {
     this._panel.webview.postMessage(msg);
   }
 
+  private _resolveTargetProject(msgProjectSlug?: string | null): string {
+    const candidate = msgProjectSlug && msgProjectSlug !== 'auto' ? msgProjectSlug : this._activeProject;
+    return resolveProjectSlug(candidate, this._client.defaultProjectSlug);
+  }
+
   private async _handleMessage(msg: ChatFromWebview) {
     switch (msg.type) {
       case 'ready': {
@@ -89,7 +94,7 @@ export class ChatPanelProvider {
       case 'ask': {
         this._post({ type: 'thinking' });
         try {
-          const projectSlug = resolveProjectSlug(msg.projectSlug || this._activeProject, this._client.defaultProjectSlug);
+          const projectSlug = this._resolveTargetProject(msg.projectSlug);
           const result = await this._client.ask(msg.question, projectSlug);
           this._post({
             type: 'answer',
@@ -106,7 +111,7 @@ export class ChatPanelProvider {
       case 'agentMessage': {
         this._post({ type: 'thinking' });
         try {
-          const projectSlug = resolveProjectSlug(msg.projectSlug || this._activeProject, this._client.defaultProjectSlug);
+          const projectSlug = this._resolveTargetProject(msg.projectSlug);
           const res = await this._client.sendConversationTurn({
             messageText: msg.messageText,
             senderId: 'vscode-user',
@@ -134,7 +139,7 @@ export class ChatPanelProvider {
 
       case 'saveNote': {
         try {
-          const projectSlug = resolveProjectSlug(msg.projectSlug || this._activeProject, this._client.defaultProjectSlug);
+          const projectSlug = this._resolveTargetProject(msg.projectSlug);
           const res = await this._client.createNote({
             title: msg.title,
             rawText: msg.content,

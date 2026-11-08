@@ -65,6 +65,19 @@ function parseTurns(records: unknown[]): AiTurn[] {
   return keepFinalAssistantTurns(records.map(parseTurn).filter((turn): turn is AiTurn => turn !== null));
 }
 
+function resolveWorkspaceDir(filePath: string): string | undefined {
+  const parentDir = path.basename(path.dirname(filePath));
+  if (!parentDir) return undefined;
+
+  if (parentDir.startsWith('-')) {
+    const candidatePath = parentDir.replace(/^-/, '/').replace(/-/g, '/');
+    if (fs.existsSync(candidatePath)) {
+      return path.resolve(candidatePath);
+    }
+  }
+  return undefined;
+}
+
 function resolveProjectSlug(filePath: string): string | undefined {
   const parentDir = path.basename(path.dirname(filePath));
   if (!parentDir) return undefined;
@@ -177,6 +190,8 @@ function parseFile(filePath: string): AiSession | null {
       if (turns.length === 0) return null;
       const internalTimestamp = latestRecordTimestamp(records, ['timestamp', 'created_at', 'updated_at']);
 
+      const workspaceDir = resolveWorkspaceDir(filePath);
+
       return {
         providerId: AI_PROVIDER.CLAUDE_CODE,
         sessionId: path.basename(filePath, JSONL_EXTENSION),
@@ -184,9 +199,10 @@ function parseFile(filePath: string): AiSession | null {
         turns,
         timestamp: internalTimestamp ?? (fileSig?.mtimeMs ?? 0),
         timestampIsInternal: internalTimestamp !== null,
-        projectSlug: resolveProjectSlug(filePath),
+        workspaceDir,
+        projectSlug: (workspaceDir ? resolveProjectSlugFromDir(workspaceDir) : undefined) || resolveProjectSlug(filePath),
         tokenUsage: extractClaudeTokenUsage(records),
-        gitActivity: extractGitActivityFromRecords(records),
+        gitActivity: extractGitActivityFromRecords(records, workspaceDir),
       };
     } catch {
       return null;

@@ -4,6 +4,7 @@ import { getLiveOrCachedPricingTable } from './pricing';
 import { type KbClient, isConfigured } from '../kb-client';
 import { logInfo, toMessage } from '../error-reporter';
 import { resolveProjectSlug } from '../utils/project';
+import { isSessionInWorkspaceFolders } from '../utils/workspace-filter';
 import { SessionHandoffManager } from './handoff/session-handoff.manager';
 import {
   buildUnifiedSessionQuickPickItems,
@@ -97,6 +98,16 @@ export class AiHistoryManager {
 
   private getActiveProjectSelection?: () => ActiveProjectSelection;
 
+  private getWorkspaceFolderPaths(): string[] {
+    return vscode.workspace.workspaceFolders?.map((f) => f.uri.fsPath) ?? [];
+  }
+
+  isSessionInCurrentWorkspace(session: AiSession): boolean {
+    const folders = this.getWorkspaceFolderPaths();
+    const activeProject = this.getActiveProjectSelection?.()?.projectSlug;
+    return isSessionInWorkspaceFolders(session, folders, activeProject);
+  }
+
   async startWatching(
     client: KbClient,
     context: vscode.ExtensionContext,
@@ -158,6 +169,9 @@ export class AiHistoryManager {
         if (!enabled) continue;
         const initial = await provider.getRecentSessions(MAX_UNSYNCED_SESSIONS_CHECK); // Fetch all to populate known hashes of existing sessions
         for (const s of initial) {
+          if (!this.isSessionInCurrentWorkspace(s)) {
+            continue;
+          }
           this.addOrUpdateRecentSession(s, true);
 
           const key = `${provider.id}:${s.sessionId}`;
@@ -466,6 +480,11 @@ export class AiHistoryManager {
   }
 
   private async handleChangedSession(client: KbClient, provider: AiHistoryProvider, session: AiSession) {
+    // Isolate across multi-window workspaces: only handle sessions that belong to this window's workspace folders
+    if (!this.isSessionInCurrentWorkspace(session)) {
+      return;
+    }
+
     const key = `${provider.id}:${session.sessionId}`;
     const hash = this.computeSessionHash(session);
     const lastHash = this.knownSessionHashes.get(key);
@@ -950,9 +969,13 @@ export class AiHistoryManager {
     const selection = this.getActiveProjectSelection?.();
     const activeProject = resolveProjectSlug(selection?.projectSlug, defaultProjectSlug);
 
-    // A manually chosen project is explicit user intent. Likewise, when Auto
-    // cannot map the workspace and falls back to Inbox, don't send Codex's
-    // local cwd-derived slug (which may not exist in Kote) to the API.
+    // If the session has its own detected projectSlug (derived from its workspaceDir/.kb-sync.json/git remote),
+    // prioritize that detected project over generic fallbacks.
+    if (session.projectSlug && session.projectSlug !== DEFAULT_FALLBACK_PROJECT_SLUG) {
+      return session.projectSlug;
+    }
+
+    // A manually chosen project is explicit user intent for sessions without an intrinsic project.
     if (selection?.isManuallySelected || activeProject === DEFAULT_FALLBACK_PROJECT_SLUG) {
       return activeProject;
     }
@@ -972,6 +995,9 @@ export class AiHistoryManager {
         if (!enabled) continue;
         const sessions = await provider.getRecentSessions(MAX_UNSYNCED_SESSIONS_CHECK);
         for (const s of sessions) {
+          if (!this.isSessionInCurrentWorkspace(s)) {
+            continue;
+          }
           const key = `${provider.id}:${s.sessionId}`;
           if (!this.savedSessions.has(key) && !this.ignoredSessions.has(key)) {
             unsynced.push(s);

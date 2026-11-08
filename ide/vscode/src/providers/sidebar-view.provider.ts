@@ -45,6 +45,11 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     this.activeProject = savedProject !== null ? savedProject : initialProject;
   }
 
+  private _resolveTargetProject(msgProjectSlug?: string | null): string {
+    const candidate = msgProjectSlug && msgProjectSlug !== 'auto' ? msgProjectSlug : this.activeProject;
+    return resolveProjectSlug(candidate, this._client.defaultProjectSlug);
+  }
+
   resolveWebviewView(
     webviewView: vscode.WebviewView,
     _context: vscode.WebviewViewResolveContext,
@@ -144,7 +149,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
           logInfo('SidebarProvider', `Asking question: ${msg.question}`);
           this._post({ type: 'thinking' });
           try {
-            const projectSlug = resolveProjectSlug(msg.projectSlug || this.activeProject, this._client.defaultProjectSlug);
+            const projectSlug = this._resolveTargetProject(msg.projectSlug);
             const result = await this._client.ask(msg.question, projectSlug);
             
             // Persist to local history
@@ -187,7 +192,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         case 'saveNote':
           logInfo('SidebarProvider', `Saving note: ${msg.title}`);
           try {
-            const projectSlug = resolveProjectSlug(msg.projectSlug || this.activeProject, this._client.defaultProjectSlug);
+            const projectSlug = this._resolveTargetProject(msg.projectSlug);
             const res = await this._client.createNote({
               title: msg.title,
               rawText: msg.content,
@@ -210,7 +215,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
           logInfo('SidebarProvider', `Sending agent message: ${msg.messageText}`);
           this._post({ type: 'thinking' });
           try {
-            const projectSlug = resolveProjectSlug(msg.projectSlug || this.activeProject, this._client.defaultProjectSlug);
+            const projectSlug = this._resolveTargetProject(msg.projectSlug);
             const res = await this._client.sendConversationTurn({
               messageText: msg.messageText,
               senderId: 'vscode-user',

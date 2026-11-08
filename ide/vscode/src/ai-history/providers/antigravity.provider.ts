@@ -88,17 +88,45 @@ function parseTurns(records: unknown[]): AiTurn[] {
   return keepFinalAssistantTurns(candidates);
 }
 
-function extractWorkspace(content: string): string | null {
-  const userInfo = content.match(/<user_information>([\s\S]*?)<\/user_information>/i)?.[1] || content;
-  const mappedPath = userInfo.match(/(?:^|\n)\s*(\/[a-zA-Z0-9_.-]+(?:\/[a-zA-Z0-9_.-]+)+)\s*->/m)?.[1];
-  if (mappedPath && fs.existsSync(mappedPath)) return mappedPath;
+function extractAntigravityWorkspace(sessionDir: string, content: string): string | null {
+  // 1. Authoritative statusline.json (written by Antigravity CLI and Antigravity IDE)
+  try {
+    const statuslinePath = path.join(sessionDir, 'statusline.json');
+    if (fs.existsSync(statuslinePath)) {
+      const data = JSON.parse(fs.readFileSync(statuslinePath, 'utf8'));
+      const candidate = data.workspace?.project_dir || data.workspace?.current_dir || data.cwd;
+      if (typeof candidate === 'string' && candidate.trim() && fs.existsSync(candidate.trim())) {
+        return path.resolve(candidate.trim());
+      }
+    }
+  } catch {
+    // Ignore and proceed to content parsing
+  }
 
-  const cwd = content.match(/"Cwd"\s*:\s*"([^"]+)"/)?.[1];
-  if (cwd && fs.existsSync(cwd)) return cwd;
+  // 2. Structured prompt <user_information>
+  const userInfo = content.match(/<user_information>([\s\S]*?)<\/user_information>/i)?.[1];
+  if (userInfo) {
+    const cwdMatch = userInfo.match(/Command Working Directory:\s*([^\r\n]+)/i)?.[1]?.trim();
+    if (cwdMatch && fs.existsSync(cwdMatch)) return path.resolve(cwdMatch);
 
-  const candidate = content.match(/"(?:AbsolutePath|DirectoryPath|SearchDirectory)"\s*:\s*"([^"]+)"/)?.[1];
-  if (!candidate || !fs.existsSync(candidate)) return null;
-  return fs.statSync(candidate).isDirectory() ? candidate : path.dirname(candidate);
+    const activeWorkspaceMatch = userInfo.match(/Active Workspaces:\s*\n\s*-\s*([^\r\n]+)/i)?.[1]?.trim();
+    if (activeWorkspaceMatch && fs.existsSync(activeWorkspaceMatch)) return path.resolve(activeWorkspaceMatch);
+
+    const mappedPath = userInfo.match(/(?:^|\n)\s*(\/[a-zA-Z0-9_.-]+(?:\/[a-zA-Z0-9_.-]+)+)\s*->/m)?.[1];
+    if (mappedPath && fs.existsSync(mappedPath)) return path.resolve(mappedPath);
+  }
+
+  // 3. Tool calls / arguments cwd or paths
+  const cwdRegex = /"(?:cwd|current_dir|project_dir|Cwd)"\s*:\s*"([^"]+)"/i;
+  const cwd = content.match(cwdRegex)?.[1];
+  if (cwd && fs.existsSync(cwd)) return path.resolve(cwd);
+
+  const candidate = content.match(/"(?:AbsolutePath|DirectoryPath|SearchDirectory|Path)"\s*:\s*"([^"]+)"/)?.[1];
+  if (candidate && fs.existsSync(candidate)) {
+    return fs.statSync(candidate).isDirectory() ? path.resolve(candidate) : path.dirname(path.resolve(candidate));
+  }
+
+  return null;
 }
 
 function findLogFile(sessionDir: string): string | null {
@@ -444,8 +472,10 @@ function buildSessionSignature(sessionDir: string, logFile: string): { signature
       break;
     }
   }
+  const statuslineSig = safeFileSignature(path.join(sessionDir, 'statusline.json'));
+  const statuslinePart = statuslineSig ? `|statusline:${statuslineSig.signature}` : '';
   return {
-    signature: `${logFile}|${logSig.signature}|dir:${dirMtime}|${tokenSigPart}`,
+    signature: `${logFile}|${logSig.signature}|dir:${dirMtime}${statuslinePart}|${tokenSigPart}`,
     logMtimeMs: logSig.mtimeMs,
   };
 }
@@ -463,7 +493,7 @@ function parseSession(sessionDir: string, sessionId: string): AiSession | null {
       if (turns.length === 0) return null;
       const internalTimestamp = latestRecordTimestamp(records, ['timestamp', 'created_at', 'updated_at']);
 
-      const workspace = extractWorkspace(content);
+      const workspace = extractAntigravityWorkspace(sessionDir, content);
       const tokenUsage = extractAntigravityTokenUsage(sessionDir, content, records);
 
       return {
@@ -473,6 +503,7 @@ function parseSession(sessionDir: string, sessionId: string): AiSession | null {
         turns,
         timestamp: internalTimestamp ?? (sigInfo?.logMtimeMs ?? 0),
         timestampIsInternal: internalTimestamp !== null,
+        workspaceDir: workspace ?? undefined,
         projectSlug: workspace ? resolveProjectSlugFromDir(workspace) : undefined,
         attachments: loadAttachments(sessionDir),
         tokenUsage,
