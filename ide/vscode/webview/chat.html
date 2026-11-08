@@ -1313,9 +1313,6 @@
 
         case 'agentResponse': {
           addAgentReply(msg.replyText);
-          if (msg.projectSlug) {
-            document.getElementById('projectSelect').value = msg.projectSlug;
-          }
           break;
         }
 
