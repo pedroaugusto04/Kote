@@ -24,6 +24,7 @@ const MAX_DAYS_PAST_DUE = (() => {
 @Injectable()
 export class BillingWorker implements OnModuleInit, OnModuleDestroy {
   private cronTask: any;
+  private isRunning = false;
 
   constructor(
     private readonly subscriptionCancellationService: SubscriptionCancellationService,
@@ -66,27 +67,40 @@ export class BillingWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   async runPastDueJob() {
-    this.logger.info('[worker] Executando job de cancelamento de assinaturas PAST_DUE alem do prazo...');
-
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - MAX_DAYS_PAST_DUE);
-    const subscriptionsToCancel = await this.subscriptionRepository.findPastDueOlderThan(cutoffDate, 100);
-
-    for (const sub of subscriptionsToCancel) {
-      try {
-        this.logger.info(
-          `[worker] inicia cancelamento da assinatura: sub=${sub.userId} userId=${sub.userId}`,
-        );
-        // cancela a assinatura
-        await this.subscriptionCancellationService.cancelSubscription(sub.userId);
-        this.logger.info(
-          `[worker] assinatura cancelada: sub=${sub.userId} userId=${sub.userId}`,
-        );
-      } catch (error) {
-        this.logger.error(`[worker] Falha ao cancelar assinatura: sub=${sub.userId} userId=${sub.userId}`, { error: error instanceof Error ? error.message : String(error) });
-      }
+    if (this.isRunning) {
+      this.logger.warn('[worker] billing past due job already running, skipping overlapping execution');
+      return;
     }
+    this.isRunning = true;
+    try {
+      this.logger.info('[worker] Executando job de cancelamento de assinaturas PAST_DUE alem do prazo...');
 
-    this.logger.info('[worker] Job de cancelamento de assinaturas PAST_DUE finalizado');
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - MAX_DAYS_PAST_DUE);
+      const subscriptionsToCancel = await this.subscriptionRepository.findPastDueOlderThan(cutoffDate, 100);
+
+      for (const sub of subscriptionsToCancel) {
+        try {
+          this.logger.info(
+            `[worker] inicia cancelamento da assinatura: sub=${sub.userId} userId=${sub.userId}`,
+          );
+          // cancela a assinatura
+          await this.subscriptionCancellationService.cancelSubscription(sub.userId);
+          this.logger.info(
+            `[worker] assinatura cancelada: sub=${sub.userId} userId=${sub.userId}`,
+          );
+        } catch (error) {
+          this.logger.error(`[worker] Falha ao cancelar assinatura: sub=${sub.userId} userId=${sub.userId}`, { error: error instanceof Error ? error.message : String(error) });
+        }
+      }
+
+      this.logger.info('[worker] Job de cancelamento de assinaturas PAST_DUE finalizado');
+    } catch (error) {
+      this.logger.error('[worker] Falha no job de cancelamento de assinaturas past due', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      this.isRunning = false;
+    }
   }
 }

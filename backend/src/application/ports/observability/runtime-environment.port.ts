@@ -88,6 +88,10 @@ export type RuntimeEnvironment = {
   databaseUrl: string;
   databaseSslMode: string;
   databaseSslRejectUnauthorized: boolean | null;
+  databasePoolMax: number;
+  databaseConnectionTimeoutMs: number;
+  databaseIdleTimeoutMs: number;
+  databaseStatementTimeoutMs: number;
   adminEmail: string;
   adminPassword: string;
   emailProvider: 'resend' | 'smtp' | 'fake';

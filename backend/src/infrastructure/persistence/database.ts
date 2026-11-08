@@ -49,17 +49,30 @@ export class PostgresDatabase implements OnModuleDestroy {
     const connectionString = environment.databaseUrl;
     if (!connectionString) throw new Error('KB_DATABASE_URL_not_configured');
 
-    this.pool = new Pool({
+    const poolConfig: pg.PoolConfig = {
       connectionString,
       ssl: buildSslConfig(environment),
-      max: 25,
-      connectionTimeoutMillis: 5000,
-      idleTimeoutMillis: 30000,
-    });
+      max: environment.databasePoolMax,
+      connectionTimeoutMillis: environment.databaseConnectionTimeoutMs,
+      idleTimeoutMillis: environment.databaseIdleTimeoutMs,
+      keepAlive: true,
+      keepAliveInitialDelayMillis: 10000,
+    };
+
+    if (environment.databaseStatementTimeoutMs > 0) {
+      poolConfig.statement_timeout = environment.databaseStatementTimeoutMs;
+    }
+
+    this.pool = new Pool(poolConfig);
 
     this.pool.on('error', (err) => {
       // Prevent unhandled error events on idle clients from crashing the process
-      console.error('[PostgresDatabase] Unexpected error on idle client:', err?.message || err);
+      console.error(
+        '[PostgresDatabase] Unexpected error on idle client:',
+        err?.message || err,
+        'Pool status:',
+        this.getPoolStatus(),
+      );
     });
 
     this.pool.on('connect', (client) => {
@@ -67,6 +80,15 @@ export class PostgresDatabase implements OnModuleDestroy {
     });
 
     return this.pool;
+  }
+
+  getPoolStatus() {
+    if (!this.pool) return null;
+    return {
+      total: this.pool.totalCount,
+      idle: this.pool.idleCount,
+      waiting: this.pool.waitingCount,
+    };
   }
 
   getDb() {

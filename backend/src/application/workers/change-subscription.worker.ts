@@ -15,6 +15,7 @@ const CHANGE_SUBSCRIPTION_WORKER_AUTORUN = (() => {
 @Injectable()
 export class ChangeSubscriptionWorker implements OnModuleInit, OnModuleDestroy {
   private cronTask: any;
+  private isRunning = false;
 
   constructor(
     private readonly subscriptionService: SubscriptionService,
@@ -57,7 +58,13 @@ export class ChangeSubscriptionWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   async runChangeSubscriptionJob() {
-    this.logger.info('[worker] Executando job de mudanca de assinaturas...');
+    if (this.isRunning) {
+      this.logger.warn('[worker] change subscription job already running, skipping overlapping execution');
+      return;
+    }
+    this.isRunning = true;
+    try {
+      this.logger.info('[worker] Executando job de mudanca de assinaturas...');
 
     const now = new Date();
     const subscriptionsDowngradesChanges = await this.subscriptionRepository.findScheduledChangesDue(
@@ -146,7 +153,14 @@ export class ChangeSubscriptionWorker implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    this.logger.info('[worker] Job de mudanca de assinaturas finalizado');
+      this.logger.info('[worker] Job de mudanca de assinaturas finalizado');
+    } catch (error) {
+      this.logger.error('[worker] Falha no job de mudanca de assinaturas', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      this.isRunning = false;
+    }
   }
 
   private async shouldCancelMissedScheduledChange(

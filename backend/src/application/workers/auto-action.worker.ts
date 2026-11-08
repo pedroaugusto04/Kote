@@ -9,6 +9,7 @@ const AUTO_ACTION_TIMEZONE = process.env.AUTO_ACTION_TIMEZONE ?? 'UTC';
 @Injectable()
 export class AutoActionWorker implements OnModuleInit, OnModuleDestroy {
   private cronTask: any;
+  private isRunning = false;
 
   constructor(
     private readonly database: PostgresDatabase,
@@ -37,10 +38,15 @@ export class AutoActionWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   private async runAutoActionJob() {
-    this.logger.info('[worker] running auto-action batch job');
-    const pool = this.database.getPool();
-
+    if (this.isRunning) {
+      this.logger.warn('[worker] auto-action job already running, skipping overlapping execution');
+      return;
+    }
+    this.isRunning = true;
     try {
+      this.logger.info('[worker] running auto-action batch job');
+      const pool = this.database.getPool();
+
       const res = await pool.query(
         `update kb_notes n
            set status = g.action::note_status_enum, updated_at = now()
@@ -73,6 +79,8 @@ export class AutoActionWorker implements OnModuleInit, OnModuleDestroy {
       }
     } catch (err) {
       this.logger.error('[worker] auto-action job failed', { error: err instanceof Error ? err.message : String(err) });
+    } finally {
+      this.isRunning = false;
     }
   }
 }

@@ -21,6 +21,7 @@ const DEV_EMAIL = process.env.DEV_EMAIL?.trim();
 @Injectable()
 export class WebhookOutboxRelayWorker implements OnModuleInit, OnModuleDestroy {
   private cronTask: any;
+  private isRunning = false;
 
   constructor(
     private readonly billingWebhookEventRepository: BillingWebhookEventRepository,
@@ -67,27 +68,40 @@ export class WebhookOutboxRelayWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   async runWebhookOutboxRelayJob() {
-    this.logger.info('[worker] Executando replay de eventos de webhook pendentes/falhos...');
+    if (this.isRunning) {
+      this.logger.warn('[worker] webhook outbox relay job already running, skipping overlapping execution');
+      return;
+    }
+    this.isRunning = true;
+    try {
+      this.logger.info('[worker] Executando replay de eventos de webhook pendentes/falhos...');
 
-    const events = await this.listWebhookEventsForReplay();
+      const events = await this.listWebhookEventsForReplay();
 
-    if (!events.length) {
-      this.logger.info('[worker] Nenhum evento elegivel para replay');
-    } else {
-      for (const event of events) {
-        try {
-          await this.billingQueuePublisher.publishWebhookEventId(event.id);
-          await this.markWebhookEventDispatched(event.id);
-          this.logger.info(
-            `[worker] replay publicado: webhookEventId=${event.id} status=${event.status} attempts=${event.attempts}`
-          );
-        } catch (error) {
-          this.logger.error(`[worker] Falha ao republicar webhookEventId=${event.id}`, { error: error instanceof Error ? error.message : String(error) });
+      if (!events.length) {
+        this.logger.info('[worker] Nenhum evento elegivel para replay');
+      } else {
+        for (const event of events) {
+          try {
+            await this.billingQueuePublisher.publishWebhookEventId(event.id);
+            await this.markWebhookEventDispatched(event.id);
+            this.logger.info(
+              `[worker] replay publicado: webhookEventId=${event.id} status=${event.status} attempts=${event.attempts}`
+            );
+          } catch (error) {
+            this.logger.error(`[worker] Falha ao republicar webhookEventId=${event.id}`, { error: error instanceof Error ? error.message : String(error) });
+          }
         }
       }
-    }
 
-    await this.notifyAttemptLimitReached();
+      await this.notifyAttemptLimitReached();
+    } catch (error) {
+      this.logger.error('[worker] Falha na execucao do webhook outbox relay', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      this.isRunning = false;
+    }
   }
 
   private async listWebhookEventsForReplay() {
