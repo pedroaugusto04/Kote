@@ -123,7 +123,7 @@ export const githubRepositoriesBodySchema = z
 export const githubBackfillBodySchema = z
   .object({
     workspaceSlug: requiredWorkspaceSlugSchema,
-    repositories: z.array(repoFullNameSchema).min(1).max(10),
+    repositories: z.array(repoFullNameSchema).min(1).max(100),
   })
   .strict()
   .transform((body) => ({

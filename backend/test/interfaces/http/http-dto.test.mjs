@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { agentConversationBodySchema } from '../../../dist/interfaces/http/dto/operations.dto.js';
-import { connectIntegrationBodySchema, githubAppCallbackQuerySchema, githubRepositoriesBodySchema, guidedIntegrationProviderSchema, integrationProviderSchema, resolveIntegrationCredentialBodySchema, sessionParamSchema } from '../../../dist/interfaces/http/dto/integration-credentials.dto.js';
+import { connectIntegrationBodySchema, githubAppCallbackQuerySchema, githubBackfillBodySchema, githubRepositoriesBodySchema, guidedIntegrationProviderSchema, integrationProviderSchema, resolveIntegrationCredentialBodySchema, sessionParamSchema } from '../../../dist/interfaces/http/dto/integration-credentials.dto.js';
 import { projectsListQuerySchema, reminderBoardQuerySchema, remindersListQuerySchema, updateReminderStatusBodySchema } from '../../../dist/interfaces/http/dto/dashboard.dto.js';
 import { markRemindersBodySchema, queryRequestSchema } from '../../../dist/interfaces/http/dto/query.dto.js';
 import { createNoteBodySchema, noteIdParamSchema, updateNoteBodySchema } from '../../../dist/interfaces/http/dto/note.dto.js';
@@ -263,6 +263,22 @@ test('integration dto accepts guided connection payloads', () => {
   assert.equal(githubAppCallbackQuerySchema.parse({ state: 'state', installation_id: 123, setup_action: 'install' }).installation_id, '123');
   assert.equal(sessionParamSchema.parse({ provider: 'whatsapp', sessionId: '00000000-0000-4000-8000-000000000000' }).provider, 'whatsapp');
   assert.deepEqual(githubRepositoriesBodySchema.parse({ workspaceSlug: 'team_1', repositories: [{ id: '1', fullName: 'acme/api' }] }), { workspaceSlug: 'team_1', repositories: [{ id: '1', fullName: 'acme/api' }] });
+  assert.deepEqual(
+    githubBackfillBodySchema.parse({
+      workspaceSlug: 'team_1',
+      repositories: Array.from({ length: 25 }, (_, i) => `owner/repo-${i}`),
+    }),
+    {
+      workspaceSlug: 'team_1',
+      repositories: Array.from({ length: 25 }, (_, i) => `owner/repo-${i}`),
+    },
+  );
+  assert.throws(() =>
+    githubBackfillBodySchema.parse({
+      workspaceSlug: 'team_1',
+      repositories: Array.from({ length: 101 }, (_, i) => `owner/repo-${i}`),
+    }),
+  );
 });
 
 test('subscription dto validates planId and optional billing attributes', () => {
