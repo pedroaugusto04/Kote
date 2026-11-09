@@ -291,12 +291,14 @@ export class IntegrationConnectionService {
     const projects = await Promise.all(savedRepositories.map((repo) => {
       const repositoryName = repo.fullName.split('/').pop() || repo.fullName;
       const projectSlug = slugifyProjectName(repositoryName);
-      // Try to find existing project for this repository
-      const existingProject = workspaceProjects.find((p) => p.repositories[0]?.fullName === repo.fullName);
+      // Try to find existing project for this repository by repo externalId, repo fullName, or projectSlug
+      const existingProject = workspaceProjects.find((p) =>
+        p.repositories.some((r) => String(r.externalId) === String(repo.externalId) || r.fullName.toLowerCase() === repo.fullName.toLowerCase())
+      ) || workspaceProjects.find((p) => p.projectSlug === projectSlug);
       return this.content.upsertProject(input.userId, {
         id: existingProject?.id || crypto.randomUUID(),
         projectSlug,
-        displayName: repositoryName,
+        displayName: existingProject?.displayName || repositoryName,
         workspaceId: workspace.id,
         workspaceSlug,
         repositories: [repo],

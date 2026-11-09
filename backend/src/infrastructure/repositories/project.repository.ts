@@ -208,28 +208,66 @@ export class PostgresProjectRepository {
         workspaceId = workspaceResult[0]?.id;
       }
 
-      const projectResult = await t
-        .insert(projects)
-        .values({
-          id: input.id || crypto.randomUUID(),
-          userId,
-          projectSlug: input.projectSlug,
-          displayName: input.displayName,
-          workspaceId: workspaceId!,
-          enabled: input.enabled,
-          isFavorite: input.favorite ?? false,
-        })
-        .onConflictDoUpdate({
-          target: [projects.userId, projects.projectSlug],
-          set: {
+      let existingById: any = null;
+      if (input.id) {
+        const found = await t
+          .select({ id: projects.id, projectSlug: projects.projectSlug })
+          .from(projects)
+          .where(and(eq(projects.userId, userId), eq(projects.id, input.id)))
+          .limit(1);
+        existingById = found[0];
+      }
+
+      let projectResult: any[];
+      if (existingById) {
+        let targetSlug = input.projectSlug;
+        if (targetSlug !== existingById.projectSlug) {
+          const slugConflict = await t
+            .select({ id: projects.id })
+            .from(projects)
+            .where(and(eq(projects.userId, userId), eq(projects.projectSlug, targetSlug)))
+            .limit(1);
+          if (slugConflict.length > 0) {
+            targetSlug = existingById.projectSlug;
+          }
+        }
+
+        projectResult = await t
+          .update(projects)
+          .set({
+            projectSlug: targetSlug,
             displayName: input.displayName,
             workspaceId: workspaceId!,
             enabled: input.enabled,
             isFavorite: input.favorite ?? false,
             updatedAt: new Date(),
-          },
-        })
-        .returning();
+          })
+          .where(and(eq(projects.userId, userId), eq(projects.id, input.id)))
+          .returning();
+      } else {
+        projectResult = await t
+          .insert(projects)
+          .values({
+            id: input.id || crypto.randomUUID(),
+            userId,
+            projectSlug: input.projectSlug,
+            displayName: input.displayName,
+            workspaceId: workspaceId!,
+            enabled: input.enabled,
+            isFavorite: input.favorite ?? false,
+          })
+          .onConflictDoUpdate({
+            target: [projects.userId, projects.projectSlug],
+            set: {
+              displayName: input.displayName,
+              workspaceId: workspaceId!,
+              enabled: input.enabled,
+              isFavorite: input.favorite ?? false,
+              updatedAt: new Date(),
+            },
+          })
+          .returning();
+      }
       
       const project = projectResult[0];
       const { defaultTags = [], repositories = [] } = input;

@@ -972,18 +972,23 @@ export class AiHistoryManager {
     const selection = this.getActiveProjectSelection?.();
     const activeProject = resolveProjectSlug(selection?.projectSlug, defaultProjectSlug);
 
-    // If the session has its own detected projectSlug (derived from its workspaceDir/.kb-sync.json/git remote),
-    // prioritize that detected project over generic fallbacks.
+    // 1. A manually chosen project is explicit user intent.
+    if (selection?.isManuallySelected) {
+      return activeProject;
+    }
+
+    // 2. If the active workspace has a verified project matched by the extension against Kote, prioritize it.
+    if (activeProject && activeProject !== DEFAULT_FALLBACK_PROJECT_SLUG) {
+      return activeProject;
+    }
+
+    // 3. If the session has its own detected projectSlug (derived from its workspaceDir/.kb-sync.json/git remote),
+    // use it when activeProject is just the generic fallback.
     if (session.projectSlug && session.projectSlug !== DEFAULT_FALLBACK_PROJECT_SLUG) {
       return session.projectSlug;
     }
 
-    // A manually chosen project is explicit user intent for sessions without an intrinsic project.
-    if (selection?.isManuallySelected || activeProject === DEFAULT_FALLBACK_PROJECT_SLUG) {
-      return activeProject;
-    }
-
-    return resolveProjectSlug(session.projectSlug || activeProject, defaultProjectSlug);
+    return activeProject || DEFAULT_FALLBACK_PROJECT_SLUG;
   }
 
   private lastSyncPromptTime = 0;
