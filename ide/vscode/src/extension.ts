@@ -12,7 +12,6 @@ import { ClaudeCodeHistoryProvider } from './ai-history/providers/claude-code.pr
 import { CodexHistoryProvider } from './ai-history/providers/codex.provider';
 import { AntigravityHistoryProvider } from './ai-history/providers/antigravity.provider';
 import { OpenCodeHistoryProvider } from './ai-history/providers/opencode.provider';
-import { cleanupLegacyHarnessHooks } from './ai-history/legacy-hook-cleanup';
 import { KoteCodeLensProvider } from './providers/codelens.provider';
 import { KoteNoteContentProvider } from './providers/note-viewer.provider';
 import { FileNotesSummaryProvider } from './providers/file-notes-summary.provider';
@@ -27,7 +26,6 @@ let sidebarProvider: SidebarViewProvider;
 let statusBarProvider: StatusBarProvider;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-  cleanupLegacyHarnessHooks();
   logInfo('Extension', `Extension activate() started. isConfigured: ${isConfigured()}`);
   kbClient = new KbClient();
 
