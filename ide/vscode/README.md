@@ -15,11 +15,11 @@ For more details, visit the [GitHub Repository](https://github.com/pedroaugusto0
 - **CodeLens Integration**: Automatically displays relevant notes and decisions at the top of files that have associated knowledge in your Kote. Click the CodeLens indicator to view and open related notes directly in your editor.
 - **Kote Code Lineage**: Highlight any code snippet and press `Ctrl+Shift+E` (or right-click → *"Kote: Explain Why This Code Exists"*) to view an interactive origin timeline of past decisions, git commit history, and related AI sessions specifically for the selected code.
 - **Dedicated Sidebar**: Interactive AI chat and manual note saving
-- **Quick AI Questions**: Ask questions without leaving your editor (Ctrl+Shift+K)
+- **Quick AI Questions**: Ask questions without leaving your editor (`Ctrl+Shift+K`)
 - **Save Code Selection**: Right-click any code selection to save as a note
 - **Save Active File**: Save entire files directly to your Kote
 - **AI Session History**: View and search recent AI-assisted development sessions
-- **Real-time Sync**: Monitor and sync local AI CLI sessions automatically
+- **Session Handoffs**: Transfer active context seamlessly across AI agents and terminal harnesses
 
 ## Screenshots
 
@@ -30,10 +30,10 @@ For more details, visit the [GitHub Repository](https://github.com/pedroaugusto0
 
 ## Installation
 
-### From VS Code Marketplace
+### From VS Code Marketplace or Open VSX Registry
 
-1. Open VS Code
-2. Go to Extensions (Ctrl+Shift+X)
+1. Open VS Code or your Open VSX-compatible editor (VSCodium, Gitpod, etc.)
+2. Go to Extensions (`Ctrl+Shift+X`)
 3. Search for "Kote"
 4. Click Install
 
@@ -41,76 +41,96 @@ For more details, visit the [GitHub Repository](https://github.com/pedroaugusto0
 
 1. Download the latest `.vsix` file from the [Releases](https://github.com/pedroaugusto04/kote/releases) page
 2. Open VS Code
-3. Run "Extensions: Install from VSIX..." from the Command Palette (Ctrl+Shift+P)
+3. Run "Extensions: Install from VSIX..." from the Command Palette (`Ctrl+Shift+P`)
 4. Select the downloaded file
 
 ## Getting Started
 
 ### 1. Configure Your Kote
 
-After installation, you'll need to connect to your Kote instance:
+After installation, connect to your Kote instance:
 
 1. Open the Kote sidebar (click the icon in the activity bar)
-2. Enter your Kote URL
-3. Provide your API credentials
+2. Enter your Kote API URL (defaults to `https://knowledgebase.sbs/kote/api` or your self-hosted backend)
+3. Provide your API credentials / access token
 4. Select your default workspace/project
 
 ### 2. Basic Usage
 
 #### Ask AI Questions
-
 **Keyboard Shortcut**: `Ctrl+Shift+K` (Windows/Linux) or `Cmd+Shift+K` (Mac)
-
-1. Select text in your editor (optional)
-2. Press `Ctrl+Shift+K`
-3. Type your question
-4. Get instant answers from your Kote
+Select code (optional), press shortcut, type question, get instant answers with workspace context.
 
 #### Save Code Selection
-
-1. Select code in your editor
-2. Right-click and choose "Kote: Save Selection as Note"
-3. Choose project and add optional tags
-4. Save instantly
-
-#### Save Active File
-
-1. Open the Command Palette (Ctrl+Shift+P)
-2. Run "Kote: Save Active File as Note"
-3. Choose project and add optional tags
-4. Save entire file as a note
-
-#### View AI Sessions
-
-1. Open Kote sidebar
-2. Click the history icon (clock) in the sidebar title
-3. Browse recent AI-assisted development sessions
-4. Click any session to view details
-
-#### CodeLens - View Related Notes
-
-When you open a file that has associated notes or decisions in your Kote, a CodeLens indicator appears at the top of the file:
-
-1. Look for the CodeLens indicator (💡 Kote: X notes/decisions about this file) at the top of your editor
-2. Click the CodeLens to see a quick pick list of related notes
-3. Select a note to view it in a Markdown preview
-4. The note preview includes metadata (source channel, project, creation date) and a link to open it in the Kote web application
-
-> [!TIP]
-> **CodeLens not working?** Make sure CodeLens is enabled in your VS Code settings (`"editor.codeLens": true`). It's enabled by default, but may have been disabled globally.
-
-This feature helps you quickly access relevant context and decisions without leaving your editor.
+Right-click highlighted code and select **"Kote: Save Selection as Note"** to store decisions and context.
 
 #### Kote Code Lineage (Explain Why Code Exists)
-
 **Keyboard Shortcut**: `Ctrl+Shift+E` (Windows/Linux) or `Cmd+Shift+E` (Mac)
+Highlight code and trigger the command to explore an interactive timeline of commits, decisions, and related AI sessions.
 
-Understand the background, git history, and technical decisions behind any block of code:
+---
 
-1. Highlight any block of code in your editor
-2. Press `Ctrl+Shift+E` (or right-click and choose **"Kote: Explain Why This Code Exists"**)
-3. Explore the **Kote Code Lineage** interactive timeline panel showing related notes, git commit diffs, source channel badges (VS Code, CLI, GitHub, WhatsApp), and past AI conversations
-4. Click any note card to open its detail preview or jump directly to the Kote web application
+## Data Transmission, Privacy & Git Metadata
+
+Kote is designed to bridge your development work with your team knowledge base. Here is an explicit description of **what data is transmitted, where it is sent, and how you control it**:
+
+### Where Data is Sent
+All network transmissions go exclusively to your configured Kote backend:
+* **Default URL:** `https://knowledgebase.sbs/kote/api`
+* **Custom / Self-Hosted:** Configured in your settings or `~/.config/kb/config.json`. Kote never transmits data to third parties.
+
+### What is Transmitted
+
+1. **AI Session Data (AI History):**
+   * **Content:** Prompts, assistant responses, model metadata, and token usage from detected sessions.
+   * **Upload Setting:** Governed by `kote.aiSessionSaveMode` (see below).
+2. **Git Commit Metadata:**
+   * **Content:** When commits are made in your local repository, Kote synchronizes commit metadata (SHA, short SHA, commit message, author name, author email address, commit timestamp, branch name, list of changed file paths, and remote GitHub URL if configured).
+   * **Purpose:** Correlates AI conversations and architecture decisions to concrete code changes in the **Kote Code Lineage** timeline.
+   * **Control:** Can be disabled at any time via the `"kote.gitTracking.enabled": false` setting.
+3. **User-Initiated Searches & Queries:**
+   * Text questions or code snippets selected when using `Ask Kote` or `Explain Why This Code Exists`.
+
+### AI Session Upload Modes (`kote.aiSessionSaveMode`)
+* **`auto-save` (Default):** Automatically synchronizes detected AI sessions in the background. A non-intrusive notification is displayed when a session is saved.
+* **`ask`:** Prompts you with an explicit confirmation dialog before uploading each newly detected session, allowing you to preview or reject it.
+* **`ignore-all`:** Disables all automatic uploads. Sessions remain strictly local until manually imported.
+
+You can change this mode at any time using the gear icon in the Kote sidebar title bar or by running **"Kote: Configure AI Session Save Mode"**.
+
+---
+
+## External Integrations & AI Harness Hooks
+
+Kote offers optional session-handoff bridges with local AI developer harnesses to pass context between coding assistants:
+
+### What External Tools are Modified
+When enabled, Kote can integrate with:
+1. **Claude Code (`~/.claude/`):**
+   * **Target:** `~/.claude/settings.json`
+   * **Action:** Adds a `session_start` hook command pointing to Kote's local runner bridge (`~/.config/kote/hooks/session-start.js`).
+2. **Antigravity CLI (`~/.gemini/antigravity-cli/`):**
+   * **Target:** `~/.gemini/antigravity-cli/hooks/session-start.js`
+   * **Action:** Copies the session-start hook bridge script into the Antigravity hooks directory.
+3. **OpenCode (`~/.config/opencode/`):**
+   * **Target:** `~/.config/opencode/plugins/kote-session-handoff.js`
+   * **Action:** Copies the session handoff plugin into OpenCode's plugins directory.
+
+### User Permission is Always Required
+* **Opt-In Prompt:** Kote **does NOT** modify external tools silently. Upon first startup (if local harnesses are detected), Kote presents an explicit prompt:
+  > *"Kote detected local AI tools (...). Would you like to enable session handoff integration?"*
+* **Manual Control:** You can enable, review, or disable these integrations at any time using the command **`Kote: Configure External AI Harness Integrations`** or via the `"kote.integrations.enableHarnessHooks"` setting.
+
+### Automatic Cleanup on Uninstall
+If you uninstall the Kote VS Code extension:
+* VS Code executes the extension lifecycle uninstall hook (`vscode:uninstall`).
+* Kote automatically removes the `session_start` entry from `~/.claude/settings.json`.
+* Kote deletes `session-start.js` from `~/.gemini/antigravity-cli/hooks/`.
+* Kote deletes `kote-session-handoff.js` from `~/.config/opencode/plugins/`.
+* Kote removes the temporary bridge scripts in `~/.config/kote/hooks/`.
+* No orphan hooks or external modifications are left behind.
+
+---
 
 ## Commands
 
@@ -121,58 +141,26 @@ Understand the background, git history, and technical decisions behind any block
 | `Kote: Explain Why This Code Exists` | `Ctrl+Shift+E` | Open Kote Code Lineage origin timeline for selected code |
 | `Kote: Save Selection as Note` | - | Save selected code as a note |
 | `Kote: Save Active File as Note` | - | Save current file as a note |
-| `Kote: Refresh Sidebar` | - | Refresh the sidebar content |
 | `Kote: View Recent AI Sessions` | - | Open AI session history viewer |
+| `Kote: Configure AI Session Save Mode` | - | Switch between `auto-save`, `ask`, and `ignore-all` |
+| `Kote: Configure External AI Harness Integrations` | - | Enable, view, or remove hooks in Claude Code, Antigravity, and OpenCode |
+| `Kote: View Active Session Handoff` | - | Preview active session context handoff |
+| `Kote: Generate & Copy Session Handoff` | - | Copy handoff markdown to clipboard |
+| `Kote: Refresh Sidebar` | - | Refresh the sidebar content |
 
-## Context Menu
+## Configuration Settings
 
-The extension adds context menu items when you have text selected:
-
-- **Kote: Explain Why This Code Exists**: Open Kote Code Lineage timeline for highlighted code
-- **Kote: Save Selection as Note**: Save selected text as a note
-- **Kote: Open Chat**: Open the AI chat sidebar
-
-
-
-## Supported AI Tools
-
-The extension can automatically sync sessions from:
-
-- **Claude Code**: AI-assisted development sessions
-- **Codex CLI**: AI coding assistant sessions
-- **Custom paths**: Any directory with session files
-
-## Use Cases
-
-### During Development
-
-- Ask questions about your codebase without leaving your editor
-- Save important code snippets with context
-- Get AI help based on your team's collective knowledge
-
-### Code Review
-
-- Save reviewed code sections with notes
-- Ask AI about similar patterns in your codebase
-- Build a Kote of code decisions
-
-### Documentation
-
-- Save code examples directly from your editor
-- Ask AI to explain complex code based on your docs
-- Keep documentation in sync with actual implementation
-
-### AI Session Archiving
-
-- Automatically preserve AI-assisted development sessions
-- Search and reference previous AI conversations
-- Build a searchable history of AI interactions
-
-## Links
-
-- [Main Project Documentation](../../blob/main/README.md)
-- [CLI Documentation](../../blob/main/cli/README.md)
-- [Kote Repository](https://github.com/pedroaugusto04/kote)
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `kote.aiSessionSaveMode` | `"auto-save"` | Controls handling of AI sessions (`auto-save`, `ask`, `ignore-all`). |
+| `kote.gitTracking.enabled` | `true` | Enable background synchronization of Git commit metadata to linked projects. |
+| `kote.integrations.enableHarnessHooks` | `false` | Enable integration hooks in external tools (Claude Code, Antigravity, OpenCode). |
+| `kote.inlineAnnotations.enabled` | `true` | Enable inline annotations for code decisions and context. |
+| `kote.inlineAnnotations.showHover` | `true` | Show rich hover tooltips on active lines with Kote context. |
+| `kote.antigravityLogPath` | `""` | Custom path to Antigravity brain directory (defaults to standard location). |
+| `kote.claudeCodeLogPath` | `""` | Custom path to Claude Code directory (defaults to standard location). |
+| `kote.codexLogPath` | `""` | Custom path to Codex CLI directory (defaults to standard location). |
+| `kote.opencodeDbPath` | `""` | Custom path to OpenCode database file (defaults to standard location). |
 
 ## License
 

@@ -431,6 +431,10 @@ export class AiHistoryManager {
   }
 
   private getAiSessionSaveMode(): AiSessionSaveMode {
+    const configMode = vscode.workspace.getConfiguration('kote').get<string>('aiSessionSaveMode');
+    if (configMode === AI_SESSION_SAVE_MODES.AUTO_SAVE || configMode === AI_SESSION_SAVE_MODES.ASK || configMode === AI_SESSION_SAVE_MODES.IGNORE_ALL) {
+      return configMode as AiSessionSaveMode;
+    }
     if (this.context) {
       return this.context.globalState.get<AiSessionSaveMode>(GLOBAL_STATE_KEYS.AI_SESSION_SAVE_MODE, AI_SESSION_SAVE_MODES.AUTO_SAVE);
     }
@@ -472,6 +476,7 @@ export class AiHistoryManager {
 
     try {
       await context.globalState.update(GLOBAL_STATE_KEYS.AI_SESSION_SAVE_MODE, picked.mode);
+      await vscode.workspace.getConfiguration('kote').update('aiSessionSaveMode', picked.mode, vscode.ConfigurationTarget.Global);
     } catch (err) {
       console.error('Failed to update kote.aiSessionSaveMode configuration:', err);
     }

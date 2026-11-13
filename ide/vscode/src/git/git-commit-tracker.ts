@@ -185,6 +185,12 @@ export class GitCommitTracker implements vscode.Disposable {
 
   private async syncAllWorkspaceFolders(): Promise<void> {
     if (!isConfigured()) return;
+
+    const isGitTrackingEnabled = vscode.workspace
+      .getConfiguration('kote')
+      .get<boolean>('gitTracking.enabled', true);
+    if (!isGitTrackingEnabled) return;
+
     const projectSlug = this.getActiveProjectSlug();
     if (!projectSlug || projectSlug === SPECIAL_PROJECT_SLUGS.INBOX || projectSlug === 'all') {
       return;

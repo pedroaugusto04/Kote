@@ -12,7 +12,7 @@ import { ClaudeCodeHistoryProvider } from './ai-history/providers/claude-code.pr
 import { CodexHistoryProvider } from './ai-history/providers/codex.provider';
 import { AntigravityHistoryProvider } from './ai-history/providers/antigravity.provider';
 import { OpenCodeHistoryProvider } from './ai-history/providers/opencode.provider';
-import { autoRegisterHarnessHooks } from './ai-history/hooks/installer';
+import { ensureHarnessHooksConsent, promptHarnessHooksConfiguration } from './ai-history/hooks/installer';
 import { KoteCodeLensProvider } from './providers/codelens.provider';
 import { KoteNoteContentProvider } from './providers/note-viewer.provider';
 import { FileNotesSummaryProvider } from './providers/file-notes-summary.provider';
@@ -166,6 +166,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       historyManager.promptModeSelection(context);
     }),
 
+    vscode.commands.registerCommand('kote.configureIntegrations', async () => {
+      await promptHarnessHooksConfiguration(context);
+    }),
+
     vscode.commands.registerCommand('kote.openSyncTab', () => {
       sidebarProvider.switchToTab('sync');
     }),
@@ -208,8 +212,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     })
   );
 
-  void autoRegisterHarnessHooks().catch((err) => {
-    logInfo('Hooks', `Auto-registration of harness hooks skipped: ${toMessage(err)}`);
+  // Check and prompt for external harness hooks with explicit user permission
+  void ensureHarnessHooksConsent(context).catch((err) => {
+    logInfo('Hooks', `Harness hooks check skipped: ${toMessage(err)}`);
   });
 
   historyManager.startWatching(kbClient, context, getActiveProjectSelection);

@@ -1,8 +1,9 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import type * as vscode from 'vscode';
+import * as vscode from 'vscode';
 
+import { GLOBAL_STATE_KEYS } from '../../constants';
 import { logInfo, toMessage } from '../../error-reporter';
 import { watchFile } from '../../utils/watcher';
 
@@ -16,6 +17,13 @@ export type ActiveSessionStartInfo = {
   timestamp: number;
   cwd?: string;
 };
+
+export interface DetectedHarness {
+  id: string;
+  name: string;
+  targetPath: string;
+  isRegistered: boolean;
+}
 
 function createRunnerScript(): void {
   try {
@@ -135,6 +143,55 @@ void main();
   }
 }
 
+export function detectAvailableHarnesses(): DetectedHarness[] {
+  const harnesses: DetectedHarness[] = [];
+
+  // Claude Code
+  const claudeDir = path.join(os.homedir(), '.claude');
+  if (fs.existsSync(claudeDir)) {
+    const settingsPath = path.join(claudeDir, 'settings.json');
+    let isRegistered = false;
+    if (fs.existsSync(settingsPath)) {
+      try {
+        const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        isRegistered = Boolean(settings?.hooks?.session_start && String(settings.hooks.session_start).includes('session-start.js'));
+      } catch {}
+    }
+    harnesses.push({
+      id: 'claude-code',
+      name: 'Claude Code (~/.claude/settings.json)',
+      targetPath: settingsPath,
+      isRegistered,
+    });
+  }
+
+  // Antigravity CLI
+  const agDir = path.join(os.homedir(), '.gemini', 'antigravity-cli');
+  if (fs.existsSync(agDir)) {
+    const hookTarget = path.join(agDir, 'hooks', 'session-start.js');
+    harnesses.push({
+      id: 'antigravity',
+      name: 'Antigravity CLI (~/.gemini/antigravity-cli/hooks)',
+      targetPath: hookTarget,
+      isRegistered: fs.existsSync(hookTarget),
+    });
+  }
+
+  // OpenCode
+  const opencodeDir = path.join(os.homedir(), '.config', 'opencode');
+  if (fs.existsSync(opencodeDir)) {
+    const pluginTarget = path.join(opencodeDir, 'plugins', 'kote-session-handoff.js');
+    harnesses.push({
+      id: 'opencode',
+      name: 'OpenCode (~/.config/opencode/plugins)',
+      targetPath: pluginTarget,
+      isRegistered: fs.existsSync(pluginTarget),
+    });
+  }
+
+  return harnesses;
+}
+
 function registerClaudeCodeHook(): boolean {
   try {
     const claudeDir = path.join(os.homedir(), '.claude');
@@ -163,6 +220,29 @@ function registerClaudeCodeHook(): boolean {
   return false;
 }
 
+function removeClaudeCodeHook(): boolean {
+  try {
+    const claudeDir = path.join(os.homedir(), '.claude');
+    const settingsPath = path.join(claudeDir, 'settings.json');
+    if (!fs.existsSync(settingsPath)) return false;
+
+    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    if (settings && settings.hooks && typeof settings.hooks.session_start === 'string') {
+      if (settings.hooks.session_start.includes('session-start.js')) {
+        delete settings.hooks.session_start;
+        if (Object.keys(settings.hooks).length === 0) {
+          delete settings.hooks;
+        }
+        fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
+        return true;
+      }
+    }
+  } catch (err) {
+    logInfo('Hooks', `Failed to remove Claude Code hook: ${toMessage(err)}`);
+  }
+  return false;
+}
+
 function registerAntigravityHook(): boolean {
   try {
     const agDir = path.join(os.homedir(), '.gemini', 'antigravity-cli');
@@ -180,6 +260,19 @@ function registerAntigravityHook(): boolean {
     }
   } catch (err) {
     logInfo('Hooks', `Failed to register Antigravity hook: ${toMessage(err)}`);
+  }
+  return false;
+}
+
+function removeAntigravityHook(): boolean {
+  try {
+    const agHook = path.join(os.homedir(), '.gemini', 'antigravity-cli', 'hooks', 'session-start.js');
+    if (fs.existsSync(agHook)) {
+      fs.unlinkSync(agHook);
+      return true;
+    }
+  } catch (err) {
+    logInfo('Hooks', `Failed to remove Antigravity hook: ${toMessage(err)}`);
   }
   return false;
 }
@@ -205,6 +298,19 @@ function registerOpenCodeHook(): boolean {
   return false;
 }
 
+function removeOpenCodeHook(): boolean {
+  try {
+    const opencodePlugin = path.join(os.homedir(), '.config', 'opencode', 'plugins', 'kote-session-handoff.js');
+    if (fs.existsSync(opencodePlugin)) {
+      fs.unlinkSync(opencodePlugin);
+      return true;
+    }
+  } catch (err) {
+    logInfo('Hooks', `Failed to remove OpenCode hook: ${toMessage(err)}`);
+  }
+  return false;
+}
+
 export async function autoRegisterHarnessHooks(): Promise<{ registered: string[] }> {
   createRunnerScript();
 
@@ -214,10 +320,121 @@ export async function autoRegisterHarnessHooks(): Promise<{ registered: string[]
   if (registerOpenCodeHook()) registered.push('opencode');
 
   if (registered.length > 0) {
-    logInfo('Hooks', `Auto-registered SessionStart hooks for: ${registered.join(', ')}`);
+    logInfo('Hooks', `Registered SessionStart hooks for: ${registered.join(', ')}`);
   }
 
   return { registered };
+}
+
+export async function removeAllHarnessHooks(): Promise<{ removed: string[] }> {
+  const removed: string[] = [];
+  if (removeClaudeCodeHook()) removed.push('claude-code');
+  if (removeAntigravityHook()) removed.push('antigravity');
+  if (removeOpenCodeHook()) removed.push('opencode');
+
+  try {
+    if (fs.existsSync(SESSION_START_SCRIPT)) {
+      fs.unlinkSync(SESSION_START_SCRIPT);
+    }
+  } catch {}
+
+  if (removed.length > 0) {
+    logInfo('Hooks', `Removed SessionStart hooks for: ${removed.join(', ')}`);
+  }
+
+  return { removed };
+}
+
+/**
+ * Checks whether user permission was granted before registering hooks.
+ * If not yet asked, presents a non-intrusive prompt allowing user to opt-in or opt-out.
+ */
+export async function ensureHarnessHooksConsent(context: vscode.ExtensionContext): Promise<void> {
+  const config = vscode.workspace.getConfiguration('kote');
+  const configSetting = config.get<boolean>('integrations.enableHarnessHooks');
+  const storedConsent = context.globalState.get<string>(GLOBAL_STATE_KEYS.HARNESS_HOOKS_CONSENT);
+
+  // If explicitly enabled via settings or previously granted
+  if (configSetting === true || storedConsent === 'granted') {
+    void autoRegisterHarnessHooks().catch((err) => {
+      logInfo('Hooks', `Registration of harness hooks skipped: ${toMessage(err)}`);
+    });
+    return;
+  }
+
+  // If explicitly denied, do nothing
+  if (storedConsent === 'denied' || configSetting === false) {
+    return;
+  }
+
+  // First time check: see if user actually has any external harness installed
+  const detected = detectAvailableHarnesses();
+  if (detected.length === 0) {
+    return;
+  }
+
+  const harnessNames = detected.map((d) => d.id === 'claude-code' ? 'Claude Code' : d.id === 'antigravity' ? 'Antigravity' : 'OpenCode').join(', ');
+
+  const promptMsg = `Kote detected local AI tools (${harnessNames}). Would you like to enable session handoff integration? This installs a session-start hook in these tools to sync context with Kote.`;
+  const actionEnable = 'Enable Integration';
+  const actionNotNow = 'Not Now';
+  const actionLearnMore = 'Learn More';
+
+  void vscode.window.showInformationMessage(promptMsg, actionEnable, actionNotNow, actionLearnMore).then(async (selection) => {
+    if (selection === actionEnable) {
+      await context.globalState.update(GLOBAL_STATE_KEYS.HARNESS_HOOKS_CONSENT, 'granted');
+      await config.update('integrations.enableHarnessHooks', true, vscode.ConfigurationTarget.Global);
+      const res = await autoRegisterHarnessHooks();
+      vscode.window.showInformationMessage(
+        res.registered.length > 0
+          ? `Kote: External AI integration enabled for ${res.registered.join(', ')}.`
+          : 'Kote: External AI integration enabled.'
+      );
+    } else if (selection === actionNotNow) {
+      await context.globalState.update(GLOBAL_STATE_KEYS.HARNESS_HOOKS_CONSENT, 'denied');
+    } else if (selection === actionLearnMore) {
+      void vscode.env.openExternal(vscode.Uri.parse('https://github.com/pedroaugusto04/kote#external-integrations--ai-harness-hooks'));
+    }
+  });
+}
+
+/**
+ * Interactive command for users to view, enable, or disable integrations at any time.
+ */
+export async function promptHarnessHooksConfiguration(context: vscode.ExtensionContext): Promise<void> {
+  const detected = detectAvailableHarnesses();
+  const config = vscode.workspace.getConfiguration('kote');
+
+  const items = [
+    {
+      label: '$(check) Enable External AI Harness Integrations',
+      description: 'Installs session-start hooks into Claude Code, Antigravity, and OpenCode',
+      action: 'enable',
+    },
+    {
+      label: '$(x) Disable & Remove All Hooks',
+      description: 'Removes all hooks from other tools and cleans up integration files',
+      action: 'disable',
+    },
+  ];
+
+  const picked = await vscode.window.showQuickPick(items, {
+    placeHolder: `Kote Integrations (Detected: ${detected.map(d => d.name).join(', ') || 'none'})`,
+  });
+
+  if (!picked) return;
+
+  if (picked.action === 'enable') {
+    await context.globalState.update(GLOBAL_STATE_KEYS.HARNESS_HOOKS_CONSENT, 'granted');
+    await config.update('integrations.enableHarnessHooks', true, vscode.ConfigurationTarget.Global);
+    const res = await autoRegisterHarnessHooks();
+    vscode.window.showInformationMessage(`Kote: Integration hooks registered for: ${res.registered.join(', ') || 'available tools'}.`);
+  } else if (picked.action === 'disable') {
+    await context.globalState.update(GLOBAL_STATE_KEYS.HARNESS_HOOKS_CONSENT, 'denied');
+    await config.update('integrations.enableHarnessHooks', false, vscode.ConfigurationTarget.Global);
+    const res = await removeAllHarnessHooks();
+    vscode.window.showInformationMessage(`Kote: Removed integration hooks for: ${res.removed.join(', ') || 'all tools'}.`);
+  }
 }
 
 export function watchActiveSessionStarts(

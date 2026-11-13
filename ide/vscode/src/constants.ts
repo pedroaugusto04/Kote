@@ -10,6 +10,7 @@ export const EXTENSION_COMMANDS = {
   SIDEBAR_VIEW_FOCUS: 'kote.sidebarView.focus',
   EXPLAIN_SNIPPET_ORIGIN: 'kote.explainSnippetOrigin',
   OPEN_NOTE_DETAIL: 'kote.openNoteDetail',
+  CONFIGURE_INTEGRATIONS: 'kote.configureIntegrations',
 } as const;
 
 export const GLOBAL_STATE_KEYS = {
@@ -19,6 +20,7 @@ export const GLOBAL_STATE_KEYS = {
   SAVED_SESSIONS_MAP: 'kote.savedSessionsMap',
   IGNORED_SESSIONS_MAP: 'kote.ignoredSessionsMap',
   AI_SESSION_SAVE_MODE: 'kote.aiSessionSaveMode',
+  HARNESS_HOOKS_CONSENT: 'kote.harnessHooksConsent',
 } as const;
 
 export const SOURCE_CHANNELS = {
