@@ -16,7 +16,7 @@ function removeClaudeCodeHook(): void {
     const content = fs.readFileSync(settingsPath, 'utf8');
     const settings = JSON.parse(content);
     if (settings && settings.hooks && typeof settings.hooks.session_start === 'string') {
-      if (settings.hooks.session_start.includes('session-start.js')) {
+      if (settings.hooks.session_start.includes('kote-session-start.js')) {
         delete settings.hooks.session_start;
         if (Object.keys(settings.hooks).length === 0) {
           delete settings.hooks;
@@ -29,7 +29,7 @@ function removeClaudeCodeHook(): void {
 
 function removeAntigravityHook(): void {
   try {
-    const agHook = path.join(os.homedir(), '.gemini', 'antigravity-cli', 'hooks', 'session-start.js');
+    const agHook = path.join(os.homedir(), '.gemini', 'antigravity-cli', 'hooks', 'kote-session-start.js');
     if (fs.existsSync(agHook)) {
       fs.unlinkSync(agHook);
     }
@@ -48,7 +48,7 @@ function removeOpenCodeHook(): void {
 function removeKoteHookBridge(): void {
   try {
     const koteHooksDir = path.join(os.homedir(), '.config', 'kote', 'hooks');
-    const sessionStart = path.join(koteHooksDir, 'session-start.js');
+    const sessionStart = path.join(koteHooksDir, 'kote-session-start.js');
     if (fs.existsSync(sessionStart)) {
       fs.unlinkSync(sessionStart);
     }

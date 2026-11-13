@@ -108,9 +108,9 @@ Kote offers optional session-handoff bridges with local AI developer harnesses t
 When enabled, Kote can integrate with:
 1. **Claude Code (`~/.claude/`):**
    * **Target:** `~/.claude/settings.json`
-   * **Action:** Adds a `session_start` hook command pointing to Kote's local runner bridge (`~/.config/kote/hooks/session-start.js`).
+   * **Action:** Adds a Kote-specific command to the native `session_start` hook, pointing to `~/.config/kote/hooks/kote-session-start.js`.
 2. **Antigravity CLI (`~/.gemini/antigravity-cli/`):**
-   * **Target:** `~/.gemini/antigravity-cli/hooks/session-start.js`
+   * **Target:** `~/.gemini/antigravity-cli/hooks/kote-session-start.js`
    * **Action:** Copies the session-start hook bridge script into the Antigravity hooks directory.
 3. **OpenCode (`~/.config/opencode/`):**
    * **Target:** `~/.config/opencode/plugins/kote-session-handoff.js`

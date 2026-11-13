@@ -9,7 +9,7 @@ import { watchFile } from '../../utils/watcher';
 
 const KOTE_CONFIG_DIR = path.join(os.homedir(), '.config', 'kote');
 const KOTE_HOOKS_DIR = path.join(KOTE_CONFIG_DIR, 'hooks');
-const SESSION_START_SCRIPT = path.join(KOTE_HOOKS_DIR, 'session-start.js');
+const SESSION_START_SCRIPT = path.join(KOTE_HOOKS_DIR, 'kote-session-start.js');
 const ACTIVE_SESSION_START_PATH = path.join(KOTE_CONFIG_DIR, 'active-session-start.json');
 
 export type ActiveSessionStartInfo = {
@@ -154,7 +154,7 @@ export function detectAvailableHarnesses(): DetectedHarness[] {
     if (fs.existsSync(settingsPath)) {
       try {
         const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-        isRegistered = Boolean(settings?.hooks?.session_start && String(settings.hooks.session_start).includes('session-start.js'));
+        isRegistered = Boolean(settings?.hooks?.session_start && String(settings.hooks.session_start).includes('kote-session-start.js'));
       } catch {}
     }
     harnesses.push({
@@ -168,7 +168,7 @@ export function detectAvailableHarnesses(): DetectedHarness[] {
   // Antigravity CLI
   const agDir = path.join(os.homedir(), '.gemini', 'antigravity-cli');
   if (fs.existsSync(agDir)) {
-    const hookTarget = path.join(agDir, 'hooks', 'session-start.js');
+    const hookTarget = path.join(agDir, 'hooks', 'kote-session-start.js');
     harnesses.push({
       id: 'antigravity',
       name: 'Antigravity CLI (~/.gemini/antigravity-cli/hooks)',
@@ -228,7 +228,7 @@ function removeClaudeCodeHook(): boolean {
 
     const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
     if (settings && settings.hooks && typeof settings.hooks.session_start === 'string') {
-      if (settings.hooks.session_start.includes('session-start.js')) {
+      if (settings.hooks.session_start.includes('kote-session-start.js')) {
         delete settings.hooks.session_start;
         if (Object.keys(settings.hooks).length === 0) {
           delete settings.hooks;
@@ -253,7 +253,7 @@ function registerAntigravityHook(): boolean {
       fs.mkdirSync(hooksDir, { recursive: true });
     }
 
-    const hookTarget = path.join(hooksDir, 'session-start.js');
+    const hookTarget = path.join(hooksDir, 'kote-session-start.js');
     if (!fs.existsSync(hookTarget)) {
       fs.copyFileSync(SESSION_START_SCRIPT, hookTarget);
       return true;
@@ -266,7 +266,7 @@ function registerAntigravityHook(): boolean {
 
 function removeAntigravityHook(): boolean {
   try {
-    const agHook = path.join(os.homedir(), '.gemini', 'antigravity-cli', 'hooks', 'session-start.js');
+    const agHook = path.join(os.homedir(), '.gemini', 'antigravity-cli', 'hooks', 'kote-session-start.js');
     if (fs.existsSync(agHook)) {
       fs.unlinkSync(agHook);
       return true;
