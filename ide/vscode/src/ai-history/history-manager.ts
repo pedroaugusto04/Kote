@@ -12,7 +12,6 @@ import {
   fetchWithTimeout,
   CLOUD_SESSION_FETCH_TIMEOUT_MS,
 } from './handoff/session-handoff.utils';
-import { watchActiveSessionStarts } from './hooks/installer';
 import {
   EXTENSION_COMMANDS,
   GLOBAL_STATE_KEYS,
@@ -231,19 +230,6 @@ export class AiHistoryManager {
     });
     this.activeDisposables.push(focusDisposable);
     context.subscriptions.push(focusDisposable);
-
-    // Watch for immediate harness session start events (triggered before the first user message)
-    const hookStartDisposable = watchActiveSessionStarts((info) => {
-      if (info.targetProvider) {
-        if (info.cwd && !isPathInWorkspaceFolders(info.cwd, this.getWorkspaceFolderPaths())) {
-          return;
-        }
-        const projectSlug = this.getActiveProjectSelection?.()?.projectSlug || undefined;
-        void this.handoff.onHarnessLaunched(info.targetProvider, this.recentSessions, projectSlug);
-      }
-    });
-    this.activeDisposables.push(hookStartDisposable);
-    context.subscriptions.push(hookStartDisposable);
 
     // Watch for terminals opened with coding agent names
     const terminalDisposable = vscode.window.onDidOpenTerminal((terminal) => {

@@ -85,12 +85,6 @@
         "icon": "$(settings-gear)"
       },
       {
-        "command": "kote.configureIntegrations",
-        "title": "Kote: Configure External AI Harness Integrations",
-        "category": "Kote",
-        "icon": "$(plug)"
-      },
-      {
         "command": "kote.explainSnippetOrigin",
         "title": "Kote: Explain Why This Code Exists",
         "category": "Kote",
@@ -164,11 +158,6 @@
           "command": "kote.configureAiSessionMode",
           "when": "view == kote.sidebarView",
           "group": "navigation"
-        },
-        {
-          "command": "kote.configureIntegrations",
-          "when": "view == kote.sidebarView",
-          "group": "navigation"
         }
       ]
     }
@@ -190,11 +179,6 @@
         ],
         "default": "auto-save",
         "description": "Controls how Kote handles newly detected AI sessions. Defaults to 'auto-save' (can be set to 'ask' to prompt before uploading)."
-      },
-      "kote.integrations.enableHarnessHooks": {
-        "type": "boolean",
-        "default": false,
-        "description": "Enable integration hooks into external AI tools (Claude Code, Antigravity CLI, OpenCode) to synchronize session handoffs."
       },
       "kote.gitTracking.enabled": {
         "type": "boolean",
@@ -242,7 +226,6 @@
     "build": "tsc -p tsconfig.json",
     "watch": "tsc --watch -p tsconfig.json",
     "vscode:prepublish": "npm run build",
-    "vscode:uninstall": "node ./out/uninstall.js",
     "package": "vsce package --no-dependencies"
   },
   "devDependencies": {

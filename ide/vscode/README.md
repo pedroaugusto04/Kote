@@ -100,35 +100,9 @@ You can change this mode at any time using the gear icon in the Kote sidebar tit
 
 ---
 
-## External Integrations & AI Harness Hooks
+## Session Handoffs
 
-Kote offers optional session-handoff bridges with local AI developer harnesses to pass context between coding assistants:
-
-### What External Tools are Modified
-When enabled, Kote can integrate with:
-1. **Claude Code (`~/.claude/`):**
-   * **Target:** `~/.claude/settings.json`
-   * **Action:** Adds a Kote-specific command to the native `session_start` hook, pointing to `~/.config/kote/hooks/kote-session-start.js`.
-2. **Antigravity CLI (`~/.gemini/antigravity-cli/`):**
-   * **Target:** `~/.gemini/antigravity-cli/hooks/kote-session-start.js`
-   * **Action:** Copies the session-start hook bridge script into the Antigravity hooks directory.
-3. **OpenCode (`~/.config/opencode/`):**
-   * **Target:** `~/.config/opencode/plugins/kote-session-handoff.js`
-   * **Action:** Copies the session handoff plugin into OpenCode's plugins directory.
-
-### User Permission is Always Required
-* **Opt-In Prompt:** Kote **does NOT** modify external tools silently. Upon first startup (if local harnesses are detected), Kote presents an explicit prompt:
-  > *"Kote detected local AI tools (...). Would you like to enable session handoff integration?"*
-* **Manual Control:** You can enable, review, or disable these integrations at any time using the command **`Kote: Configure External AI Harness Integrations`** or via the `"kote.integrations.enableHarnessHooks"` setting.
-
-### Automatic Cleanup on Uninstall
-If you uninstall the Kote VS Code extension:
-* VS Code executes the extension lifecycle uninstall hook (`vscode:uninstall`).
-* Kote automatically removes the `session_start` entry from `~/.claude/settings.json`.
-* Kote deletes `session-start.js` from `~/.gemini/antigravity-cli/hooks/`.
-* Kote deletes `kote-session-handoff.js` from `~/.config/opencode/plugins/`.
-* Kote removes the temporary bridge scripts in `~/.config/kote/hooks/`.
-* No orphan hooks or external modifications are left behind.
+When you start Claude Code, Codex, Antigravity, or OpenCode in the VS Code integrated terminal, Kote can detect the command and offer a handoff from a recent session. Kote shows a prompt; it only generates and injects the handoff if you choose **Inject Now** or **Review and Accept**. Kote does not install hooks or modify the configuration of these external tools. Agent launches outside VS Code's integrated terminal are not detected automatically; use **Kote: Generate & Copy Session Handoff** instead.
 
 ---
 
@@ -143,7 +117,6 @@ If you uninstall the Kote VS Code extension:
 | `Kote: Save Active File as Note` | - | Save current file as a note |
 | `Kote: View Recent AI Sessions` | - | Open AI session history viewer |
 | `Kote: Configure AI Session Save Mode` | - | Switch between `auto-save`, `ask`, and `ignore-all` |
-| `Kote: Configure External AI Harness Integrations` | - | Enable, view, or remove hooks in Claude Code, Antigravity, and OpenCode |
 | `Kote: View Active Session Handoff` | - | Preview active session context handoff |
 | `Kote: Generate & Copy Session Handoff` | - | Copy handoff markdown to clipboard |
 | `Kote: Refresh Sidebar` | - | Refresh the sidebar content |
@@ -154,7 +127,6 @@ If you uninstall the Kote VS Code extension:
 |---------|---------|-------------|
 | `kote.aiSessionSaveMode` | `"auto-save"` | Controls handling of AI sessions (`auto-save`, `ask`, `ignore-all`). |
 | `kote.gitTracking.enabled` | `true` | Enable background synchronization of Git commit metadata to linked projects. |
-| `kote.integrations.enableHarnessHooks` | `false` | Enable integration hooks in external tools (Claude Code, Antigravity, OpenCode). |
 | `kote.inlineAnnotations.enabled` | `true` | Enable inline annotations for code decisions and context. |
 | `kote.inlineAnnotations.showHover` | `true` | Show rich hover tooltips on active lines with Kote context. |
 | `kote.antigravityLogPath` | `""` | Custom path to Antigravity brain directory (defaults to standard location). |

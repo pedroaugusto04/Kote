@@ -12,7 +12,7 @@ import { ClaudeCodeHistoryProvider } from './ai-history/providers/claude-code.pr
 import { CodexHistoryProvider } from './ai-history/providers/codex.provider';
 import { AntigravityHistoryProvider } from './ai-history/providers/antigravity.provider';
 import { OpenCodeHistoryProvider } from './ai-history/providers/opencode.provider';
-import { ensureHarnessHooksConsent, promptHarnessHooksConfiguration } from './ai-history/hooks/installer';
+import { cleanupLegacyHarnessHooks } from './ai-history/legacy-hook-cleanup';
 import { KoteCodeLensProvider } from './providers/codelens.provider';
 import { KoteNoteContentProvider } from './providers/note-viewer.provider';
 import { FileNotesSummaryProvider } from './providers/file-notes-summary.provider';
@@ -27,6 +27,7 @@ let sidebarProvider: SidebarViewProvider;
 let statusBarProvider: StatusBarProvider;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  cleanupLegacyHarnessHooks();
   logInfo('Extension', `Extension activate() started. isConfigured: ${isConfigured()}`);
   kbClient = new KbClient();
 
@@ -166,10 +167,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       historyManager.promptModeSelection(context);
     }),
 
-    vscode.commands.registerCommand('kote.configureIntegrations', async () => {
-      await promptHarnessHooksConfiguration(context);
-    }),
-
     vscode.commands.registerCommand('kote.openSyncTab', () => {
       sidebarProvider.switchToTab('sync');
     }),
@@ -211,11 +208,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       );
     })
   );
-
-  // Check and prompt for external harness hooks with explicit user permission
-  void ensureHarnessHooksConsent(context).catch((err) => {
-    logInfo('Hooks', `Harness hooks check skipped: ${toMessage(err)}`);
-  });
 
   historyManager.startWatching(kbClient, context, getActiveProjectSelection);
 
