@@ -179,21 +179,24 @@ function parseModelChanges(text: string): AntigravityModelTransition[] {
     const inner = block[1];
     const clean = (val: string | undefined): string | undefined => {
       if (!val) return undefined;
-      const v = val.trim().replace(/\.\s*No need.*$/i, '').replace(/\.$/, '').trim();
+      const v = val.trim().replace(/[`]/g, '').replace(/\.\s*No need.*$/i, '').replace(/\.$/, '').trim();
       return v.toLowerCase() === 'none' || !v ? undefined : v;
     };
 
-    const matchDetailed = inner.match(/`Model Selection`\s+from\s+(.*?)\s+to\s+(.*?)(?:\.\s+No need|\.\s*$|\.\s*\n|$)/i);
-    if (matchDetailed) {
-      const from = clean(matchDetailed[1]);
-      const to = clean(matchDetailed[2]);
+    const instructionCutoff = inner.search(/\.\s*(?:No need|If reporting)/i);
+    const statement = (instructionCutoff >= 0 ? inner.slice(0, instructionCutoff) : inner).trim();
+
+    const matchFromTo = statement.match(/`Model Selection`\s+from\s*(.*?)\s+to\s+(.+)/i);
+    if (matchFromTo) {
+      const from = clean(matchFromTo[1]);
+      const to = clean(matchFromTo[2]);
       if (to) {
         transitions.push({ from, to });
         continue;
       }
     }
 
-    const matchTo = inner.match(/`Model Selection`\s+from\s+.*?\s+to\s+([^\n.]+)/i) || inner.match(/model:\s*([^\n<]+)/i);
+    const matchTo = statement.match(/`Model Selection`\s+(?:from\s+.*?\s+)?to\s+(.+)/i) || statement.match(/model:\s*([^\n<]+)/i);
     if (matchTo) {
       const to = clean(matchTo[1]);
       if (to) {

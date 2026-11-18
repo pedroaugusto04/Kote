@@ -246,6 +246,34 @@ test('Sync AI sessions command integration', async (t) => {
 
     fs.rmSync(multiAntiDir, { recursive: true, force: true });
 
+    // Test Antigravity model parsing edge cases (empty 'from' and trailing prompt instruction text)
+    const edgeAntiDir = path.join(TEST_DIR, '.gemini', 'antigravity-cli', 'brain', 'conv-edge-anti');
+    const edgeLogsDir = path.join(edgeAntiDir, '.system_generated', 'logs');
+    fs.mkdirSync(edgeLogsDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(edgeLogsDir, 'transcript.jsonl'),
+      `{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","status":"DONE","content":"<USER_REQUEST>Start</USER_REQUEST><USER_SETTINGS_CHANGE>The user changed setting \`Model Selection\` from  to Claude Opus 4.6 (Thinking). No need to comment on this change if the user doesn't ask about it. If reporting what model you are, please use a human readable name instead of the exact string.\\n</USER_SETTINGS_CHANGE>"}\n` +
+      `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","content":"Doing work"}\n`,
+      'utf8'
+    );
+
+    fs.writeFileSync(
+      path.join(edgeAntiDir, 'statusline.json'),
+      JSON.stringify({
+        model: { id: 'Claude Opus 4.6 (Thinking)', display_name: 'Claude Opus 4.6 (Thinking)' },
+        context_window: { total_input_tokens: 5000, total_output_tokens: 1000 }
+      }),
+      'utf8'
+    );
+
+    const edgeSessions = await new AntigravityHistoryProvider().getRecentSessions();
+    const edgeSession = edgeSessions.find((s) => s.sessionId === 'conv-edge-anti');
+    assert.ok(edgeSession);
+    assert.equal(edgeSession.tokenUsage?.model, 'Claude Opus 4.6 (Thinking)');
+    assert.ok(!edgeSession.tokenUsage?.model.includes('comment on this change'));
+    fs.rmSync(edgeAntiDir, { recursive: true, force: true });
+
     // Test Codex multi-model token extraction
     const { CodexHistoryProvider } = await import('../../cli/dist/ai-history/providers/codex.provider.js');
     const multiCodexDir = path.join(TEST_DIR, '.codex', 'sessions', '2026', '09', '19');
