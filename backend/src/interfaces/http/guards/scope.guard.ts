@@ -4,6 +4,7 @@ import { WorkspaceScopeResolver } from '../../../application/services/content/wo
 import { SCOPED_METADATA_KEY, type ScopedOptions, type ScopedRequest } from '../scope.decorators.js';
 import { RESOLUTION_ERROR_MESSAGES, SCOPE_HEADERS } from './resolution-guards.constants.js';
 import { updateRequestContext } from '../../../observability/request-context.js';
+import type { WorkspaceScope } from '../../../application/models/workspace-scope.models.js';
 
 export function extractScopeSlugs(request: ScopedRequest): { projectSlug?: string; workspaceSlug?: string } {
   const headerProject = request.headers?.[SCOPE_HEADERS.PROJECT_SLUG];
@@ -58,11 +59,28 @@ export class ScopeGuard implements CanActivate {
       return true;
     }
 
-    const scope = await this.scopeResolver.resolve(user.id, {
-      workspaceSlug,
-      projectSlug,
-      allowAllProjects: options.allowAllProjects,
-    });
+    let scope: WorkspaceScope;
+    try {
+      scope = await this.scopeResolver.resolve(user.id, {
+        workspaceSlug,
+        projectSlug: options.project === 'none' ? undefined : projectSlug,
+        allowAllProjects: options.allowAllProjects,
+      });
+    } catch (err) {
+      if (
+        options.project === 'optional' &&
+        err instanceof NotFoundException &&
+        err.message === RESOLUTION_ERROR_MESSAGES.PROJECT_NOT_FOUND
+      ) {
+        scope = await this.scopeResolver.resolve(user.id, {
+          workspaceSlug,
+          projectSlug: undefined,
+          allowAllProjects: options.allowAllProjects,
+        });
+      } else {
+        throw err;
+      }
+    }
 
     request.scope = scope;
     if (scope.workspaceId) {

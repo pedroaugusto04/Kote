@@ -286,7 +286,9 @@ export class KbClient {
     }
 
     if (response.status >= 400) {
-      throw new Error((parsed as { message?: string })?.message ?? `Request failed with status ${response.status}`);
+      const errObj = parsed as { message?: string; error?: { message?: string; code?: string } };
+      const msg = errObj?.error?.message || errObj?.message || `Request failed with status ${response.status}`;
+      throw new Error(msg);
     }
     return parsed as T;
   }
@@ -670,23 +672,55 @@ export class KbClient {
     sourceTitle?: string;
     sourceTimestamp?: string;
   }> {
-    return this.fetch<{
-      ok: boolean;
-      handoffMarkdown: string;
-      sourceProvider?: string;
-      sourceNoteId?: string;
-      sourceTitle?: string;
-      sourceTimestamp?: string;
-    }>('/api/notes/session-handoff', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...payload,
-        workspaceSlug: payload.workspaceSlug || this.config.workspaceSlug || 'default',
-        projectSlug: payload.projectSlug || this.config.defaultProjectSlug,
-      }),
-      timeout: options?.timeout ?? DEFAULT_AI_REQUEST_TIMEOUT_MS,
-      signal: options?.signal,
-    });
+    const workspaceSlug = payload.workspaceSlug || this.config.workspaceSlug || 'default';
+    const projectSlug = payload.projectSlug || this.config.defaultProjectSlug;
+
+    try {
+      return await this.fetch<{
+        ok: boolean;
+        handoffMarkdown: string;
+        sourceProvider?: string;
+        sourceNoteId?: string;
+        sourceTitle?: string;
+        sourceTimestamp?: string;
+      }>('/api/notes/session-handoff', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...payload,
+          workspaceSlug,
+          projectSlug,
+        }),
+        timeout: options?.timeout ?? DEFAULT_AI_REQUEST_TIMEOUT_MS,
+        signal: options?.signal,
+      });
+    } catch (err) {
+      // If the project doesn't exist on the server (e.g. local repo not yet registered),
+      // retry with default fallback project ('inbox')
+      const isProjectNotFound = err instanceof Error && (
+        err.message.includes('Project not found') ||
+        err.message.includes('project_not_found')
+      );
+      if (isProjectNotFound && projectSlug && projectSlug !== SPECIAL_PROJECT_SLUGS.INBOX) {
+        return this.fetch<{
+          ok: boolean;
+          handoffMarkdown: string;
+          sourceProvider?: string;
+          sourceNoteId?: string;
+          sourceTitle?: string;
+          sourceTimestamp?: string;
+        }>('/api/notes/session-handoff', {
+          method: 'POST',
+          body: JSON.stringify({
+            ...payload,
+            workspaceSlug,
+            projectSlug: SPECIAL_PROJECT_SLUGS.INBOX,
+          }),
+          timeout: options?.timeout ?? DEFAULT_AI_REQUEST_TIMEOUT_MS,
+          signal: options?.signal,
+        });
+      }
+      throw err;
+    }
   }
 
   async listProjectDecisions(

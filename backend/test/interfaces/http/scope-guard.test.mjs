@@ -123,6 +123,36 @@ test('ScopeGuard allows optional project requests when neither project nor works
   assert.equal(request.scope, undefined);
 });
 
+test('ScopeGuard falls back to workspace scope when project is optional and projectSlug is not found', async () => {
+  const reflector = createMockReflector({ project: 'optional' });
+  const resolver = {
+    async resolve(userId, input) {
+      if (input.projectSlug === 'nonexistent') {
+        const { NotFoundException } = await import('@nestjs/common');
+        throw new NotFoundException('project_not_found');
+      }
+      return {
+        userId,
+        workspaceId: 'ws-1',
+        workspaceSlug: input.workspaceSlug || 'workspace1',
+        projectId: null,
+        projectSlug: null,
+      };
+    },
+  };
+  const guard = new ScopeGuard(reflector, resolver);
+
+  const request = {
+    user: { id: 'user-1' },
+    body: { projectSlug: 'nonexistent', workspaceSlug: 'workspace1' },
+  };
+
+  const allowed = await guard.canActivate(createMockContext(request));
+  assert.equal(allowed, true);
+  assert.equal(request.scope.projectId, null);
+  assert.equal(request.scope.workspaceSlug, 'workspace1');
+});
+
 test('ScopeGuard resolves the "all" project slug only when the route allows all projects', async () => {
   const { WorkspaceScopeResolver } = await import('../../../dist/application/services/content/workspace-scope-resolver.service.js');
   const resolver = new WorkspaceScopeResolver({

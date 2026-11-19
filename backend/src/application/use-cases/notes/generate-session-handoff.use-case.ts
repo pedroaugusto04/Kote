@@ -55,7 +55,13 @@ export class GenerateSessionHandoffUseCase {
         sourceTitle = note.title;
         sourceTimestamp = note.occurredAt || note.createdAt;
       } else if (input.autoDetectPrevious) {
-        const detected = await this.findLatestSessionNote(userId, input.provider || 'unknown', input.projectSlug);
+        let detected = await this.findLatestSessionNote(userId, input.provider || 'unknown', input.projectSlug);
+        if (!detected && input.projectSlug && input.projectSlug !== 'inbox') {
+          detected = await this.findLatestSessionNote(userId, input.provider || 'unknown', 'inbox');
+          if (!detected) {
+            detected = await this.findLatestSessionNote(userId, input.provider || 'unknown', undefined);
+          }
+        }
         if (detected) {
           transcript = String(detected.markdown || detected.summary || '').trim();
           sourceProvider = detected.source || 'ai-session';

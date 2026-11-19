@@ -85,3 +85,27 @@ test('getFileNotesSummary, findNotesBySnippet, getSessionHandoff and syncProject
   await client.syncProjectCommits('my-project', []);
   assert.equal(capturedCalls[3].options.timeout, 60_000);
 });
+
+test('getSessionHandoff automatically retries with inbox project when server returns project_not_found', async () => {
+  const client = new KbClient();
+  const capturedCalls = [];
+
+  client.fetch = async (urlPath, options) => {
+    capturedCalls.push({ urlPath, body: JSON.parse(options.body) });
+    if (capturedCalls.length === 1) {
+      throw new Error('Project not found.');
+    }
+    return { ok: true, handoffMarkdown: '# Handoff Markdown' };
+  };
+
+  const result = await client.getSessionHandoff({
+    rawText: 'some conversation text',
+    projectSlug: 'vigil',
+  });
+
+  assert.equal(capturedCalls.length, 2);
+  assert.equal(capturedCalls[0].body.projectSlug, 'vigil');
+  assert.equal(capturedCalls[1].body.projectSlug, 'inbox');
+  assert.equal(result.ok, true);
+  assert.equal(result.handoffMarkdown, '# Handoff Markdown');
+});
