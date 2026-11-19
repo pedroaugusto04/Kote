@@ -1,6 +1,8 @@
 services:
   api:
     image: ${KB_API_IMAGE:-ghcr.io/pedroaugusto04/knowledge-base-api:latest}
+    labels:
+      vigil.repo: pedroaugusto04/Knowledge-Base
     restart: unless-stopped
     env_file:
       - .env.prod

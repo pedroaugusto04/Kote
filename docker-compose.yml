@@ -27,6 +27,8 @@ services:
 
   api:
     image: node:22-alpine
+    labels:
+      vigil.repo: pedroaugusto04/Knowledge-Base
     working_dir: /app
     restart: unless-stopped
     init: true
