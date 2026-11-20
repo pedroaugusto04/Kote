@@ -112,14 +112,17 @@ export function formatPullRequestCommentWithSha(
   commentText: string,
   headSha: string,
 ): { comment: string; isTruncated: boolean } {
-  const commentWithSha = `${commentText}\n\n<!-- sha: ${headSha} -->`;
+  const shaTag = `<!-- sha: ${headSha} -->`;
+  const commentWithSha = commentText.includes(shaTag)
+    ? commentText
+    : `${commentText}\n\n${shaTag}`;
   if (commentWithSha.length <= GITHUB_COMMENT_CHAR_LIMIT) {
     return { comment: commentWithSha, isTruncated: false };
   }
   const truncated =
     commentWithSha.substring(0, GITHUB_COMMENT_CHAR_LIMIT - 150) +
     '\n\n... [Comment truncated due to GitHub character limit] \n\n' +
-    `<!-- sha: ${headSha} -->`;
+    shaTag;
   return { comment: truncated, isTruncated: true };
 }
 

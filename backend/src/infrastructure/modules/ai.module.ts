@@ -12,6 +12,7 @@ import { ReviewAnalysisGateway } from '../../application/ports/projects/review-a
 import { GithubIntegrationGateway } from '../../application/ports/integrations/github-integration.port.js';
 import { WeeklySummaryGateway } from '../../application/ports/weekly-summary/weekly-summary.port.js';
 import { AiSessionSynthesisGateway } from '../../application/ports/notes/ai-session-synthesis.gateway.js';
+import { PrReviewAgentGateway } from '../../application/ports/integrations/pr-review-agent.gateway.js';
 
 import { DefaultIngestAgentGateway } from '../ai/ingest-agent.gateway.js';
 import { DefaultProjectBriefAiGateway } from '../ai/project-brief.gateway.js';
@@ -23,6 +24,7 @@ import { DefaultAudioTranscriptionGateway } from '../ai/audio-transcription.gate
 import { DefaultGithubIntegrationGateway } from '../integrations/github-integration.gateway.js';
 import { DefaultWeeklySummaryGateway } from '../ai/weekly-summary.gateway.js';
 import { DefaultAiSessionSynthesisGateway } from '../ai/ai-session-synthesis.gateway.js';
+import { DefaultPrReviewAgentGateway } from '../ai/pr-review-agent.gateway.js';
 import { Gemini001EmbeddingStrategy } from '../ai/strategies/gemini-001-embedding.strategy.js';
 import { Gemini2EmbeddingStrategy } from '../ai/strategies/gemini-2-embedding.strategy.js';
 import { OpenAiEmbeddingStrategy } from '../ai/strategies/openai-embedding.strategy.js';
@@ -38,6 +40,7 @@ const gateways = [
   DefaultGithubIntegrationGateway,
   DefaultWeeklySummaryGateway,
   DefaultAiSessionSynthesisGateway,
+  DefaultPrReviewAgentGateway,
   Gemini001EmbeddingStrategy,
   Gemini2EmbeddingStrategy,
   OpenAiEmbeddingStrategy,
@@ -51,6 +54,7 @@ const gateways = [
   { provide: GithubIntegrationGateway, useExisting: DefaultGithubIntegrationGateway },
   { provide: WeeklySummaryGateway, useExisting: DefaultWeeklySummaryGateway },
   { provide: AiSessionSynthesisGateway, useExisting: DefaultAiSessionSynthesisGateway },
+  { provide: PrReviewAgentGateway, useExisting: DefaultPrReviewAgentGateway },
 ];
 
 @Module({

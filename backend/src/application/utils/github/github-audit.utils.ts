@@ -28,8 +28,8 @@ export type GithubPullRequestPayload = {
     number?: number;
     title?: string;
     body?: string;
-    base?: { sha?: string };
-    head?: { sha?: string };
+    base?: { sha?: string; ref?: string };
+    head?: { sha?: string; ref?: string };
   };
   installation?: { id?: string | number };
   repository?: {

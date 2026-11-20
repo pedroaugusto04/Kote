@@ -11,9 +11,11 @@ import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.r
 import { normalizeHeaders } from '../../../utils/webhook/webhook.utils.js';
 import { AiOperationType } from '../../../../domain/enums/plans.enums.js';
 import { AiEntitlementService } from '../../../services/ai/ai-entitlement.service.js';
-import { NoteEmbeddingRepository } from '../../../ports/notes/note-embedding.repository.js';
-import { EmbeddingQueuePublisher } from '../../../ports/notes/embedding-queue.publisher.js';
-import { AnswerGenerationGateway } from '../../../ports/query/answer-generation.gateway.js';
+import { PrReviewAgentGateway } from '../../../ports/integrations/pr-review-agent.gateway.js';
+import { PrReviewAgentToolsService } from '../../../services/review/pr-review-agent-tools.service.js';
+import { AgentContextTracker } from '../../../services/query/agent-context-tracker.js';
+import { resolveEmbeddingConfig, resolveRagConfig } from '../../../utils/query/query-config.utils.js';
+import { formatPrReviewComment } from '../../../services/review/pr-review-presenter.js';
 import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
 import { GithubRepositoryResolutionService } from '../../../services/integrations/github-repository-resolution.service.js';
 import { AppLogger } from '../../../../observability/logger.js';
@@ -21,10 +23,7 @@ import { githubPrAuditPayload, type GithubPullRequestPayload } from '../../../ut
 import { filterAndTruncateChangedFiles } from '../../../utils/github/github-diff-filter.utils.js';
 import {
   isCommentForShaAlreadyPosted,
-  isRelevantAiComment,
   formatPullRequestCommentWithSha,
-  buildPrContextSummary,
-  searchSemanticPrContextChunks,
   ingestPrReviewNote,
 } from '../../../utils/github/github-review.helpers.js';
 
@@ -35,12 +34,11 @@ export class HandleGithubPullRequestUseCase {
     private readonly webhookEvents: WebhookEventRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly githubIntegrationGateway: GithubIntegrationGateway,
-    private readonly noteEmbeddingRepository: NoteEmbeddingRepository,
-    private readonly answerGenerationGateway: AnswerGenerationGateway,
+    private readonly prReviewAgentGateway: PrReviewAgentGateway,
+    private readonly prReviewAgentToolsService: PrReviewAgentToolsService,
     private readonly aiEntitlement: AiEntitlementService,
     private readonly ingestEntryUseCase: IngestEntryUseCase,
     private readonly githubRepositoryResolution: GithubRepositoryResolutionService,
-    private readonly embeddingQueue: EmbeddingQueuePublisher,
     private readonly contentRepository: ContentRepository,
     private readonly logger: AppLogger,
   ) {}
@@ -297,38 +295,8 @@ export class HandleGithubPullRequestUseCase {
       const comparePayload = await this.githubIntegrationGateway.fetchComparePayload(repoFullName, baseSha, headSha, token);
       const changedFiles = filterAndTruncateChangedFiles(comparePayload.files);
 
-      // Perform semantic search
-      const prTitle = String(body.pull_request?.title || '');
-      const prDescription = String(body.pull_request?.body || '');
-      const searchTerms = [prTitle, prDescription].filter(Boolean).join('\n').trim();
-
-      this.logger.info('github_pr_semantic_search_start', {
-        repository: repoFullName,
-        projectSlug,
-        prNumber: body.pull_request?.number,
-        hasSearchTerms: Boolean(searchTerms),
-      });
-
-      const contextChunks = await searchSemanticPrContextChunks(
-        {
-          embeddingQueue: this.embeddingQueue,
-          noteEmbeddingRepository: this.noteEmbeddingRepository,
-          contentRepository: this.contentRepository,
-          logger: this.logger,
-        },
-        {
-          userId: identity.userId,
-          workspaceSlug: identity.workspaceSlug,
-          searchTerms,
-          minSimilarity: environment.ragMinSimilarity ?? 0.45,
-          repository: repoFullName,
-          projectSlug,
-          prNumber: body.pull_request?.number,
-        },
-      );
-
-      if (contextChunks.length === 0) {
-        this.logger.info('github_pr_no_context', {
+      if (changedFiles.length === 0) {
+        this.logger.info('github_pr_no_changed_files', {
           repository: repoFullName,
           projectSlug,
           prNumber: body.pull_request?.number,
@@ -344,44 +312,76 @@ export class HandleGithubPullRequestUseCase {
           ok: true,
           processed: true,
           commentPosted: false,
-          reason: 'no_matching_notes',
+          reason: 'no_changed_files',
         };
       }
 
-      // Generate the comment
+      const prTitle = String(body.pull_request?.title || '');
+      const prDescription = String(body.pull_request?.body || '');
+
+      // Resolve workspace ID for scope
+      const workspaces = await this.contentRepository.listWorkspaces(identity.userId);
+      const matchedWorkspace = workspaces.find((w) => w.workspaceSlug === identity.workspaceSlug) || workspaces[0];
+      const workspaceId = matchedWorkspace?.id || '';
+      const scope = { workspaceId };
+
+      const embeddingConfig = resolveEmbeddingConfig(environment);
+      const ragConfig = resolveRagConfig(environment);
+      const tracker = new AgentContextTracker();
+
+      const tools = this.prReviewAgentToolsService.buildTools({
+        userId: identity.userId,
+        scope,
+        embeddingConfig,
+        ragConfig,
+        githubToken: token,
+        repoFullName,
+        headSha,
+        tracker,
+      });
+
       const prAiConfig = {
         provider: environment.prContextAiProvider,
         baseUrl: environment.prContextAiBaseUrl,
         model: environment.prContextAiModel,
         apiKey: environment.prContextAiApiKey,
+        maxTurns: 5,
       };
 
-      this.logger.info('github_pr_ai_comment_generation_start', {
+      this.logger.info('github_pr_ai_agent_start', {
         repository: repoFullName,
         projectSlug,
         prNumber: body.pull_request?.number,
-        contextChunksCount: contextChunks.length,
         changedFilesCount: changedFiles.length,
         aiProvider: environment.prContextAiProvider,
         aiModel: environment.prContextAiModel,
       });
 
-      let commentText;
+      let decision;
       try {
-        commentText = await this.answerGenerationGateway.generatePullRequestComment(prAiConfig, {
-          prTitle,
-          prDescription,
-          changedFiles,
-          context: contextChunks,
-        });
-        this.logger.info('github_pr_ai_comment_generated', {
+        decision = await this.prReviewAgentGateway.run(
+          prAiConfig,
+          {
+            repoFullName,
+            prNumber,
+            prTitle,
+            prDescription,
+            baseBranch: String(body.pull_request?.base?.ref || ''),
+            headBranch: String(body.pull_request?.head?.ref || ''),
+            headSha,
+            changedFiles,
+          },
+          tools,
+        );
+        this.logger.info('github_pr_ai_agent_completed', {
           repository: repoFullName,
           projectSlug,
           prNumber: body.pull_request?.number,
-          commentLength: commentText?.length || 0,
+          hasMeaningfulInsights: decision?.hasMeaningfulInsights,
+          insightsCount: decision?.insights?.length || 0,
         });
       } catch (error) {
-        this.logger.error('github_pr_ai_comment_generation_failed', {
+        this.logger.error('github_pr_ai_agent_failed', {
           repository: repoFullName,
           projectSlug,
           prNumber: body.pull_request?.number,
@@ -390,9 +390,8 @@ export class HandleGithubPullRequestUseCase {
         throw error;
       }
 
-
-      if (!isRelevantAiComment(commentText)) {
-        this.logger.info('github_pr_no_relevant_context', {
+      if (!decision || !decision.hasMeaningfulInsights || decision.insights.length === 0) {
+        this.logger.info('github_pr_no_meaningful_insights', {
           repository: repoFullName,
           projectSlug,
           prNumber: body.pull_request?.number,
@@ -408,17 +407,18 @@ export class HandleGithubPullRequestUseCase {
           ok: true,
           processed: true,
           commentPosted: false,
-          reason: 'no_relevant_ai_context',
+          reason: 'no_meaningful_insights',
         };
       }
 
       // Post the comment to the PR
-      const { comment: finalComment, isTruncated } = formatPullRequestCommentWithSha(commentText, headSha);
+      const formattedComment = formatPrReviewComment(decision, headSha, tracker.getSources());
+      const { comment: finalComment, isTruncated } = formatPullRequestCommentWithSha(formattedComment, headSha);
       if (isTruncated) {
         this.logger.warn('github_pr_comment_exceeded_limit', {
           repository: repoFullName,
           prNumber,
-          originalLength: (commentText?.length || 0) + headSha.length,
+          originalLength: formattedComment.length + headSha.length,
         });
       }
 
@@ -438,8 +438,11 @@ export class HandleGithubPullRequestUseCase {
         posted,
       });
 
-      // Generate and ingest a review note based on the first AI analysis (commentText)
-      const contextSummary = buildPrContextSummary(contextChunks);
+      // Generate and ingest a review note based on the AI analysis
+      const contextSummary = tracker.getSources().length > 0
+        ? tracker.getSources().map(s => `- ${s.title}: (${s.path})`).join('\n')
+        : undefined;
+
       const noteId = await ingestPrReviewNote(
         {
           ingestEntryUseCase: this.ingestEntryUseCase,
@@ -447,7 +450,7 @@ export class HandleGithubPullRequestUseCase {
         },
         {
           input,
-          commentText,
+          commentText: finalComment,
           changedFiles,
           contextSummary,
           projectSlug,

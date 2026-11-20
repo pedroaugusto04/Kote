@@ -132,78 +132,6 @@ export async function buildGithubReviewEvent(
 }
 
 // ============================================================================
-// GitHub Pull Request Review Event Builder
-// ============================================================================
-
-export async function buildGithubPrReviewEvent(
-  rawInput: unknown,
-  environment: RuntimeEnvironment,
-  dependencies: {
-    githubIntegrationGateway: GithubIntegrationGateway;
-    reviewAnalysisGateway: ReviewAnalysisGateway;
-    logger: AppLogger;
-  },
-  changedFiles: ChangedFile[],
-  contextSummary?: string,
-): Promise<ReturnType<typeof ingestPayloadSchema.parse>> {
-  const input = rawInput as { headers?: Record<string, string>; body?: GithubPullRequestPayload; rawBody?: string };
-  const body = input.body || {};
-  const logger = dependencies.logger;
-
-  const repoInfo = extractRepositoryInfo(body);
-  const prNumber = Number(body.pull_request?.number || 0);
-
-  logger.info('github_pr_review_activated', {
-    repository: repoInfo.fullName,
-    prNumber,
-    action: body.action,
-    sender: body.sender?.login,
-  });
-
-  const promptPayload = buildPrPromptPayload(repoInfo.fullName, body, changedFiles);
-
-  logger.info('github_pr_review_ai_payload', {
-    repository: repoInfo.fullName,
-    prNumber,
-    filesCount: changedFiles.length,
-    aiProvider: environment.reviewAiProvider,
-    aiModel: environment.reviewAiModel,
-  });
-
-  const analysis = await generateReviewAnalysis(
-    dependencies.reviewAnalysisGateway,
-    buildAiConfig(environment),
-    promptPayload,
-    logger,
-    repoInfo.fullName,
-    String(prNumber),
-  );
-
-  const projectSlug = normalizeProjectSlug(repoInfo.name, repoInfo.fullName);
-  const rawText = buildPrRawText(prNumber, String(body.pull_request?.title || ''), String(body.pull_request?.body || ''), contextSummary);
-
-  return GithubReviewMapper.toIngestPayload({
-    actor: String(body.sender?.login || ''),
-    repoFullName: repoInfo.fullName,
-    repoName: repoInfo.name,
-    prNumber,
-    headSha: String(body.pull_request?.head?.sha || ''),
-    prTitle: String(body.pull_request?.title || ''),
-    prBody: String(body.pull_request?.body || ''),
-    prUrl: String(body.pull_request?.html_url || ''),
-    baseBranch: String(body.pull_request?.base?.ref || ''),
-    headBranch: String(body.pull_request?.head?.ref || ''),
-    baseSha: String(body.pull_request?.base?.sha || ''),
-    projectSlug,
-    rawText,
-    analysis,
-    changedFiles,
-    eventType: 'pr',
-    occurredAt: normalizeOccurredAtToUtc(body.pull_request?.updated_at || body.pull_request?.created_at),
-  });
-}
-
-// ============================================================================
 // Helper Functions
 // ============================================================================
 
@@ -262,23 +190,6 @@ function buildPushPromptPayload(
     files: compare.files.length
       ? compare.files
       : changedFiles.map((filename) => ({ filename, status: 'modified', patch: '' })),
-  };
-}
-
-function buildPrPromptPayload(repoFullName: string, body: GithubPullRequestPayload, changedFiles: ChangedFile[]) {
-  return {
-    repository: repoFullName,
-    pullRequest: {
-      number: Number(body.pull_request?.number || 0),
-      title: String(body.pull_request?.title || ''),
-      description: String(body.pull_request?.body || ''),
-      baseBranch: String(body.pull_request?.base?.ref || ''),
-      headBranch: String(body.pull_request?.head?.ref || ''),
-      baseSha: String(body.pull_request?.base?.sha || ''),
-      headSha: String(body.pull_request?.head?.sha || ''),
-      url: String(body.pull_request?.html_url || ''),
-    },
-    files: changedFiles,
   };
 }
 

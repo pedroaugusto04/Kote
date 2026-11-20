@@ -518,10 +518,30 @@ test('github pull request webhook processes event, searches context, and posts c
     },
   };
 
-  const answerGenerationGatewayMock = {
-    async generatePullRequestComment() {
-      return 'Aqui está o contexto relevante para este PR.';
+  const prReviewAgentGatewayMock = {
+    async run() {
+      return {
+        summary: 'Aqui está o contexto relevante para este PR.',
+        insights: [
+          {
+            title: 'Insight 1',
+            type: 'Architecture',
+            evidence: 'src/index.ts',
+            impact: 'Nenhum',
+            recommendation: 'Aprovado',
+          },
+        ],
+        overallAssessment: {
+          riskLevel: 'Low',
+          suggestedAction: 'Approve',
+        },
+        hasMeaningfulInsights: true,
+      };
     },
+  };
+
+  const prReviewAgentToolsServiceMock = {
+    buildTools: () => [],
   };
 
   const githubRepositoryResolution = new GithubRepositoryResolutionService(
@@ -534,7 +554,6 @@ test('github pull request webhook processes event, searches context, and posts c
   const loggerMock = { info() {}, warn() {}, error() {}, debug() {} };
   const ingestMock = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock, repositories.database,
     repositories.scopeResolver,);
-  const embeddingQueueMock = { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] };
 
   const prLoggerMock = { info() {}, warn() {}, error() {}, debug() {} };
   const handler = new HandleGithubPullRequestUseCase(
@@ -542,12 +561,11 @@ test('github pull request webhook processes event, searches context, and posts c
     repositories.webhookEventRepository,
     repositories.runtimeEnvironmentProvider,
     githubPrGatewayMock,
-    noteEmbeddingRepositoryMock,
-    answerGenerationGatewayMock,
+    prReviewAgentGatewayMock,
+    prReviewAgentToolsServiceMock,
     new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
     ingestMock,
     githubRepositoryResolution,
-    embeddingQueueMock,
     repositories.contentRepository,
     prLoggerMock,
   );
@@ -563,6 +581,159 @@ test('github pull request webhook processes event, searches context, and posts c
   const event = await repositories.getLastWebhookEvent();
   assert.equal(event.status, 'processed');
   assert.equal(event.rawPayload.prNumber, 77);
+});
+
+test('github pull request webhook processes diff and posts comment even when semantic search returns no matching notes', async (t) => {
+  configureEnv();
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.userRepository.createUser({ email: 'pr-no-notes@example.com', displayName: 'PR No Notes User', passwordHash: 'hash', role: 'user' });
+  const workspace = await repositories.contentRepository.upsertWorkspace(user.id, {
+    workspaceSlug: 'default',
+    displayName: 'Default',
+    whatsappChatJid: '',
+    telegramChatId: '',
+    githubRepos: ['acme/api'],
+    projectSlugs: ['inbox', 'platform'],
+    createdAt: '2026-04-27T00:00:00.000Z',
+    updatedAt: '2026-04-27T00:00:00.000Z',
+  });
+  const repo = await repositories.contentRepository.upsertRepository({
+    workspaceId: workspace.id,
+    workspaceSlug: 'default',
+    externalId: '101',
+    fullName: 'acme/api',
+    htmlUrl: 'https://github.com/acme/api',
+    description: null,
+    defaultBranch: null,
+  });
+  await repositories.contentRepository.upsertProject(user.id, {
+    workspaceId: workspace.id,
+    projectSlug: 'platform',
+    displayName: 'Platform',
+    repositories: [repo],
+    workspaceSlug: 'default',
+    defaultTags: ['backend'],
+    enabled: true,
+  });
+  await repositories.externalIdentityRepository.upsertExternalIdentity({
+    userId: user.id,
+    workspaceSlug: 'default',
+    provider: 'github-app',
+    identityType: 'installation_id',
+    externalId: '42',
+    publicMetadata: {},
+  });
+
+  // Create AI credentials for the workspace
+  await repositories.credentialRepository.upsertCredential({
+    userId: user.id,
+    workspaceSlug: 'default',
+    provider: 'pr-context-ai',
+    status: 'connected',
+    encryptedConfig: { enabled: true },
+    publicMetadata: { label: 'PR Context AI', connectedAccount: 'openai' },
+  });
+
+  const noteEmbeddingRepositoryMock = {
+    async findSimilar() {
+      // Simulate no matching notes in knowledge base
+      return [];
+    },
+  };
+
+  let prCommentPosted = false;
+  let postedBody = '';
+  const githubPrGatewayMock = {
+    verifyWebhookSignature() {},
+    async fetchInstallationToken() {
+      return 'github-token';
+    },
+    async fetchInstallationRepositories() {
+      return [{ fullName: 'acme/api' }];
+    },
+    async fetchComparePayload() {
+      return { commits: [], files: [{ filename: 'src/core.ts', status: 'modified', patch: '+const x = 1;' }] };
+    },
+    async fetchPullRequestComments() {
+      return [];
+    },
+    async postPullRequestComment(repoFullName, prNumber, bodyText) {
+      prCommentPosted = true;
+      postedBody = bodyText;
+      return true;
+    },
+  };
+
+  const prReviewAgentGatewayMock = {
+    async run(config, payload) {
+      assert.equal(payload.changedFiles.length, 1);
+      return {
+        summary: 'Análise de código focada no diff.',
+        insights: [
+          {
+            title: 'Análise de código focada no diff.',
+            type: 'Risk',
+            evidence: 'src/diff.ts',
+            impact: 'Nenhum risco detectado',
+            recommendation: 'Manter padrão',
+          },
+        ],
+        overallAssessment: {
+          riskLevel: 'Low',
+          suggestedAction: 'Approve',
+        },
+        hasMeaningfulInsights: true,
+      };
+    },
+  };
+
+  const prReviewAgentToolsServiceMock = {
+    buildTools: () => [],
+  };
+
+  const githubRepositoryResolution = new GithubRepositoryResolutionService(
+    repositories.contentRepository,
+    repositories.credentialRepository,
+    repositories.runtimeEnvironmentProvider,
+    githubPrGatewayMock,
+  );
+
+  const loggerMock = { info() {}, warn() {}, error() {}, debug() {} };
+  const ingestMock = new IngestEntryUseCase(
+    repositories.contentRepository,
+    repositories.runtimeEnvironmentProvider,
+    repositories.noteLifecycleService,
+    loggerMock,
+    repositories.database,
+    repositories.scopeResolver,
+  );
+  const prLoggerMock = { info() {}, warn() {}, error() {}, debug() {} };
+
+  const handler = new HandleGithubPullRequestUseCase(
+    repositories.externalIdentityRepository,
+    repositories.webhookEventRepository,
+    repositories.runtimeEnvironmentProvider,
+    githubPrGatewayMock,
+    prReviewAgentGatewayMock,
+    prReviewAgentToolsServiceMock,
+    new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
+    ingestMock,
+    githubRepositoryResolution,
+    repositories.contentRepository,
+    prLoggerMock,
+  );
+
+  const result = await handler.execute(signedGithubPrInput(githubPrBody('opened', 88)), { synchronous: true });
+  assert.equal(result.ok, true);
+  assert.equal(result.processed, true);
+  assert.equal(result.commentPosted, true);
+  assert.equal(prCommentPosted, true);
+  assert.ok(postedBody.includes('Análise de código focada no diff.'));
+  assert.ok(postedBody.includes('<!-- sha: 2222222 -->'));
+
+  const event = await repositories.getLastWebhookEvent();
+  assert.equal(event.status, 'processed');
+  assert.equal(event.rawPayload.prNumber, 88);
 });
 
 test('github pull request webhook skips processing when title contains skip-kote keyword', async (t) => {
@@ -635,7 +806,6 @@ test('github pull request webhook skips processing when title contains skip-kote
     new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
     null,
     githubRepositoryResolution,
-    {},
     repositories.contentRepository,
     prLoggerMock,
   );
@@ -723,7 +893,6 @@ test('github pull request webhook skips posting comments when a comment already 
     new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
     null,
     githubRepositoryResolution,
-    {},
     repositories.contentRepository,
     prLoggerMock,
   );

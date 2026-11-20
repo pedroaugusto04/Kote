@@ -45,6 +45,7 @@ import {
 import { RagRetrievalService } from '../../application/services/query/rag-retrieval.service.js';
 import { RagContextAssemblerService } from '../../application/services/query/rag-context-assembler.service.js';
 import { AskAgentToolsService } from '../../application/services/query/ask-agent-tools.service.js';
+import { PrReviewAgentToolsService } from '../../application/services/review/pr-review-agent-tools.service.js';
 import { EmbeddingJobProcessorService } from '../../application/services/notes/embedding-job-processor.service.js';
 import { HighPriorityEmbeddingWorker } from '../../application/workers/high-priority-embedding.worker.js';
 import { LowPriorityEmbeddingWorker } from '../../application/workers/low-priority-embedding.worker.js';
@@ -105,6 +106,7 @@ import { NotesController, AskAiController, QueryKnowledgeController } from '../.
     GetAutoActionGlobalUseCase,
     SetAutoActionGlobalUseCase,
     AskAgentToolsService,
+    PrReviewAgentToolsService,
     StandardRagAskKnowledgeUseCase,
     AgentAskKnowledgeUseCase,
     { provide: AskKnowledgeUseCase, useExisting: AgentAskKnowledgeUseCase },
@@ -134,6 +136,7 @@ import { NotesController, AskAiController, QueryKnowledgeController } from '../.
     NoteEventDispatcher,
     NoteLifecycleService,
     AskAgentToolsService,
+    PrReviewAgentToolsService,
     StandardRagAskKnowledgeUseCase,
     AgentAskKnowledgeUseCase,
     AskKnowledgeUseCase,

@@ -34,13 +34,6 @@ export type AnswerGenerationResponse = {
   }>;
 };
 
-export type PrContextAiConfig = {
-  provider: string;
-  baseUrl: string;
-  model: string;
-  apiKey: string;
-};
-
 export abstract class AnswerGenerationGateway {
   abstract generate(
     config: AnswerGenerationConfig,
@@ -52,14 +45,4 @@ export abstract class AnswerGenerationGateway {
     question: string,
     history: AskConversationTurn[],
   ): Promise<string>;
-
-  abstract generatePullRequestComment(
-    config: PrContextAiConfig,
-    payload: {
-      prTitle: string;
-      prDescription: string;
-      changedFiles: Array<{ filename: string; status: string; patch: string }>;
-      context: AnswerContextChunk[];
-    },
-  ): Promise<string | null>;
 }

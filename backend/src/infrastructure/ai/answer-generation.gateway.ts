@@ -8,7 +8,6 @@ import {
   type AnswerGenerationConfig,
   type AnswerGenerationRequest,
   type AnswerGenerationResponse,
-  type PrContextAiConfig,
   type AnswerContextChunk,
 } from '../../application/ports/query/answer-generation.gateway.js';
 import { runChatCompletion } from './openai-compatible-chat.js';
@@ -21,10 +20,6 @@ import {
   buildQueryRewritingPrompt,
   buildQueryRewritingSystemPrompt,
 } from './prompts/query-rewriting.prompt.js';
-import {
-  buildPrReviewPrompt,
-  buildPrReviewSystemPrompt,
-} from './prompts/pr-review.prompt.js';
 
 @Injectable()
 export class DefaultAnswerGenerationGateway extends AnswerGenerationGateway {
@@ -104,40 +99,6 @@ export class DefaultAnswerGenerationGateway extends AnswerGenerationGateway {
       return String(parsed.rewrittenQuery || question).trim();
     } catch {
       return question;
-    }
-  }
-
-  async generatePullRequestComment(
-    config: PrContextAiConfig,
-    payload: {
-      prTitle: string;
-      prDescription: string;
-      changedFiles: Array<{ filename: string; status: string; patch: string }>;
-      context: AnswerContextChunk[];
-    },
-  ): Promise<string | null> {
-    if (config.provider === 'none' || !config.apiKey || !config.model) {
-      return null;
-    }
-
-    const systemPrompt = buildPrReviewSystemPrompt();
-    const userContent = buildPrReviewPrompt(payload);
-
-    try {
-      const content = await runChatCompletion(
-        {
-          provider: config.provider as AiProvider,
-          baseUrl: config.baseUrl,
-          model: config.model,
-          apiKey: config.apiKey,
-          responseFormat: { type: 'text' },
-        },
-        systemPrompt,
-        userContent,
-      );
-      return content || null;
-    } catch {
-      return null;
     }
   }
 }
