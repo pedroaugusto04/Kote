@@ -12,12 +12,14 @@ import {
   fetchGithubRepositoryTree,
   fetchGithubFileContent,
   fetchGithubManifestFiles,
+  createGithubIssue,
 } from '../../adapters/github.js';
 import {
   GithubIntegrationGateway,
   type GithubComparePayload,
   type GithubCommitDiff,
   type GithubInstallationRepository,
+  type GithubCreatedIssue,
   GithubManifestFile,
 } from '../../application/ports/integrations/github-integration.port.js';
 
@@ -100,6 +102,16 @@ export class DefaultGithubIntegrationGateway extends GithubIntegrationGateway {
       defaultBranch,
       token,
     );
+  }
+
+  createIssue(input: {
+    repoFullName: string;
+    title: string;
+    body: string;
+    labels: string[];
+    token: string;
+  }): Promise<GithubCreatedIssue | null> {
+    return createGithubIssue(input);
   }
 }
 

@@ -81,11 +81,11 @@ export const INTEGRATION_MESSAGES = {
   },
   
   PUSH_NOTIFICATIONS: {
-    BROWSER_NOT_SUPPORTED: 'Navegador não suporta notificações Push.',
-    PERMISSION_DENIED: 'Permissão para notificações foi negada.',
-    VAPID_KEY_NOT_CONFIGURED: 'Chave pública VAPID não configurada no servidor.',
-    SUCCESS: 'Notificações Push ativadas com sucesso.',
-    DEACTIVATED: '{name} desativado com sucesso.',
+    BROWSER_NOT_SUPPORTED: 'Browser does not support push notifications.',
+    PERMISSION_DENIED: 'Notification permission was denied.',
+    VAPID_KEY_NOT_CONFIGURED: 'VAPID public key is not configured on the server.',
+    SUCCESS: 'Push notifications enabled successfully.',
+    DEACTIVATED: '{name} deactivated successfully.',
   },
   
   GENERAL: {

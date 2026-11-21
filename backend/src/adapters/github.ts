@@ -345,6 +345,48 @@ export async function fetchGithubFileContent(repoFullName: string, path: string,
   return content;
 }
 
+export type GithubCreatedIssue = {
+  number: number;
+  htmlUrl: string;
+};
+
+export async function createGithubIssue(input: {
+  repoFullName: string;
+  title: string;
+  body: string;
+  labels: string[];
+  token: string;
+}): Promise<GithubCreatedIssue | null> {
+  const { repoFullName, title, body, labels, token } = input;
+  if (!repoFullName || !title || !body || !token) return null;
+  const response = await fetch(`https://api.github.com/repos/${repoFullName}/issues`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/vnd.github+json',
+      authorization: `Bearer ${token}`,
+      'x-github-api-version': '2022-11-28',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      title,
+      body,
+      labels: labels.filter(Boolean),
+    }),
+  });
+  if (response.status === 429) {
+    const retryAfter = parseRateLimitFromHeaders(Object.fromEntries(response.headers.entries()));
+    throw new RateLimitError('GitHub API rate limit exceeded', retryAfter ?? undefined);
+  }
+  if (!response.ok) {
+    return null;
+  }
+  const data = (await response.json()) as { number?: number; html_url?: string };
+  const number = Number(data.number || 0);
+  const htmlUrl = String(data.html_url || '').trim();
+  if (!number || !htmlUrl) return null;
+  return { number, htmlUrl };
+}
+
 export async function fetchGithubManifestFiles(
   repoFullName: string,
   defaultBranch: string,

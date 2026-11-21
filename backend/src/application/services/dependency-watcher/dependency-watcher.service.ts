@@ -10,11 +10,19 @@ import { EmailService } from '../email/email.service.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { UserRepository } from '../../ports/auth/auth.repository.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
-import { AiProvider, SourceChannel, EventType, KnowledgeKind, CanonicalType, Importance, DependencyUrgency } from '../../../contracts/enums.js';
+import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
+import { GithubIntegrationGateway } from '../../ports/integrations/github-integration.port.js';
+import { decryptConfig } from '../../utils/security/credentials-crypto.utils.js';
+import { AiProvider, SourceChannel, EventType, KnowledgeKind, CanonicalType, Importance, DependencyUrgency, CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { DependencyCheckQueuePublisher } from '../../ports/dependency-watcher/dependency-check-queue.publisher.js';
 import { DependencyImportQueuePublisher } from '../../ports/dependency-watcher/dependency-import-queue.publisher.js';
 import { buildIngestPayload } from '../../mappers/ingest.mapper.js';
+import {
+  buildDependencyNoteContent,
+  buildDependencyIssueTitle,
+  buildDependencyIssueBody,
+} from './dependency-issue-presenter.js';
 
 
 @Injectable()
@@ -31,6 +39,8 @@ export class DependencyWatcherService {
     private readonly dependencyCheckQueuePublisher: DependencyCheckQueuePublisher,
     private readonly dependencyImportQueuePublisher: DependencyImportQueuePublisher,
     private readonly logger: AppLogger,
+    private readonly credentialRepository: CredentialRepository,
+    private readonly githubGateway: GithubIntegrationGateway,
   ) {}
 
   async runCheck(checkIntervalHours: number = 24): Promise<{ queued: number; workspaces: number }> {
@@ -184,6 +194,10 @@ export class DependencyWatcherService {
       await this.sendAlertEmail(record, versionInfo, analysis);
     }
 
+    if (this.shouldCreateGithubIssue(analysis.urgency)) {
+      await this.createGithubHealIssue(record, versionInfo, analysis);
+    }
+
     await this.dependencyWatcherRepository.update(record.id, {
       latestSeenVersion: versionInfo.version,
       lastAlertedAt: new Date(),
@@ -225,7 +239,7 @@ export class DependencyWatcherService {
   }
 
   private async createNote(record: DependencyWatchRecord, versionInfo: RegistryVersionInfo, analysis: DependencyAlertResult) {
-    const content = this.buildNoteContent(record, versionInfo, analysis);
+    const content = buildDependencyNoteContent(record, versionInfo, analysis);
     const projectSlug = await this.resolveProjectSlug(record);
     
     this.logger.info('dependency_watcher_creating_note', {
@@ -284,45 +298,6 @@ export class DependencyWatcherService {
     return project?.projectSlug || '';
   }
 
-  private buildNoteContent(record: DependencyWatchRecord, versionInfo: RegistryVersionInfo, analysis: DependencyAlertResult): string {
-    const sections = [];
-
-    sections.push(`## Summary`);
-    sections.push(analysis.summary);
-    sections.push('');
-
-    sections.push(`## Version Information`);
-    sections.push(`- **Package**: ${record.packageName}`);
-    sections.push(`- **Current Version**: ${record.currentVersion}`);
-    sections.push(`- **Latest Version**: ${versionInfo.version}`);
-    sections.push(`- **Ecosystem**: ${record.ecosystem}`);
-    sections.push('');
-
-    if (analysis.breakingChanges && analysis.breakingChanges.length > 0) {
-      sections.push(`## Breaking Changes`);
-      analysis.breakingChanges.forEach((change: string) => {
-        sections.push(`- ${change}`);
-      });
-      sections.push('');
-    }
-
-    if (analysis.nextSteps && analysis.nextSteps.length > 0) {
-      sections.push(`## Next Steps`);
-      analysis.nextSteps.forEach((step: string) => {
-        sections.push(`- ${step}`);
-      });
-      sections.push('');
-    }
-
-    if (versionInfo.repositoryUrl) {
-      sections.push(`## Links`);
-      sections.push(`- Repository: ${versionInfo.repositoryUrl}`);
-      sections.push('');
-    }
-
-    return sections.join('\n');
-  }
-
   private async sendAlertEmail(record: DependencyWatchRecord, versionInfo: RegistryVersionInfo, analysis: DependencyAlertResult) {
     const env = this.environmentProvider.read();
     const user = await this.userRepository.findUserById(record.userId);
@@ -351,6 +326,118 @@ export class DependencyWatcherService {
         repositoryUrl: versionInfo.repositoryUrl,
         frontUrl: env.apiPublicBaseUrl || '',
       },
+    });
+  }
+
+  private shouldCreateGithubIssue(urgency: string): boolean {
+    const env = this.environmentProvider.read();
+    const configured = Array.isArray(env.dependencyWatcherGithubIssueUrgencies) && env.dependencyWatcherGithubIssueUrgencies.length > 0
+      ? env.dependencyWatcherGithubIssueUrgencies
+      : [DependencyUrgency.Critical];
+    return configured.includes(String(urgency || '').toLowerCase());
+  }
+
+  private async createGithubHealIssue(
+    record: DependencyWatchRecord,
+    versionInfo: RegistryVersionInfo,
+    analysis: DependencyAlertResult,
+  ): Promise<void> {
+    if (!record.repositoryId) {
+      return;
+    }
+
+    try {
+      const project = await this.findProjectByRepository(record);
+      const repo = project?.repositories.find((item) => item.id === record.repositoryId);
+      if (!repo?.fullName) {
+        this.logger.warn('dependency_watcher_github_issue_repository_not_found', {
+          recordId: record.id,
+          packageName: record.packageName,
+          repositoryId: record.repositoryId,
+        });
+        return;
+      }
+
+      const token = await this.resolveGithubIssueToken(record, repo.fullName);
+      if (!token) {
+        return;
+      }
+
+      const env = this.environmentProvider.read();
+      const label = String(env.dependencyWatcherGithubIssueLabel || 'heal-agent').trim() || 'heal-agent';
+      const title = buildDependencyIssueTitle({
+        urgency: analysis.urgency,
+        packageName: record.packageName,
+        currentVersion: record.currentVersion,
+        targetVersion: versionInfo.version,
+      });
+      const body = buildDependencyIssueBody({
+        record,
+        versionInfo,
+        analysis,
+      });
+
+      const created = await this.githubGateway.createIssue({
+        repoFullName: repo.fullName,
+        title,
+        body,
+        labels: [label],
+        token,
+      });
+
+      if (created) {
+        this.logger.info('dependency_watcher_github_issue_created', {
+          repository: repo.fullName,
+          issueNumber: created.number,
+          issueUrl: created.htmlUrl,
+          packageName: record.packageName,
+          version: versionInfo.version,
+          urgency: analysis.urgency,
+          label,
+        });
+      }
+    } catch (error) {
+      this.logger.error('dependency_watcher_github_issue_failed', {
+        recordId: record.id,
+        packageName: record.packageName,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  private async resolveGithubIssueToken(
+    record: DependencyWatchRecord,
+    repoFullName: string,
+  ): Promise<string | null> {
+    const env = this.environmentProvider.read();
+    if (env.dependencyWatcherGithubToken) {
+      return env.dependencyWatcherGithubToken;
+    }
+
+    const credential = await this.credentialRepository.findCredential(
+      record.userId,
+      record.workspaceSlug,
+      IntegrationProvider.GithubApp,
+    );
+    if (!credential || credential.status !== CredentialRecordStatus.Connected || credential.revokedAt) {
+      this.logger.warn('dependency_watcher_github_issue_credential_unavailable', {
+        recordId: record.id,
+        workspaceSlug: record.workspaceSlug,
+        repository: repoFullName,
+      });
+      return null;
+    }
+
+    const config = decryptConfig(credential.encryptedConfig, this.environmentProvider) as { installationId?: string };
+    const installationId = String(config.installationId || '').trim();
+    if (!env.githubAppId || !env.githubAppPrivateKey || !installationId) {
+      return null;
+    }
+
+    return this.githubGateway.fetchInstallationToken({
+      appId: env.githubAppId,
+      privateKey: env.githubAppPrivateKey,
+      installationId,
     });
   }
 

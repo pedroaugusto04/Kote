@@ -54,6 +54,9 @@ export type RuntimeEnvironment = {
   dependencyWatcherAiBaseUrl: string;
   dependencyWatcherAiModel: string;
   dependencyWatcherAiApiKey: string;
+  dependencyWatcherGithubIssueUrgencies: string[];
+  dependencyWatcherGithubIssueLabel: string;
+  dependencyWatcherGithubToken?: string;
   embeddingAiProvider: AiProvider;
   embeddingAiBaseUrl: string;
   embeddingAiModel: string;

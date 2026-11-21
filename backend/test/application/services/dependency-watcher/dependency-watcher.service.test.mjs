@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { DependencyWatcherService } from '../../../../dist/application/services/dependency-watcher/dependency-watcher.service.js';
 import { DependencyEcosystem } from '../../../../dist/domain/enums/dependency.enums.js';
 import { AiProvider } from '../../../../dist/contracts/enums.js';
+import { encryptConfig } from '../../../../dist/application/utils/security/credentials-crypto.utils.js';
 
 describe('Backend: Dependency Watcher Service', () => {
   let service;
@@ -18,6 +19,8 @@ describe('Backend: Dependency Watcher Service', () => {
   let mockDependencyCheckQueuePublisher;
   let mockDependencyImportQueuePublisher;
   let mockLogger;
+  let mockCredentialRepository;
+  let mockGithubGateway;
   let checkPublished;
   let importPublished;
 
@@ -134,6 +137,15 @@ describe('Backend: Dependency Watcher Service', () => {
       },
     };
 
+    mockCredentialRepository = {
+      findCredential: async () => null,
+    };
+
+    mockGithubGateway = {
+      fetchInstallationToken: async () => '',
+      createIssue: async () => null,
+    };
+
     service = new DependencyWatcherService(
       mockDependencyWatcherRepository,
       mockDependencyAlertGateway,
@@ -146,6 +158,8 @@ describe('Backend: Dependency Watcher Service', () => {
       mockDependencyCheckQueuePublisher,
       mockDependencyImportQueuePublisher,
       mockLogger,
+      mockCredentialRepository,
+      mockGithubGateway,
     );
   });
 
@@ -221,6 +235,181 @@ describe('Backend: Dependency Watcher Service', () => {
 
       assert.equal(result.queued, 0);
       assert.equal(importPublished.length, 0);
+    });
+
+    it('should create a GitHub issue with the heal-agent label when update urgency matches configured urgencies', async () => {
+      const createdIssues = [];
+      const testEncryptionKey = Buffer.alloc(32, 7).toString('base64');
+      mockEnvironmentProvider.read = () => ({
+        ...mockEnvironment,
+        credentialsEncryptionKey: testEncryptionKey,
+        githubAppId: 'app-123',
+        githubAppPrivateKey: 'fake-private-key',
+        dependencyWatcherGithubIssueUrgencies: ['critical'],
+        dependencyWatcherGithubIssueLabel: 'heal-agent',
+      });
+
+      mockDependencyAlertGateway.analyze = async () => ({
+        urgency: 'critical',
+        summary: 'Remote code execution vulnerability fixed in 4.19.0',
+        breakingChanges: ['Removed legacy query parser option'],
+        nextSteps: ['Upgrade express to 4.19.0'],
+      });
+
+      const mockCredentialRepository = {
+        findCredential: async () => ({
+          status: 'connected',
+          revokedAt: null,
+          encryptedConfig: encryptConfig({ installationId: 'inst-999' }, mockEnvironmentProvider),
+        }),
+      };
+
+      const mockGithubGateway = {
+        fetchInstallationToken: async ({ appId, installationId }) => {
+          assert.equal(appId, 'app-123');
+          assert.equal(installationId, 'inst-999');
+          return 'ghs_installation_token';
+        },
+        createIssue: async (input) => {
+          createdIssues.push(input);
+          return { number: 77, htmlUrl: 'https://github.com/owner/repo/issues/77' };
+        },
+      };
+
+      const serviceWithGithub = new DependencyWatcherService(
+        mockDependencyWatcherRepository,
+        mockDependencyAlertGateway,
+        mockRegistryStrategyProvider,
+        mockIngestEntryUseCase,
+        mockEmailService,
+        mockEnvironmentProvider,
+        mockUserRepository,
+        mockContentRepository,
+        mockDependencyCheckQueuePublisher,
+        mockDependencyImportQueuePublisher,
+        mockLogger,
+        mockCredentialRepository,
+        mockGithubGateway,
+      );
+
+      const updated = await serviceWithGithub.checkPackage(mockRecord);
+      assert.equal(updated, true);
+      assert.equal(createdIssues.length, 1);
+      assert.equal(createdIssues[0].repoFullName, 'owner/repo');
+      assert.equal(createdIssues[0].token, 'ghs_installation_token');
+      assert.deepEqual(createdIssues[0].labels, ['heal-agent']);
+      assert.ok(createdIssues[0].title.includes('[CRITICAL Dependency Update] express: 4.18.0 → 4.19.0'));
+      assert.ok(createdIssues[0].body.includes('<!-- kote-dependency:express@4.19.0 -->'));
+    });
+
+    it('should create a GitHub issue using dedicated DEPENDENCY_WATCHER_GITHUB_TOKEN without requiring GithubApp credential', async () => {
+      const createdIssues = [];
+      mockDependencyAlertGateway.analyze = async () => ({
+        urgency: 'critical',
+        summary: 'Security vulnerability and breaking API change',
+        breakingChanges: ['Express 4.19 requires new middleware signatures'],
+        nextSteps: ['Run tests after update'],
+      });
+
+      const mockCredentialRepository = {
+        findCredential: async () => null, // No GitHub App credential connected
+      };
+
+      const mockGithubGateway = {
+        fetchInstallationToken: async () => {
+          throw new Error('Should not be called when dedicated token is configured');
+        },
+        createIssue: async (input) => {
+          createdIssues.push(input);
+          return { number: 79, htmlUrl: 'https://github.com/owner/repo/issues/79' };
+        },
+      };
+
+      mockEnvironmentProvider.read = () => ({
+        ...mockEnvironment,
+        dependencyWatcherGithubToken: 'ghp_dedicated_pat_token',
+        dependencyWatcherGithubIssueUrgencies: ['critical'],
+        dependencyWatcherGithubIssueLabel: 'heal-agent',
+      });
+
+      const serviceWithDedicatedToken = new DependencyWatcherService(
+        mockDependencyWatcherRepository,
+        mockDependencyAlertGateway,
+        mockRegistryStrategyProvider,
+        mockIngestEntryUseCase,
+        mockEmailService,
+        mockEnvironmentProvider,
+        mockUserRepository,
+        mockContentRepository,
+        mockDependencyCheckQueuePublisher,
+        mockDependencyImportQueuePublisher,
+        mockLogger,
+        mockCredentialRepository,
+        mockGithubGateway,
+      );
+
+      const updated = await serviceWithDedicatedToken.checkPackage(mockRecord);
+      assert.equal(updated, true);
+      assert.equal(createdIssues.length, 1);
+      assert.equal(createdIssues[0].repoFullName, 'owner/repo');
+      assert.equal(createdIssues[0].token, 'ghp_dedicated_pat_token');
+      assert.deepEqual(createdIssues[0].labels, ['heal-agent']);
+      assert.ok(createdIssues[0].title.includes('[CRITICAL Dependency Update] express: 4.18.0 → 4.19.0'));
+      assert.ok(createdIssues[0].body.includes('<!-- kote-dependency:express@4.19.0 -->'));
+    });
+
+    it('should not create a GitHub issue when update urgency is not in configured urgencies', async () => {
+      const createdIssues = [];
+      mockDependencyAlertGateway.analyze = async () => ({
+        urgency: 'optional',
+        summary: 'Minor documentation and types update',
+        breakingChanges: [],
+        nextSteps: [],
+      });
+
+      const mockCredentialRepository = {
+        findCredential: async () => ({
+          status: 'connected',
+          revokedAt: null,
+          encryptedConfig: JSON.stringify({ installationId: 'inst-999' }),
+        }),
+      };
+
+      const mockGithubGateway = {
+        fetchInstallationToken: async () => 'ghs_installation_token',
+        createIssue: async (input) => {
+          createdIssues.push(input);
+          return { number: 78, htmlUrl: 'https://github.com/owner/repo/issues/78' };
+        },
+      };
+
+      mockEnvironmentProvider.read = () => ({
+        ...mockEnvironment,
+        githubAppId: 'app-123',
+        githubAppPrivateKey: 'fake-private-key',
+        dependencyWatcherGithubIssueUrgencies: ['critical'],
+        dependencyWatcherGithubIssueLabel: 'heal-agent',
+      });
+
+      const serviceWithGithub = new DependencyWatcherService(
+        mockDependencyWatcherRepository,
+        mockDependencyAlertGateway,
+        mockRegistryStrategyProvider,
+        mockIngestEntryUseCase,
+        mockEmailService,
+        mockEnvironmentProvider,
+        mockUserRepository,
+        mockContentRepository,
+        mockDependencyCheckQueuePublisher,
+        mockDependencyImportQueuePublisher,
+        mockLogger,
+        mockCredentialRepository,
+        mockGithubGateway,
+      );
+
+      const updated = await serviceWithGithub.checkPackage(mockRecord);
+      assert.equal(updated, true);
+      assert.equal(createdIssues.length, 0);
     });
   });
 });
