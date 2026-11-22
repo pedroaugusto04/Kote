@@ -70,6 +70,9 @@ export async function runChatCompletion(
   const langfuse = getLangfuse();
   const trace = langfuse?.trace({
     name: 'kote:chat-completion',
+    sessionId: 'kote-system',
+    userId: 'kote-backend',
+    tags: ['kote', 'chat-completion', String(config.provider)],
     metadata: { provider: config.provider, model: config.model },
     input: { systemPrompt, userContent },
   });

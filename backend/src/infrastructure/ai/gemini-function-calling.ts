@@ -70,6 +70,9 @@ export async function runGeminiLoop<T>(
   const langfuse = getLangfuse();
   const trace = langfuse?.trace({
     name: 'kote:gemini-agent-loop',
+    sessionId: 'kote-agent',
+    userId: 'kote-user',
+    tags: ['kote', 'gemini-agent-loop', 'function-calling'],
     metadata: { model: config.model, maxTurns },
     input: { systemPrompt, userMessage, toolCount: tools.length },
   });

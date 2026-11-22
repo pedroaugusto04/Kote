@@ -61,6 +61,9 @@ export async function runOpenAiLoop<T>(
   const langfuse = getLangfuse();
   const trace = langfuse?.trace({
     name: 'kote:openai-agent-loop',
+    sessionId: 'kote-agent',
+    userId: 'kote-user',
+    tags: ['kote', 'agent-loop', 'tool-calling', String(config.provider)],
     metadata: { provider: config.provider, model: config.model, maxTurns },
     input: { systemPrompt, userMessage, toolCount: tools.length },
   });
