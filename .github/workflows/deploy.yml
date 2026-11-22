@@ -281,6 +281,10 @@ jobs:
           # Email branding
           APP_NAME: ${{ vars.APP_NAME || 'Knowledge Base' }}
           APP_LOGO_URL: ${{ vars.APP_LOGO_URL || '' }}
+          # Langfuse Observability
+          LANGFUSE_PUBLIC_KEY: ${{ vars.LANGFUSE_PUBLIC_KEY || secrets.LANGFUSE_PUBLIC_KEY || '' }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY || '' }}
+          LANGFUSE_BASE_URL: ${{ vars.LANGFUSE_BASE_URL || '' }}
         run: bash scripts/deploy/generate-backend-env.sh .deploy/backend.env
 
       - name: Validate production environment config

@@ -201,6 +201,10 @@ keys=(
   # Email branding
   APP_NAME
   APP_LOGO_URL
+  # Langfuse Observability
+  LANGFUSE_PUBLIC_KEY
+  LANGFUSE_SECRET_KEY
+  LANGFUSE_BASE_URL
 )
 
 for key in "${keys[@]}"; do

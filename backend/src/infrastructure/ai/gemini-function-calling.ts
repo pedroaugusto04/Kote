@@ -5,6 +5,7 @@ import type { AgentTool } from '../../contracts/agent-tool.js';
 import type { AnswerGenerationResponse } from '../../application/ports/query/answer-generation.gateway.js';
 
 import { fetchWithAiRetry, type AiRetryOptions } from './ai-retry.js';
+import { getLangfuse } from './langfuse.js';
 
 export type GeminiAgentConfig = {
   baseUrl: string;
@@ -66,6 +67,13 @@ export async function runGeminiLoop<T>(
     parts: [{ text: userMessage }],
   });
 
+  const langfuse = getLangfuse();
+  const trace = langfuse?.trace({
+    name: 'kote:gemini-agent-loop',
+    metadata: { model: config.model, maxTurns },
+    input: { systemPrompt, userMessage, toolCount: tools.length },
+  });
+
   for (let turn = 0; turn < maxTurns; turn++) {
     const isLastTurn = turn === maxTurns - 1;
     const requestBody: Record<string, unknown> = {
@@ -85,6 +93,15 @@ export async function runGeminiLoop<T>(
       },
     };
 
+    const turnStartTime = new Date();
+    const generation = trace?.generation({
+      name: `gemini-turn-${turn + 1}`,
+      model: config.model,
+      modelParameters: { temperature: 0.2 },
+      input: contents,
+      startTime: turnStartTime,
+    });
+
     let response: Response;
     try {
       response = await fetchWithAiRetry(
@@ -98,6 +115,11 @@ export async function runGeminiLoop<T>(
         config.retryOptions,
       );
     } catch (error) {
+      generation?.end({
+        output: { error: String(error) },
+        level: 'ERROR',
+        statusMessage: String(error),
+      });
       throw new GeminiAgentExecutionError('gemini_agent_request_failed', {
         model: config.model,
         endpoint: endpoint.replace(/key=[^&]+/, 'key=***'),
@@ -107,6 +129,11 @@ export async function runGeminiLoop<T>(
 
     const responseText = await response.text();
     if (!response.ok) {
+      generation?.end({
+        output: responseText,
+        level: 'ERROR',
+        statusMessage: `${response.status} ${response.statusText}`,
+      });
       throw new GeminiAgentExecutionError('gemini_agent_request_rejected', {
         model: config.model,
         endpoint: endpoint.replace(/key=[^&]+/, 'key=***'),
@@ -119,6 +146,11 @@ export async function runGeminiLoop<T>(
     try {
       data = JSON.parse(responseText);
     } catch (error) {
+      generation?.end({
+        output: responseText,
+        level: 'ERROR',
+        statusMessage: 'Invalid JSON',
+      });
       throw new GeminiAgentExecutionError('gemini_agent_invalid_json', {
         model: config.model,
         endpoint: endpoint.replace(/key=[^&]+/, 'key=***'),
@@ -127,6 +159,17 @@ export async function runGeminiLoop<T>(
         cause: error,
       });
     }
+
+    generation?.end({
+      output: data.candidates?.[0],
+      usage: data.usageMetadata
+        ? {
+            promptTokens: data.usageMetadata.promptTokenCount,
+            completionTokens: data.usageMetadata.candidatesTokenCount,
+            totalTokens: data.usageMetadata.totalTokenCount,
+          }
+        : undefined,
+    });
 
     const candidate = data.candidates?.[0];
     const parts = candidate?.content?.parts || [];
@@ -141,6 +184,13 @@ export async function runGeminiLoop<T>(
         const call = part.functionCall;
         const tool = toolMap.get(call.name);
 
+        const toolStartTime = new Date();
+        const span = trace?.span({
+          name: `tool:${call.name}`,
+          input: call.args || {},
+          startTime: toolStartTime,
+        });
+
         let toolOutput: unknown;
         if (tool) {
           try {
@@ -151,6 +201,10 @@ export async function runGeminiLoop<T>(
         } else {
           toolOutput = { error: `Tool not found: ${call.name}` };
         }
+
+        span?.end({
+          output: toolOutput,
+        });
 
         responseParts.push({
           functionResponse: {
@@ -177,9 +231,11 @@ export async function runGeminiLoop<T>(
     // Model did not call a function; it provided text
     const textPart = parts.find((p: any) => typeof p.text === 'string');
     const finalText = textPart?.text || '';
+    trace?.update({ output: finalText });
     return parser(finalText);
   }
 
+  trace?.update({ output: 'max_turns_fallback' });
   return fallback();
 }
 

@@ -74,7 +74,7 @@ function runCommand(cmd, args = [], env = {}) {
 // Helper para rodar o linter de forma resiliente ao Node v18 local
 function runLinter() {
   console.log('\n🔍 Executando: npm run lint');
-  const lintResult = spawnSync('npm', ['run', 'lint'], { stdio: 'pipe', encoding: 'utf8' });
+  const lintResult = spawnSync('npm', ['run', 'lint'], { stdio: 'pipe', encoding: 'utf8', cwd: repositoryRoot });
   if (lintResult.status !== 0) {
     const output = (lintResult.stdout || '') + (lintResult.stderr || '');
     if (output.includes('util.styleText is not a function')) {
