@@ -317,7 +317,7 @@ export function buildReadme(): string {
 }
 
 function markdownCell(value: unknown): string {
-  return String(value ?? '').replace(/\|/g, '\\\|').replace(/\r?\n/g, ' ').trim() || '—';
+  return String(value ?? '').replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ').trim() || '—';
 }
 
 export function buildIndex(input: {

@@ -64,7 +64,11 @@ export class StripePaymentGateway implements IPaymentGateway {
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     this.ensureConfigured();
-    const url = `https://api.stripe.com/v1${path}`;
+    if (!path.startsWith('/') || path.includes('..')) {
+      throw new Error(`Invalid Stripe API path: ${path}`);
+    }
+    const cleanPath = path.replace(/^\/+/, '');
+    const url = new URL(cleanPath, 'https://api.stripe.com/v1/').toString();
     const headers = {
       'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`,
       'Content-Type': 'application/x-www-form-urlencoded',

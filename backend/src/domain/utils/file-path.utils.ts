@@ -1,8 +1,17 @@
 export function normalizeFilePath(value: unknown): string {
-  return String(value || '')
+  let path = String(value || '')
     .trim()
-    .replace(/\\/g, '/')
-    .replace(/^\.\/+/, '')
-    .replace(/^\/+/, '')
-    .replace(/\/+$/, '');
+    .replace(/\\/g, '/');
+
+  while (path.startsWith('./')) {
+    path = path.slice(2);
+  }
+  while (path.startsWith('/')) {
+    path = path.slice(1);
+  }
+  while (path.endsWith('/')) {
+    path = path.slice(0, -1);
+  }
+
+  return path;
 }

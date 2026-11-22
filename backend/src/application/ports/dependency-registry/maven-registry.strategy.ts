@@ -1,5 +1,6 @@
 import { RegistryStrategy, type RegistryVersionInfo } from './registry-strategy.interface.js';
 import { isMavenPrerelease } from '../../utils/dependency/version.utils.js';
+import { isTrustedRepositoryUrl } from '../../utils/dependency/repository-url.utils.js';
 
 export class MavenRegistryStrategy extends RegistryStrategy {
   ecosystem = 'maven';
@@ -88,7 +89,7 @@ export class MavenRegistryStrategy extends RegistryStrategy {
   }
 
   private extractRepositoryUrl(projectUrl?: string): string {
-    if (projectUrl && (projectUrl.includes('github.com') || projectUrl.includes('gitlab.com'))) {
+    if (projectUrl && isTrustedRepositoryUrl(projectUrl)) {
       return projectUrl;
     }
     return '';

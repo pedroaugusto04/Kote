@@ -23,6 +23,9 @@ concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 env:
   FRONTEND_DEPLOY_PATH: ${{ vars.FRONTEND_DEPLOY_PATH || '/var/www/knowledge-base' }}
   RELOAD_NGINX: ${{ vars.RELOAD_NGINX || 'true' }}

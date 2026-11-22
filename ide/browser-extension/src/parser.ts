@@ -39,19 +39,19 @@ export function formatNoteWithFrontmatter(
   ];
 
   if (payload.author) {
-    frontmatter.push(`author: "${payload.author.replace(/"/g, '\\"')}"`);
+    frontmatter.push(`author: "${payload.author.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`);
   }
   if (payload.site) {
-    frontmatter.push(`site: "${payload.site.replace(/"/g, '\\"')}"`);
+    frontmatter.push(`site: "${payload.site.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`);
   }
   if (payload.publishedAt) {
-    frontmatter.push(`publishedAt: "${payload.publishedAt.replace(/"/g, '\\"')}"`);
+    frontmatter.push(`publishedAt: "${payload.publishedAt.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`);
   }
 
   frontmatter.push(`clippedAt: "${new Date().toISOString()}"`);
 
   if (tags.length > 0) {
-    frontmatter.push(`tags: [${tags.map((t) => `"${t}"`).join(', ')}]`);
+    frontmatter.push(`tags: [${tags.map((t) => `"${t.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`).join(', ')}]`);
   }
 
   frontmatter.push('---');

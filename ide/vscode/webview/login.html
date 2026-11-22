@@ -403,9 +403,13 @@
           // Switch to workspace selection step
           document.getElementById('stepLogin').style.display = 'none';
           const select = document.getElementById('workspaceSelect');
-          select.innerHTML = msg.workspaces.map(w => 
-            `<option value="${w.workspaceSlug}">${w.displayName || w.workspaceSlug}</option>`
-          ).join('');
+          select.innerHTML = '';
+          (msg.workspaces || []).forEach(w => {
+            const opt = document.createElement('option');
+            opt.value = w.workspaceSlug;
+            opt.textContent = w.displayName || w.workspaceSlug;
+            select.appendChild(opt);
+          });
           document.getElementById('stepWorkspaces').classList.add('active');
         }
         break;

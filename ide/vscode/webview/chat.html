@@ -944,8 +944,9 @@
 
     function escHtml(s) {
       return String(s || '')
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
+    function escAttr(s) { return escHtml(s); }
 
     // ── Render messages ───────────────────────────────────────────────────────
 
@@ -1063,10 +1064,10 @@
           if (m.mediaType === 'image') {
             return `
                 <div class="media-item">
-                  <img src="data:${m.mimeType};base64,${m.mediaBase64}" style="max-width: 100%; border-radius: 4px; border: 1px solid var(--vscode-widget-border, #ccc);" />
+                  <img src="data:${escAttr(m.mimeType)};base64,${escAttr(m.mediaBase64)}" style="max-width: 100%; border-radius: 4px; border: 1px solid var(--vscode-widget-border, #ccc);" />
                   <div style="font-size: 0.8em; opacity: 0.8; margin-top: 2px; display: flex; align-items: center; justify-content: space-between;">
                     <span>🖼 ${escHtml(m.fileName)} (${(m.sizeBytes / 1024).toFixed(1)} KB)</span>
-                    <a href="#" class="download-link" data-filename="${escHtml(m.fileName)}" data-base64="${m.mediaBase64}" style="color: var(--vscode-textLink-foreground);">Download</a>
+                    <a href="#" class="download-link" data-filename="${escAttr(m.fileName)}" data-base64="${escAttr(m.mediaBase64)}" style="color: var(--vscode-textLink-foreground);">Download</a>
                   </div>
                 </div>
               `;
@@ -1075,16 +1076,16 @@
                 <div class="media-item">
                   <div style="font-size: 0.8em; opacity: 0.8; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;">
                     <span>🔊 ${escHtml(m.fileName)} (${(m.sizeBytes / 1024).toFixed(1)} KB)</span>
-                    <a href="#" class="download-link" data-filename="${escHtml(m.fileName)}" data-base64="${m.mediaBase64}" style="color: var(--vscode-textLink-foreground);">Download</a>
+                    <a href="#" class="download-link" data-filename="${escAttr(m.fileName)}" data-base64="${escAttr(m.mediaBase64)}" style="color: var(--vscode-textLink-foreground);">Download</a>
                   </div>
-                  <audio controls src="data:${m.mimeType};base64,${m.mediaBase64}" style="width: 100%; max-height: 40px; margin-top: 4px;"></audio>
+                  <audio controls src="data:${escAttr(m.mimeType)};base64,${escAttr(m.mediaBase64)}" style="width: 100%; max-height: 40px; margin-top: 4px;"></audio>
                 </div>
               `;
           } else {
             return `
                 <div class="media-item" style="padding: 6px 8px; background: rgba(0,0,0,0.05); border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">
                   <span style="font-size: 0.9em; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">📄 ${escHtml(m.fileName)} (${(m.sizeBytes / 1024).toFixed(1)} KB)</span>
-                  <a href="#" class="download-link" data-filename="${escHtml(m.fileName)}" data-base64="${m.mediaBase64}" style="font-size: 0.8em; color: var(--vscode-textLink-foreground); font-weight: bold; margin-left: 8px;">Download</a>
+                  <a href="#" class="download-link" data-filename="${escAttr(m.fileName)}" data-base64="${escAttr(m.mediaBase64)}" style="font-size: 0.8em; color: var(--vscode-textLink-foreground); font-weight: bold; margin-left: 8px;">Download</a>
                 </div>
               `;
           }

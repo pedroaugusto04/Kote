@@ -84,8 +84,9 @@ export class ExportProjectAdrsUseCase {
         mtime: now,
       });
 
+      const safeTitle = title.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ').trim();
       adrTableRows.push(
-        `| [${adrId}](./${relativePath}) | ${title.replace(/\|/g, '\\|')} | ${statusLabel} | ${kindLabel} | ${dateStr} | ${item.files.length} |`,
+        `| [${adrId}](./${relativePath}) | ${safeTitle} | ${statusLabel} | ${kindLabel} | ${dateStr} | ${item.files.length} |`,
       );
     });
 

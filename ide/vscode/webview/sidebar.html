@@ -339,13 +339,13 @@
       return;
     }
     el.innerHTML = notes.map(n => `
-      <div class="note-row" title="${escHtml(n.title)}">
-        <span class="note-icon">${typeIcon(n.canonicalType)}</span>
+      <div class="note-row" title="${escAttr(n.title)}">
+        <span class="note-icon">${escHtml(typeIcon(n.canonicalType))}</span>
         <div class="note-body">
           <div class="note-title">${escHtml(n.title)}</div>
           <div class="note-meta">
-            <span class="badge ${badgeClass(n.canonicalType, n.status)}">${capitalize(n.canonicalType || n.status)}</span>
-            <span class="note-time">${relativeTime(n.updatedAt || n.createdAt)}</span>
+            <span class="badge ${escAttr(badgeClass(n.canonicalType, n.status))}">${escHtml(capitalize(n.canonicalType || n.status))}</span>
+            <span class="note-time">${escHtml(relativeTime(n.updatedAt || n.createdAt))}</span>
           </div>
         </div>
       </div>
@@ -379,7 +379,7 @@
   }
 
   function escHtml(s) {
-    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
   function escAttr(s) { return escHtml(s); }
 
