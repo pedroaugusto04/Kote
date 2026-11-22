@@ -145,6 +145,14 @@ export async function runChatCompletion(
       level: 'ERROR',
       statusMessage: 'Invalid JSON',
     });
+    if (trace) {
+      langfuse?.score({
+        traceId: trace.id,
+        name: 'schema_valid',
+        value: 0,
+        comment: 'Failed to parse JSON response from LLM',
+      });
+    }
     throw new AiChatCompletionError('chat_completion_invalid_json', {
       provider: config.provider,
       model: config.model,
@@ -167,6 +175,14 @@ export async function runChatCompletion(
       : undefined,
   });
   trace?.update({ output: resultText });
+  if (trace) {
+    langfuse?.score({
+      traceId: trace.id,
+      name: 'schema_valid',
+      value: 1,
+      comment: 'Valid JSON response from LLM',
+    });
+  }
   return resultText;
 }
 
