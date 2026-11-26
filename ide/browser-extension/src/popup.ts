@@ -1,3 +1,4 @@
+import type { ExtensionStorage } from './storage.js';
 import type { ClipPayload } from './parser.js';
 
 interface ProjectInfo {
@@ -10,7 +11,7 @@ let currentClip: ClipPayload | null = null;
 let currentAuthMethod: 'token' | 'email' = 'token';
 
 async function getOrExchangeAccessToken(currentApiUrl: string, connectionToken: string): Promise<string> {
-  const cached = await chrome.storage.local.get(['accessToken']);
+  const cached = await chrome.storage.local.get<ExtensionStorage>(['accessToken']);
   if (cached.accessToken) {
     return cached.accessToken;
   }
@@ -36,7 +37,7 @@ async function getOrExchangeAccessToken(currentApiUrl: string, connectionToken: 
 }
 
 async function refreshAccessToken(apiUrl: string): Promise<string> {
-  const config = await chrome.storage.local.get(['refreshToken', 'authMethod']);
+  const config = await chrome.storage.local.get<ExtensionStorage>(['refreshToken', 'authMethod']);
   
   if (!config.refreshToken) {
     throw new Error('No refresh token available');
@@ -69,7 +70,7 @@ async function refreshAccessToken(apiUrl: string): Promise<string> {
 }
 
 async function fetchWithAuth(url: string, options: RequestInit = {}, apiUrl: string): Promise<Response> {
-  const config = await chrome.storage.local.get(['accessToken', 'authMethod']);
+  const config = await chrome.storage.local.get<ExtensionStorage>(['accessToken', 'authMethod']);
   const headers: Record<string, string> = { 
     ...options.headers as Record<string, string>,
     'Content-Type': 'application/json',
@@ -131,7 +132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const statusBanner = document.getElementById('status-banner')!;
 
   // Load stored configuration
-  const config = await chrome.storage.local.get(['apiUrl', 'connectionToken', 'defaultProject', 'authMethod']);
+  const config = await chrome.storage.local.get<ExtensionStorage>(['apiUrl', 'connectionToken', 'defaultProject', 'authMethod']);
   const defaultApiUrl = 'https://knowledgebase.sbs/kote';
   let apiUrl = config.apiUrl || defaultApiUrl;
 
@@ -432,7 +433,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Load Projects list from backend
   async function loadProjects() {
-    const config = await chrome.storage.local.get(['apiUrl', 'connectionToken', 'authMethod', 'accessToken']);
+    const config = await chrome.storage.local.get<ExtensionStorage>(['apiUrl', 'connectionToken', 'authMethod', 'accessToken']);
     let currentApiUrl = config.apiUrl || 'https://knowledgebase.sbs/kote';
     currentApiUrl = currentApiUrl.trim().replace(/\/$/, '');
     if (currentApiUrl.endsWith('/api')) {

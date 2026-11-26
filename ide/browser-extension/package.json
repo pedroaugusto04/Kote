@@ -11,7 +11,7 @@
     "node-html-markdown": "^2.0.0"
   },
   "devDependencies": {
-    "@types/chrome": "^0.0.268",
+    "@types/chrome": "^0.3.8",
     "esbuild": "^0.24.0",
     "typescript": "^5.4.5"
   }
