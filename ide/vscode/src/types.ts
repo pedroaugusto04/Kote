@@ -39,19 +39,21 @@ export interface KbNote {
   id: string;
   title: string;
   path: string;
-  projectSlug: string;
-  canonicalType: string;
+  project: string;
+  workspace?: string;
+  type: string;
   status: string;
-  createdAt?: string;
-  updatedAt?: string;
-  occurredAt?: string;
   date?: string;
   sourceChannel?: string;
   source?: string;
   sessionId?: string;
-  content?: string;
-  markdown?: string;
   summary?: string;
+  markdown?: string;
+  editor?: {
+    canDelete: boolean;
+    rawText: string;
+    reminderAt: string;
+  } | null;
   metadata?: Record<string, unknown>;
   relevanceScore?: number;
   semanticSimilarity?: number;
@@ -66,7 +68,6 @@ export interface KbReminder {
   projectSlug: string;
   status: string;
   reminderAt?: string;
-  reminderDate?: string;
 }
 
 export interface KbAskResult {
@@ -109,7 +110,6 @@ export interface KbCreateNotePayload {
 
 export interface KbCreateNoteResult {
   noteId: string;
-  id?: string;
 }
 
 // ---------------------------------------------------------------------------

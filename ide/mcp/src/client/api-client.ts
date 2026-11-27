@@ -79,6 +79,14 @@ export class ApiClient {
     return fetch(url, { ...options, headers });
   }
 
+  private async throwHttpError(response: Response): Promise<never> {
+    let errorBody = '';
+    try {
+      errorBody = await response.text();
+    } catch { /* ignore */ }
+    throw new Error(`API Request failed with status ${response.status} (${response.statusText}): ${errorBody}`);
+  }
+
   private async request(urlPath: string, options: RequestInit = {}): Promise<Response> {
     let response = await this.rawRequest(urlPath, options);
 
@@ -108,43 +116,30 @@ export class ApiClient {
       if (!refreshed) {
         // Refresh failed — try a live connection-token re-exchange if available
         const connectionToken = process.env[ENV_VARS.ConnectionToken];
-        if (connectionToken) {
-          try {
-            StderrLogger.info('Token refresh failed — attempting connection-token re-exchange...');
-            // Clear stale cookies so maybeExchangeConnectionToken proceeds
-            clearPersistedCookies(this.config);
-            await maybeExchangeConnectionToken(this.config);
-            // Retry original request with freshly exchanged tokens
-            response = await this.rawRequest(urlPath, options);
-            if (response.ok || response.status !== 401) {
-              // Re-exchange worked — carry on
-            } else {
-              let errorBody = '';
-              try { errorBody = await response.text(); } catch { /* ignore */ }
-              throw new Error(`API Request failed with status ${response.status} (${response.statusText}): ${errorBody}`);
-            }
-          } catch (reExchangeErr) {
-            // Re-exchange itself failed — clear cookies so next startup retries
-            clearPersistedCookies(this.config);
-            throw reExchangeErr;
+        if (!connectionToken) {
+          await this.throwHttpError(response);
+        }
+
+        try {
+          StderrLogger.info('Token refresh failed — attempting connection-token re-exchange...');
+          // Clear stale cookies so maybeExchangeConnectionToken proceeds
+          clearPersistedCookies(this.config);
+          await maybeExchangeConnectionToken(this.config);
+          // Retry original request with freshly exchanged tokens
+          response = await this.rawRequest(urlPath, options);
+          if (!response.ok && response.status === 401) {
+            await this.throwHttpError(response);
           }
-        } else {
-          let errorBody = '';
-          try { errorBody = await response.text(); } catch { /* ignore */ }
-          throw new Error(`API Request failed with status ${response.status} (${response.statusText}): ${errorBody}`);
+        } catch (reExchangeErr) {
+          // Re-exchange itself failed — clear cookies so next startup retries
+          clearPersistedCookies(this.config);
+          throw reExchangeErr;
         }
       }
     }
 
     if (!response.ok) {
-      const statusText = response.statusText;
-      let errorBody = '';
-      try {
-        errorBody = await response.text();
-      } catch {
-        // Ignore
-      }
-      throw new Error(`API Request failed with status ${response.status} (${statusText}): ${errorBody}`);
+      await this.throwHttpError(response);
     }
 
     return response;

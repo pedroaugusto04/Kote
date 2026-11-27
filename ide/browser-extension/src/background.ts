@@ -114,30 +114,88 @@ async function fetchWithAuth(url: string, options: RequestInit = {}, apiUrl: str
   return response;
 }
 
+const DEFAULT_API_URL = 'https://knowledgebase.sbs/kote';
+
+function normalizeApiUrl(raw?: string): string {
+  const cleaned = (raw || DEFAULT_API_URL).trim().replace(/\/$/, '');
+  return cleaned.endsWith('/api') ? cleaned.slice(0, -4) : cleaned;
+}
+
+async function initSessionFromStorage(): Promise<void> {
+  const config = await chrome.storage.local.get(['apiUrl']);
+  await initializeSession(normalizeApiUrl(config.apiUrl));
+}
+
+function updatePageClipIndicator(
+  tabId: number,
+  state: 'loading' | 'success' | 'error',
+  text: string,
+  dismissMs = 3000,
+): Promise<unknown> {
+  return chrome.scripting.executeScript({
+    target: { tabId },
+    func: (st: 'loading' | 'success' | 'error', label: string, delay: number) => {
+      if (!document.getElementById('kote-clip-styles')) {
+        const style = document.createElement('style');
+        style.id = 'kote-clip-styles';
+        style.textContent = `
+          @keyframes koteSlideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+          @keyframes koteSlideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+          @keyframes koteSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        `;
+        document.head.appendChild(style);
+      }
+
+      let indicator = document.getElementById('kote-clip-indicator');
+      if (st === 'loading') {
+        indicator?.remove();
+        indicator = document.createElement('div');
+        indicator.id = 'kote-clip-indicator';
+        indicator.style.cssText = [
+          'position: fixed', 'top: 20px', 'right: 20px',
+          'background: linear-gradient(135deg, #53c7de 0%, #0369a1 100%)',
+          'color: white', 'padding: 12px 20px', 'border-radius: 8px',
+          "font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+          'font-size: 14px', 'font-weight: 500',
+          'box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15)', 'z-index: 999999',
+          'display: flex', 'align-items: center', 'gap: 8px',
+          'animation: koteSlideIn 0.3s ease-out',
+        ].join(';');
+        indicator.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: koteSpin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg><span></span>`;
+        indicator.querySelector('span')!.textContent = label;
+        document.body.appendChild(indicator);
+        return;
+      }
+
+      if (!indicator) return;
+      if (st === 'success') {
+        indicator.style.background = 'linear-gradient(135deg, #7dd3a5 0%, #15803d 100%)';
+        indicator.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12" /></svg><span></span>`;
+      } else {
+        indicator.style.background = 'linear-gradient(135deg, #f87171 0%, #dc2626 100%)';
+        indicator.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg><span></span>`;
+      }
+      indicator.querySelector('span')!.textContent = label;
+      setTimeout(() => {
+        indicator!.style.animation = 'koteSlideOut 0.3s ease-in forwards';
+        setTimeout(() => indicator!.remove(), 300);
+      }, delay);
+    },
+    args: [state, text, dismissMs],
+  });
+}
+
 chrome.runtime.onInstalled.addListener(async () => {
   chrome.contextMenus.create({
     id: 'kb-save-selection',
     title: 'Save selection to Kote',
     contexts: ['selection'],
   });
-
-  const config = await chrome.storage.local.get(['apiUrl']);
-  let apiUrl = config.apiUrl || 'https://knowledgebase.sbs/kote';
-  apiUrl = apiUrl.trim().replace(/\/$/, '');
-  if (apiUrl.endsWith('/api')) {
-    apiUrl = apiUrl.slice(0, -4);
-  }
-  await initializeSession(apiUrl);
+  await initSessionFromStorage();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
-  const config = await chrome.storage.local.get(['apiUrl']);
-  let apiUrl = config.apiUrl || 'https://knowledgebase.sbs/kote';
-  apiUrl = apiUrl.trim().replace(/\/$/, '');
-  if (apiUrl.endsWith('/api')) {
-    apiUrl = apiUrl.slice(0, -4);
-  }
-  await initializeSession(apiUrl);
+  await initSessionFromStorage();
 });
 
 // Listen for context menu click
@@ -164,173 +222,38 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 // Listen for keyboard shortcut commands
 chrome.commands.onCommand.addListener(async (command) => {
-  if (command === 'quick-clip-page') {
-    try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab || !tab.id) return;
-      if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('edge://')) {
-        showNotification('Error', 'Browser settings pages cannot be clipped.');
-        return;
-      }
+  if (command !== 'quick-clip-page') return;
 
-      // Show immediate visual feedback on the page
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => {
-          const indicator = document.createElement('div');
-          indicator.id = 'kote-clip-indicator';
-          indicator.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, #53c7de 0%, #0369a1 100%);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 14px;
-            font-weight: 500;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 999999;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            animation: koteSlideIn 0.3s ease-out;
-          `;
-          indicator.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: koteSpin 1s linear infinite">
-              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-            </svg>
-            <span>Capturing page to Kote...</span>
-          `;
-          
-          const style = document.createElement('style');
-          style.textContent = `
-            @keyframes koteSlideIn {
-              from { transform: translateX(100%); opacity: 0; }
-              to { transform: translateX(0); opacity: 1; }
-            }
-            @keyframes koteSpin {
-              from { transform: rotate(0deg); }
-              to { transform: rotate(360deg); }
-            }
-          `;
-          document.head.appendChild(style);
-          document.body.appendChild(indicator);
-        },
-      });
-
-      // Extract content-extractor results
-      const results = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['content-extractor.js'],
-      });
-      const result = (results?.[0] as any)?.result;
-
-      if (result && result.success && result.result) {
-        await saveClippedNote(result.result, ['quick-clip']);
-
-        // Update indicator to show success
-        await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          func: () => {
-            const indicator = document.getElementById('kote-clip-indicator');
-            if (indicator) {
-              indicator.style.background = 'linear-gradient(135deg, #7dd3a5 0%, #15803d 100%)';
-              indicator.innerHTML = `
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                <span>Saved successfully to Kote!</span>
-              `;
-              setTimeout(() => {
-                indicator.style.animation = 'koteSlideOut 0.3s ease-in forwards';
-                setTimeout(() => indicator.remove(), 300);
-              }, 2000);
-            }
-
-            const style = document.createElement('style');
-            style.textContent = `
-              @keyframes koteSlideOut {
-                from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(100%); opacity: 0; }
-              }
-            `;
-            document.head.appendChild(style);
-          },
-        });
-      } else {
-        // Update indicator to show error
-        await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          func: () => {
-            const indicator = document.getElementById('kote-clip-indicator');
-            if (indicator) {
-              indicator.style.background = 'linear-gradient(135deg, #f87171 0%, #dc2626 100%)';
-              indicator.innerHTML = `
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="15" y1="9" x2="9" y2="15" />
-                  <line x1="9" y1="9" x2="15" y2="15" />
-                </svg>
-                <span>Failed to extract page content</span>
-              `;
-              setTimeout(() => {
-                indicator.style.animation = 'koteSlideOut 0.3s ease-in forwards';
-                setTimeout(() => indicator.remove(), 300);
-              }, 3000);
-            }
-
-            const style = document.createElement('style');
-            style.textContent = `
-              @keyframes koteSlideOut {
-                from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(100%); opacity: 0; }
-              }
-            `;
-            document.head.appendChild(style);
-          },
-        });
-        showNotification('Error', result?.error || 'Failed to extract page content.');
-      }
-    } catch (err: any) {
-      // Update indicator to show error
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab?.id) {
-        await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          func: (errorMessage: string) => {
-            const indicator = document.getElementById('kote-clip-indicator');
-            if (indicator) {
-              indicator.style.background = 'linear-gradient(135deg, #f87171 0%, #dc2626 100%)';
-              indicator.innerHTML = `
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="15" y1="9" x2="9" y2="15" />
-                  <line x1="9" y1="9" x2="15" y2="15" />
-                </svg>
-                <span>${errorMessage || 'Failed to save to Kote'}</span>
-              `;
-              setTimeout(() => {
-                indicator.style.animation = 'koteSlideOut 0.3s ease-in forwards';
-                setTimeout(() => indicator.remove(), 300);
-              }, 4000);
-            }
-
-            const style = document.createElement('style');
-            style.textContent = `
-              @keyframes koteSlideOut {
-                from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(100%); opacity: 0; }
-              }
-            `;
-            document.head.appendChild(style);
-          },
-          args: [err.message || 'Failed to save to Kote'],
-        }).catch(() => {});
-      }
-      showNotification('Error', err.message || 'Failed to quick clip page.');
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id) return;
+    if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('edge://')) {
+      showNotification('Error', 'Browser settings pages cannot be clipped.');
+      return;
     }
+
+    await updatePageClipIndicator(tab.id, 'loading', 'Capturing page to Kote...');
+
+    // Extract content-extractor results
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['content-extractor.js'],
+    });
+    const result = (results?.[0] as any)?.result;
+
+    if (result && result.success && result.result) {
+      await saveClippedNote(result.result, ['quick-clip']);
+      await updatePageClipIndicator(tab.id, 'success', 'Saved successfully to Kote!', 2000);
+    } else {
+      await updatePageClipIndicator(tab.id, 'error', 'Failed to extract page content', 3000);
+      showNotification('Error', result?.error || 'Failed to extract page content.');
+    }
+  } catch (err: any) {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      await updatePageClipIndicator(tab.id, 'error', err.message || 'Failed to save to Kote', 4000).catch(() => {});
+    }
+    showNotification('Error', err.message || 'Failed to quick clip page.');
   }
 });
 
@@ -355,18 +278,13 @@ async function saveClippedNote(clip: ClipPayload, tags: string[] = [], projectSl
     'accessToken',
   ]);
 
-  const resolvedApiUrl = apiUrl || 'https://knowledgebase.sbs/kote';
-
   // Check if any auth method is configured
   if (!connectionToken && !authMethod) {
     throw new Error('Connection Token not configured. Please open extension settings.');
   }
 
+  const cleanApiUrl = normalizeApiUrl(apiUrl);
   const project = projectSlugOverride || defaultProject || 'inbox';
-  let cleanApiUrl = resolvedApiUrl.trim().replace(/\/$/, '');
-  if (cleanApiUrl.endsWith('/api')) {
-    cleanApiUrl = cleanApiUrl.slice(0, -4);
-  }
 
   // Convert HTML to Markdown (if not already converted in content script)
   let markdown = (clip as any).markdown;

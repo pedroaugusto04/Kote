@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { type KbClient } from '../kb-client';
+import type { KbNote } from '../types';
 
 export class KoteNoteContentProvider implements vscode.TextDocumentContentProvider {
   private _onDidChange = new vscode.EventEmitter<vscode.Uri>();
@@ -55,9 +56,9 @@ Please wait a moment...`;
     }
   }
 
-  private formatNoteAsMarkdown(note: any): string {
-    const createdDate = note.occurredAt || note.date || note.createdAt || new Date().toISOString();
-    let content = note.content || note.rawText || note.summary || 'No content available';
+  private formatNoteAsMarkdown(note: KbNote): string {
+    const createdDate = note.date || new Date().toISOString();
+    let content = note.markdown || note.editor?.rawText || note.summary || 'No content available';
     const webBase = this.kbClient.apiUrl.replace(/\/api$/, '');
     const noteWebUrl = `${webBase}/vault/${note.id}`;
     
@@ -68,7 +69,7 @@ Please wait a moment...`;
     }
     
     const sourceChannel = note.sourceChannel || 'kote';
-    const projectSlug = note.projectSlug || 'Inbox';
+    const projectSlug = note.project || 'Inbox';
     const formattedDate = new Date(createdDate).toLocaleString();
     
     return `# ${note.title || 'Untitled'}

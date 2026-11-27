@@ -82,17 +82,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
           try {
             await this._client.validateAndSetGoogleToken(msg.token);
             const { workspaces } = await this._client.listWorkspaces();
-            
-            if (workspaces.length === 1 && workspaces[0]) {
-              // Auto-select single workspace
-              await this._client.saveWorkspaceSelection(workspaces[0].workspaceSlug);
-              this._client.reload();
-              vscode.window.showInformationMessage(`Connected to workspace: ${workspaces[0].displayName || workspaces[0].workspaceSlug}`);
-              this.reloadWebview();
-              vscode.commands.executeCommand('kote.onAuthChange');
-            } else {
-              this._post({ type: 'loginSuccess', workspaces });
-            }
+            await this._onLoginSuccess(workspaces);
           } catch (err: unknown) {
             this._post({ type: 'error', message: toMessage(err) });
           }
@@ -103,17 +93,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
           try {
             await this._client.login(msg.email, msg.password);
             const { workspaces } = await this._client.listWorkspaces();
-
-            if (workspaces.length === 1 && workspaces[0]) {
-              // Auto-select single workspace
-              await this._client.saveWorkspaceSelection(workspaces[0].workspaceSlug);
-              this._client.reload();
-              vscode.window.showInformationMessage(`Connected to workspace: ${workspaces[0].displayName || workspaces[0].workspaceSlug}`);
-              this.reloadWebview();
-              vscode.commands.executeCommand('kote.onAuthChange');
-            } else {
-              this._post({ type: 'loginSuccess', workspaces });
-            }
+            await this._onLoginSuccess(workspaces);
           } catch (err: unknown) {
             this._post({ type: 'error', message: toMessage(err) });
           }
@@ -202,7 +182,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
             });
             this._post({
               type: 'noteSaved',
-              noteId: res.noteId ?? res.id ?? '',
+              noteId: res.noteId,
               projectName: msg.projectName || projectSlug
             });
             vscode.window.showInformationMessage(`Note saved to Kote — project: ${projectSlug}`);
@@ -221,8 +201,6 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
               senderId: 'vscode-user',
               chatId: 'vscode-chat',
               messageId: crypto.randomUUID(),
-              hasMedia: false,
-              media: {},
             }, undefined, projectSlug);
 
             if (res.replyText) {
@@ -312,26 +290,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
 
         case 'changeProject': {
           logInfo('SidebarProvider', `Active project changed by user: ${msg.projectSlug}`);
-          if (!msg.projectSlug || msg.projectSlug === 'auto') {
-            this._context.workspaceState.update('kote.activeProjectSlug', null);
-            const detected = await detectActiveProject(this._client, vscode.workspace.workspaceFolders ?? []);
-            this.activeProject = detected;
-            vscode.commands.executeCommand('kote.updateStatusBar', this.activeProject || 'inbox');
-            this._post({
-              type: 'setProject',
-              projectSlug: 'auto',
-              detectedProject: this.activeProject || 'inbox',
-            });
-          } else {
-            this.activeProject = msg.projectSlug;
-            this._context.workspaceState.update('kote.activeProjectSlug', this.activeProject);
-            vscode.commands.executeCommand('kote.updateStatusBar', this.activeProject);
-            this._post({
-              type: 'setProject',
-              projectSlug: this.activeProject,
-              detectedProject: this.activeProject,
-            });
-          }
+          await this._applyProjectSelection(msg.projectSlug);
           break;
         }
 
@@ -380,17 +339,33 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
   }
 
   async setActiveProject(projectSlug: string) {
+    await this._applyProjectSelection(projectSlug);
+  }
+
+  private async _onLoginSuccess(workspaces: Array<{ workspaceSlug: string; displayName?: string }>) {
+    if (workspaces.length === 1 && workspaces[0]) {
+      await this._client.saveWorkspaceSelection(workspaces[0].workspaceSlug);
+      this._client.reload();
+      vscode.window.showInformationMessage(`Connected to workspace: ${workspaces[0].displayName || workspaces[0].workspaceSlug}`);
+      this.reloadWebview();
+      vscode.commands.executeCommand('kote.onAuthChange');
+    } else {
+      this._post({ type: 'loginSuccess', workspaces });
+    }
+  }
+
+  private async _applyProjectSelection(projectSlug?: string | null) {
     if (!projectSlug || projectSlug === 'auto') {
       this._context.workspaceState.update('kote.activeProjectSlug', null);
-      const detected = await detectActiveProject(this._client, vscode.workspace.workspaceFolders ?? []);
-      this.activeProject = detected;
-      this._post({ type: 'setProject', projectSlug: 'auto', detectedProject: this.activeProject || 'inbox' });
-      vscode.commands.executeCommand('kote.updateStatusBar', this.activeProject || 'inbox');
+      this.activeProject = await detectActiveProject(this._client, vscode.workspace.workspaceFolders ?? []);
+      const resolved = this.activeProject || 'inbox';
+      vscode.commands.executeCommand('kote.updateStatusBar', resolved);
+      this._post({ type: 'setProject', projectSlug: 'auto', detectedProject: resolved });
     } else {
       this.activeProject = projectSlug;
       this._context.workspaceState.update('kote.activeProjectSlug', projectSlug);
-      this._post({ type: 'setProject', projectSlug, detectedProject: projectSlug });
       vscode.commands.executeCommand('kote.updateStatusBar', projectSlug);
+      this._post({ type: 'setProject', projectSlug, detectedProject: projectSlug });
     }
   }
 

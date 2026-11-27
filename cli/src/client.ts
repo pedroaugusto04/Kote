@@ -210,7 +210,7 @@ export class ApiClient {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         question,
-        projectSlug: projectSlug || undefined,
+        projectSlug,
         workspaceSlug: config.workspaceSlug || undefined,
       }),
     });
@@ -228,7 +228,7 @@ export class ApiClient {
       senderId: 'cli-user',
       chatId: 'cli-session',
       hasMedia: !!media,
-      media: media || {},
+      ...(media ? { media } : {}),
     };
     let url = `${CLI_API_PATHS.CONVERSATION_AGENT}?workspaceSlug=${encodeURIComponent(config.workspaceSlug)}`;
     if (activeProject) {

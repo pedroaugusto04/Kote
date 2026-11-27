@@ -307,7 +307,7 @@ export class LineContextProvider implements vscode.HoverProvider, vscode.Disposa
       const note = bestMatch.note;
       const source = this.formatSourceLabel(note.sourceChannel, note.metadata);
       const decisionOrTitle = this.extractShortSummary(note);
-      const timeAgo = this.formatRelativeTime(note.occurredAt || note.createdAt || gitCommit?.commitDate);
+      const timeAgo = this.formatRelativeTime(note.date || gitCommit?.commitDate);
       const timeStr = timeAgo ? ` (${timeAgo})` : '';
       if (decisionOrTitle) {
         return `Kote: ${source}${timeStr} - ${decisionOrTitle}${extraCountSuffix}`;
@@ -404,7 +404,7 @@ export class LineContextProvider implements vscode.HoverProvider, vscode.Disposa
     if (bestMatch?.note) {
       const note = bestMatch.note;
       const source = this.formatSourceLabel(note.sourceChannel, note.metadata);
-      const time = this.formatRelativeTime(commit?.commitDate || note.occurredAt || note.createdAt);
+      const time = this.formatRelativeTime(commit?.commitDate || note.date);
       const timeStr = time ? ` *(${time})*` : '';
 
       md.appendMarkdown(`**Source:** ${source}${timeStr}\n\n`);
@@ -420,7 +420,7 @@ export class LineContextProvider implements vscode.HoverProvider, vscode.Disposa
         md.appendMarkdown(`**Title:** ${note.title}\n\n`);
       }
 
-      const summaryText = note.summary || note.content;
+      const summaryText = note.summary;
       if (summaryText) {
         const cleanSummary = summaryText.slice(0, 300).trim();
         md.appendMarkdown(`**Decision / Context:**\n${cleanSummary}${summaryText.length > 300 ? '...' : ''}\n\n`);

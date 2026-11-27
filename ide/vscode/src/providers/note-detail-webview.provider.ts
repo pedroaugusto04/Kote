@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { type KbClient } from '../kb-client';
+import type { KbNote } from '../types';
 
 export class NoteDetailWebviewProvider {
   private static currentPanel: NoteDetailWebviewProvider | undefined;
@@ -150,12 +151,12 @@ export class NoteDetailWebviewProvider {
 </html>`;
   }
 
-  private getHtml(note: any): string {
-    const createdDate = note.occurredAt || note.date || note.createdAt || new Date().toISOString();
+  private getHtml(note: KbNote): string {
+    const createdDate = note.date || new Date().toISOString();
     const formattedDate = new Date(createdDate).toLocaleString();
     const webBase = this.kbClient.apiUrl.replace(/\/api$/, '');
     const noteWebUrl = `${webBase}/vault/${note.id}`;
-    const content = note.content || note.rawText || note.summary || 'No content available';
+    const content = note.markdown || note.editor?.rawText || note.summary || 'No content available';
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -179,7 +180,7 @@ export class NoteDetailWebviewProvider {
         </div>
         <div class="metadata-item">
           <span class="label">Project:</span>
-          <span class="value">${this.escapeHtml(note.projectSlug || 'Inbox')}</span>
+          <span class="value">${this.escapeHtml(note.project || 'Inbox')}</span>
         </div>
         <div class="metadata-item">
           <span class="label">Created:</span>

@@ -530,7 +530,7 @@ export class AiHistoryManager {
       this.pendingPromptSessions.delete(key);
       this.inFlightSaves.add(key);
       try {
-        const saved = await this.autoSaveSessionToVault(client, session);
+        const saved = await this.saveSessionToVault(client, session, { autoSave: true });
         if (saved) {
           this.sessionErrorBackoffs.delete(key);
           this.rememberSessionHash(key, hash);
@@ -565,7 +565,7 @@ export class AiHistoryManager {
 
       this.inFlightSaves.add(key);
       try {
-        const saved = await this.autoSaveSessionToVault(client, session);
+        const saved = await this.saveSessionToVault(client, session, { autoSave: true });
         if (saved) {
           this.sessionErrorBackoffs.delete(key);
           this.markSessionAsSaved(provider.id, session.sessionId);
@@ -798,7 +798,7 @@ export class AiHistoryManager {
         );
         if (action === 'Preview Session') {
           const doc = await vscode.workspace.openTextDocument({
-            content: note.markdown || note.summary || note.content || '',
+            content: note.markdown || note.summary || '',
             language: 'markdown',
           });
           await vscode.window.showTextDocument(doc);
@@ -807,14 +807,14 @@ export class AiHistoryManager {
             noteId: note.id,
             title: note.title,
             providerId: selected.target.providerId,
-            projectSlug: note.projectSlug,
-            timestamp: note.createdAt || note.date,
-            rawText: note.markdown || note.summary || note.content,
+            projectSlug: note.project,
+            timestamp: note.date,
+            rawText: note.markdown || note.summary,
           });
         } else if (action === 'Open Note Detail') {
           await vscode.commands.executeCommand(EXTENSION_COMMANDS.OPEN_NOTE_DETAIL, note.id);
         } else if (action === 'Copy Content') {
-          await vscode.env.clipboard.writeText(note.markdown || note.summary || note.content || '');
+          await vscode.env.clipboard.writeText(note.markdown || note.summary || '');
           vscode.window.showInformationMessage('Kote: Session content copied to clipboard.');
         }
       }
@@ -901,9 +901,9 @@ export class AiHistoryManager {
   private async saveSessionToVault(
     client: KbClient,
     session: AiSession,
-    silent: boolean = false,
-    triggerRefresh: boolean = true,
+    options: { silent?: boolean; triggerRefresh?: boolean; autoSave?: boolean } = {},
   ): Promise<boolean> {
+    const { silent = false, triggerRefresh = true, autoSave = false } = options;
     try {
       const titleWithDate = this.getTitleWithDate(session);
       const rawText = this.getMarkdownText(session);
@@ -920,41 +920,21 @@ export class AiHistoryManager {
         metadata: this.buildSessionNoteMetadata(session),
       });
 
-      if (!silent) {
-        vscode.window.showInformationMessage('Note saved to Kote successfully!');
-      }
       if (triggerRefresh) {
         vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);
       }
+      if (autoSave) {
+        vscode.window.showInformationMessage(`AI session auto-saved to Kote — project: ${projectSlug}.`);
+      } else if (!silent) {
+        vscode.window.showInformationMessage('Note saved to Kote successfully!');
+      }
       return true;
     } catch (err: unknown) {
-      vscode.window.showErrorMessage(`Failed to save note: ${toMessage(err)}`);
-      return false;
-    }
-  }
-
-  private async autoSaveSessionToVault(client: KbClient, session: AiSession): Promise<boolean> {
-    try {
-      const titleWithDate = this.getTitleWithDate(session);
-      const rawText = this.getMarkdownText(session);
-      const projectSlug = this.getSessionProjectSlug(session, client.defaultProjectSlug);
-      await client.createNote({
-        title: titleWithDate,
-        rawText,
-        projectSlug,
-        sourceChannel: SOURCE_CHANNELS.AI_CHAT,
-        source: session.providerId,
-        sessionId: session.sessionId,
-        occurredAt: new Date(session.timestamp).toISOString(),
-        attachments: session.attachments,
-        metadata: this.buildSessionNoteMetadata(session),
-      });
-
-      vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);
-      vscode.window.showInformationMessage(`AI session auto-saved to Kote — project: ${projectSlug}.`);
-      return true;
-    } catch (err: unknown) {
-      logInfo('AI History', `Failed to auto-save note: ${toMessage(err)}`);
+      if (autoSave) {
+        logInfo('AI History', `Failed to auto-save note: ${toMessage(err)}`);
+      } else {
+        vscode.window.showErrorMessage(`Failed to save note: ${toMessage(err)}`);
+      }
       return false;
     }
   }
@@ -1067,7 +1047,7 @@ export class AiHistoryManager {
         });
 
         // Pass triggerRefresh = false to avoid firing full disk/API refreshes per item in the loop
-        const saved = await this.saveSessionToVault(client, session, true, false);
+        const saved = await this.saveSessionToVault(client, session, { silent: true, triggerRefresh: false });
         if (saved) {
           anySaved = true;
           this.markSessionAsSaved(item.providerId, item.sessionId);

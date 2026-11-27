@@ -117,7 +117,7 @@ export class SessionHandoffManager {
           continue;
         }
         const noteProvider = note.source || 'ai-session';
-        const noteDate = note.occurredAt || note.createdAt || note.date;
+        const noteDate = note.date;
         const timestamp = noteDate ? new Date(noteDate).getTime() : 0;
         if (now - timestamp > this.HANDOFF_RECENCY_MAX_AGE_MS) continue;
 
@@ -125,9 +125,9 @@ export class SessionHandoffManager {
           noteId: note.id,
           title: note.title,
           providerId: noteProvider,
-          projectSlug: note.projectSlug,
+          projectSlug: note.project,
           timestamp,
-          rawText: note.markdown || note.summary || note.content,
+          rawText: note.markdown || note.summary,
         };
       }
     } catch {
@@ -447,9 +447,9 @@ export class SessionHandoffManager {
           noteId: note.id,
           title: note.title,
           providerId: selected.target.providerId,
-          projectSlug: note.projectSlug,
-          timestamp: note.createdAt || note.date,
-          rawText: note.markdown || note.summary || note.content,
+          projectSlug: note.project,
+          timestamp: note.date,
+          rawText: note.markdown || note.summary,
         });
       }
     });

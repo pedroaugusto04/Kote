@@ -117,8 +117,6 @@ export class ChatPanelProvider {
             senderId: 'vscode-user',
             chatId: 'vscode-chat',
             messageId: crypto.randomUUID(),
-            hasMedia: false,
-            media: {},
           }, undefined, projectSlug);
 
           this._post({
@@ -147,7 +145,7 @@ export class ChatPanelProvider {
             sourceChannel: 'ai-chat',
             source: 'kote',
           });
-          this._post({ type: 'noteSaved', noteId: res.noteId ?? res.id ?? '' });
+          this._post({ type: 'noteSaved', noteId: res.noteId });
           vscode.window.showInformationMessage(`Note saved to Kote — project: ${projectSlug}`);
         } catch (err: unknown) {
           this._post({ type: 'error', message: toMessage(err) });

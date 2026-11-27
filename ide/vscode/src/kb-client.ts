@@ -194,7 +194,7 @@ export class KbClient {
   }
 
   private buildUrl(urlPath: string): string {
-    const apiBase = this.apiUrl.replace(/\/$/, ''); // Remove trailing slash
+    const apiBase = this.apiUrl;
     let cleanPath = urlPath.replace(/^\//, ''); // Remove leading slash
 
     // If base URL already ends with /api, don't add it again from the path
@@ -342,7 +342,7 @@ export class KbClient {
           pagination?: { hasNext?: boolean };
         }>(`/api/projects?page=${page}&pageSize=50`);
 
-        const list = result?.projects ?? result?.items ?? [];
+        const list = result?.projects ?? [];
         if (list.length === 0) break;
         allProjects.push(...list);
 
@@ -360,23 +360,14 @@ export class KbClient {
     const params = new URLSearchParams({ limit: String(limit), page: '1' });
     if (projectSlug) params.set('projectSlug', projectSlug);
     const result = await this.fetch<{ notes?: KbNote[]; items?: KbNote[] }>(`/api/notes?${params}`);
-    return result?.notes ?? result?.items ?? [];
+    return result?.notes ?? [];
   }
 
   async listPendingReminders(projectSlug?: string): Promise<KbReminder[]> {
     const params = new URLSearchParams({ status: 'pending', limit: '5' });
     if (projectSlug) params.set('projectSlug', projectSlug);
-    // Reminders are notes with pending/overdue status — try reminders endpoint first
-    try {
-      const result = await this.fetch<{ reminders?: KbReminder[]; items?: KbReminder[] }>(`/api/reminders?${params}`);
-      return result?.reminders ?? result?.items ?? [];
-    } catch {
-      // Fallback: filter notes by status
-      const params2 = new URLSearchParams({ status: 'pending,overdue', limit: '5' });
-      if (projectSlug) params2.set('projectSlug', projectSlug);
-      const result = await this.fetch<{ notes?: KbReminder[]; items?: KbReminder[] }>(`/api/notes?${params2}`);
-      return result?.notes ?? result?.items ?? [];
-    }
+    const result = await this.fetch<{ reminders?: KbReminder[] }>(`/api/reminders?${params}`);
+    return result?.reminders ?? [];
   }
 
   async ask(
@@ -388,7 +379,7 @@ export class KbClient {
       method: 'POST',
       body: JSON.stringify({
         question,
-        projectSlug: projectSlug ?? undefined,
+        projectSlug,
         workspaceSlug: this.config.workspaceSlug,
       }),
       timeout: options?.timeout ?? DEFAULT_AI_REQUEST_TIMEOUT_MS,
@@ -485,17 +476,7 @@ export class KbClient {
   async logout(): Promise<void> {
     this.config.cookies = {};
     try {
-      const current = loadKbConfig();
-      const updated = {
-        ...current,
-        cookies: {},
-      };
-      fs.writeFileSync(CONFIG_PATH, JSON.stringify(updated, null, 2), 'utf8');
-      try {
-        fs.chmodSync(CONFIG_PATH, 0o600);
-      } catch {
-        // Ignore chmod failures on non-POSIX filesystems
-      }
+      saveKbConfig({ cookies: {} });
     } catch {
       // Best-effort config wipe
     }

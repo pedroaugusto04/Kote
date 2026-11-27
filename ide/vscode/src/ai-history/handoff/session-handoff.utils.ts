@@ -108,7 +108,7 @@ export function buildHandoffQuickPickItems(
     seenRemoteKeys.add(remoteKey);
 
     const providerName = formatProviderDisplayName(note.source, providers);
-    const noteDate = note.createdAt || note.date || note.updatedAt;
+    const noteDate = note.date;
     const noteTimestamp = noteDate ? new Date(noteDate).getTime() : 0;
 
     items.push({
@@ -211,7 +211,7 @@ export function buildUnifiedSessionQuickPickItems(
     seenRemoteKeys.add(remoteKey);
 
     const providerName = formatProviderDisplayName(note.source, providers);
-    const noteDate = note.createdAt || note.date || note.updatedAt;
+    const noteDate = note.date;
     const noteTimestamp = noteDate ? new Date(noteDate).getTime() : 0;
 
     items.push({

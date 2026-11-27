@@ -302,9 +302,9 @@ export class SnippetOriginSummaryProvider {
   private renderMatchCard(match: SnippetNoteMatch): string {
     const note = match.note;
     const relevance = match.relevance;
-    const badge = this.getSourceBadge(note.sourceChannel, note.canonicalType);
+    const badge = this.getSourceBadge(note.sourceChannel, note.type);
     const isOrigin = relevance.isOriginMatch;
-    const formattedDate = this.formatDate(note.date || note.createdAt);
+    const formattedDate = this.formatDate(note.date);
     const summaryText = this.truncateText(note.summary || 'Click to view conversation details', 220);
 
     return `
@@ -377,8 +377,8 @@ export class SnippetOriginSummaryProvider {
       if (contentScoreB !== contentScoreA) {
         return contentScoreB - contentScoreA;
       }
-      const dateA = new Date(a.note.date || a.note.createdAt || 0).getTime();
-      const dateB = new Date(b.note.date || b.note.createdAt || 0).getTime();
+      const dateA = new Date(a.note.date || 0).getTime();
+      const dateB = new Date(b.note.date || 0).getTime();
       return dateB - dateA;
     });
     const linkedMatches = rawLinkedMatches.slice(0, MAX_RELATED_COMMITS);
@@ -422,8 +422,8 @@ export class SnippetOriginSummaryProvider {
       if (scoreB !== scoreA) {
         return scoreB - scoreA;
       }
-      const dateA = new Date(a.note.date || a.note.createdAt || 0).getTime();
-      const dateB = new Date(b.note.date || b.note.createdAt || 0).getTime();
+      const dateA = new Date(a.note.date || 0).getTime();
+      const dateB = new Date(b.note.date || 0).getTime();
       return dateB - dateA;
     });
 
@@ -458,15 +458,15 @@ export class SnippetOriginSummaryProvider {
     // Timeline presents commit evidence only. Related notes stay in their tab.
     for (const match of linkedMatches) {
       const note = match.note;
-      const badge = this.getSourceBadge(note.sourceChannel, note.canonicalType);
+      const badge = this.getSourceBadge(note.sourceChannel, note.type);
       const isOrigin = match.relevance?.isOriginMatch;
       const rawText = typeof (note.metadata as Record<string, unknown> | undefined)?.rawText === 'string'
         ? String(note.metadata?.rawText)
         : '';
       timelineItems.push({
-        date: note.date || note.createdAt || '',
+        date: note.date || '',
         title: note.title || 'Untitled Note',
-        description: note.summary || rawText || note.content || 'No description',
+        description: note.summary || rawText || 'No description',
         noteId: note.id,
         badge,
         isOrigin,
