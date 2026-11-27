@@ -44,7 +44,6 @@ export type VaultNoteDetail = VaultNoteSummary & {
     availableAt?: string | null;
   }) | null;
   markdown: string;
-  frontmatter: Record<string, unknown>;
   attachments: VaultNoteAttachment[];
   editor: {
     canDelete: boolean;

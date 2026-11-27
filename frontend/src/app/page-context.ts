@@ -1,4 +1,4 @@
-import type { NoteSummary } from '../shared/api/models/note';
+import type { NoteSummary, PendingAttachment } from '../shared/api/models/note';
 import type { Dashboard } from '../shared/api/models/dashboard';
 
 export type PageContext = {
@@ -11,7 +11,7 @@ export type PageContext = {
   openProject: (slug: string) => void;
   openNote: (id: string) => void;
   editNote: (noteId: string) => void;
-  createNote?: (projectSlug?: string, initialTitle?: string, initialAttachments?: Array<{ fileName: string; mimeType: string; sizeBytes: number; dataBase64: string }>) => void;
+  createNote?: (projectSlug?: string, initialTitle?: string, initialAttachments?: PendingAttachment[]) => void;
   onNoteModalClose?: () => void;
   setOnNoteModalClose?: (callback: (() => void) | undefined) => void;
   deleteNote: (note: Pick<NoteSummary, 'id' | 'title'>) => void;

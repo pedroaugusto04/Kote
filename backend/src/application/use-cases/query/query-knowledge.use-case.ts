@@ -36,29 +36,29 @@ export class QueryKnowledgeUseCase {
       limit: input.limit,
     });
 
-    const [vectorResult, ftsNotes] = await Promise.all([
+    const candidateLimit = input.limit * this.env.searchCandidateLimitMultiplier;
+    const [vectorChunks, ftsNotes] = await Promise.all([
       this.vectorChunkSearch.search({
         userId,
         queryText: input.query,
-        limit: this.ftsCandidateLimit(input),
+        limit: candidateLimit,
         workspaceId: input.workspaceId,
         projectId: input.projectId,
         minSimilarity: this.env.searchMinSimilarity,
         representations: [EmbeddingRepresentation.Synthesis, EmbeddingRepresentation.Raw],
-        synthesisBoost: 0,
         logPrefix: 'query_knowledge',
       }),
-      this.searchFtsNotes(userId, input),
+      this.searchFtsNotes(userId, input, candidateLimit),
     ]);
 
     this.logger.info('query_knowledge.search_phase_complete', {
-      vectorChunksCount: vectorResult.chunks.length,
+      vectorChunksCount: vectorChunks.length,
       ftsNotesCount: ftsNotes.length,
     });
 
-    const hasVectorResults = vectorResult.chunks.length > 0;
+    const hasVectorResults = vectorChunks.length > 0;
     if (hasVectorResults) {
-      const matches = rankHybridKnowledgeMatches(ftsNotes, vectorResult.chunks, input, {
+      const matches = rankHybridKnowledgeMatches(ftsNotes, vectorChunks, input, {
         vector: this.env.searchHybridVectorWeight,
         keyword: this.env.searchHybridKeywordWeight,
       }, this.env.searchRrfK);
@@ -83,17 +83,13 @@ export class QueryKnowledgeUseCase {
     return this.buildResponse(input, keywordMatches, 'keyword_fallback');
   }
 
-  private ftsCandidateLimit(input: QueryInput): number {
-    return input.limit * this.env.searchCandidateLimitMultiplier;
-  }
-
-  private async searchFtsNotes(userId: string, input: QueryInput): Promise<VaultNoteSummary[]> {
+  private async searchFtsNotes(userId: string, input: QueryInput, candidateLimit: number): Promise<VaultNoteSummary[]> {
     const results = await this.contentQueryRepository.list(userId, {
       projectId: input.projectId,
       workspaceId: input.workspaceId,
       status: input.status,
       query: input.query,
-      ftsLimit: this.ftsCandidateLimit(input),
+      ftsLimit: candidateLimit,
     });
 
     this.logger.info('query_knowledge.fts_search_complete', {

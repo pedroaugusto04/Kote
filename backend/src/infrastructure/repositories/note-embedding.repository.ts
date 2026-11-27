@@ -128,15 +128,15 @@ export class PostgresNoteEmbeddingRepository extends NoteEmbeddingRepository {
     queryEmbedding: number[],
     options: FindSimilarOptions,
   ): Promise<SimilarChunk[]> {
-    const minSimilarity = options.minSimilarity ?? 0.3;
     const workspaceId = String(options.workspaceId || '').trim();
     const projectId = String(options.projectId || '').trim();
 
     const values: unknown[] = [
       userId,
       formatEmbeddingForPg(queryEmbedding),
-      minSimilarity,
+      options.minSimilarity,
       options.limit,
+      options.representation,
     ];
 
     const optionalClauses: string[] = [];
@@ -148,26 +148,15 @@ export class PostgresNoteEmbeddingRepository extends NoteEmbeddingRepository {
       values.push(projectId);
       optionalClauses.push(`AND (n.project_id = $${values.length} OR p.project_slug = '${SPECIAL_PROJECT_SLUGS.INBOX}' OR n.project_id IS NULL)`);
     }
-    if (options.representation && options.representation !== EmbeddingRepresentation.All) {
-      values.push(options.representation);
-      optionalClauses.push(`AND e.representation = $${values.length}`);
-    }
-
-    const synthesisBoost = options.synthesisBoost;
-    let synthesisBoostSql = '0.035';
-    if (synthesisBoost !== undefined) {
-      values.push(synthesisBoost);
-      synthesisBoostSql = `$${values.length}`;
-    }
-
     const result = await this.database.getPool().query(
       `SELECT e.*,
-              (1 - (e.embedding <=> $2::vector)) + CASE WHEN e.representation = '${EmbeddingRepresentation.Synthesis}' THEN ${synthesisBoostSql}::double precision ELSE 0 END AS similarity
+              1 - (e.embedding <=> $2::vector) AS similarity
        FROM kb_note_embeddings e
        JOIN kb_notes n ON n.id = e.note_id AND n.user_id = e.user_id
        LEFT JOIN kb_projects p ON p.id = n.project_id
        WHERE e.user_id = $1
          AND 1 - (e.embedding <=> $2::vector) >= $3
+         AND e.representation = $5
          ${optionalClauses.join('\n         ')}
        ORDER BY similarity DESC
        LIMIT $4`,

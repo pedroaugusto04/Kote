@@ -2,7 +2,6 @@ import type { ReminderView } from '../../application/models/reminder.models.js';
 import type { AttachmentRecord, NoteRecord } from '../../application/models/repository-records.models.js';
 import type { ReviewView } from '../../application/models/review.models.js';
 import type { VaultNoteDetail } from '../../application/models/vault-note.models.js';
-import { resolveCanonicalTypeFromCategories } from '../../domain/note-classification.js';
 import { EventType, SourceChannel } from '../../contracts/enums.js';
 import type { NoteSynthesisRecord } from '../../application/models/note-synthesis.models.js';
 import { NoteSynthesisStatus } from '../../application/constants/ai-session-synthesis.constants.js';
@@ -15,8 +14,9 @@ function attachmentContentPath(noteId: string, attachmentId: string): string {
   return `/notes/${encodedNoteId}/attachments/${encodedAttachmentId}/content`;
 }
 
-function reminderNoteText(record: Pick<NoteRecord, 'metadata' | 'summary' | 'title'>) {
-  const rawText = String(record.metadata.rawText || '').trim();
+export function reminderNoteText(record: Pick<NoteRecord, 'summary' | 'title'> & { metadata: unknown }) {
+  const metadata = record.metadata as NoteRecord['metadata'] | null;
+  const rawText = String(metadata?.rawText || '').trim();
   if (rawText) return rawText;
   const summary = String(record.summary || '').trim();
   return summary || String(record.title || '').trim();
@@ -36,28 +36,17 @@ export function noteAttachment(noteId: string, attachment: AttachmentRecord) {
 export function noteDetail(
   record: NoteRecord,
   attachments: AttachmentRecord[] = [],
-  navigation?: { previous: { id: string; title: string } | null; next: { id: string; title: string } | null }
-  , synthesis?: NoteSynthesisRecord | null
+  navigation: VaultNoteDetail['navigation'] = { previous: null, next: null },
+  synthesis?: NoteSynthesisRecord | null,
 ): VaultNoteDetail {
+  const summary = noteSummary(record);
   return {
-    ...noteSummary({ ...record, attachmentCount: attachments.length || record.attachmentCount || 0 }),
+    ...summary,
+    attachmentCount: attachments.length || summary.attachmentCount,
     markdown: record.markdown,
-    frontmatter: {
-      id: record.id,
-      type: resolveCanonicalTypeFromCategories(record.categories || [], (record.categories || []).map((c) => c.id)),
-      categories: record.categories.map((c) => c.name),
-      workspace: record.workspaceSlug || '',
-      source_channel: record.sourceChannel,
-      event_type: String(record.metadata?.eventType || ''),
-      project: record.projectSlug || '',
-      status: record.status,
-      tags: record.tags,
-      occurred_at: record.occurredAt || record.createdAt || '',
-      ai_usage: record.metadata?.aiUsage || undefined,
-    },
     attachments: attachments.map((attachment) => noteAttachment(record.id, attachment)),
     editor: null,
-    navigation: navigation || { previous: null, next: null },
+    navigation,
     // Never expose a completed synthesis for a different transcript version.
     synthesis: synthesis ? (() => {
       const isStaleCompleted = synthesis.status === NoteSynthesisStatus.Completed && !isSynthesisFresh(synthesis, record.markdown);

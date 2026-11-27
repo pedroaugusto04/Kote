@@ -80,8 +80,6 @@ export class DependencyAlertNotificationService {
       source: {
         channel: SourceChannel.DependencyWatcher,
         system: 'dependency-watcher',
-        source: 'dependency-watcher',
-        actor: 'system',
         correlationId: `dependency-${record.id}`,
         sessionId: `dependency-${record.id}`,
       },

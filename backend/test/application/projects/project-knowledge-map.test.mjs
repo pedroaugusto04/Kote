@@ -55,7 +55,6 @@ function note(overrides = {}) {
     summary: 'Deploy summary',
     markdown: '',
     markdownStorageKey: '',
-    frontmatter: {},
     metadata: {},
     origin: 'test',
     source: 'manual-api',

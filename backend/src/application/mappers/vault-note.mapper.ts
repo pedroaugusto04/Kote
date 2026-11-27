@@ -9,8 +9,8 @@ export function noteSummary(record: NoteRecord): VaultNoteSummary {
     path: record.path,
     categories: record.categories,
     type: resolveCanonicalTypeFromCategories(
-      record.categories || [],
-      (record.categories || []).map((c) => c.id),
+      record.categories,
+      record.categories.map((category) => category.id),
     ),
     title: record.title,
     projectId: record.projectId,
@@ -27,7 +27,7 @@ export function noteSummary(record: NoteRecord): VaultNoteSummary {
     attachmentCount: record.attachmentCount || 0,
     isPinned: record.isPinned,
     ftsRank: record.ftsRank,
-    aiUsage: isNoteAiUsage(record.metadata?.aiUsage) ? record.metadata.aiUsage : undefined,
+    aiUsage: isNoteAiUsage(record.metadata.aiUsage) ? record.metadata.aiUsage : undefined,
     ...(record.linkedCommits && record.linkedCommits.length > 0 ? { linkedCommits: record.linkedCommits } : {}),
   };
 }

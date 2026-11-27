@@ -341,7 +341,7 @@ describe('ProjectsPage', () => {
         tags: ['deploy'],
         reminderAt: '2026-04-29T12:30:00.000Z',
       });
-      return Response.json({ ok: true, project: 'platform', noteId: 'note-2', eventPath: 'path.md' });
+      return Response.json({ ok: true, noteId: 'note-2' });
     });
     vi.stubGlobal('fetch', fetchMock);
     renderProjects();
@@ -372,7 +372,7 @@ describe('ProjectsPage', () => {
         note: {
           ...dashboard.notes![0],
           markdown: '# Deploy antigo',
-          frontmatter: {},
+
           links: [],
           origin: 'postgres',
           editor: {
@@ -404,7 +404,7 @@ describe('ProjectsPage', () => {
           note: {
             ...dashboard.notes![0],
             markdown: '# Deploy antigo',
-            frontmatter: {},
+
             links: [],
             origin: 'postgres',
             editor: {

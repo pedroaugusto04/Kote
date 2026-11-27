@@ -20,7 +20,7 @@ export class UpdateNoteUseCase {
     private readonly scopeResolver: WorkspaceScopeResolver,
   ) {}
 
-  async execute(input: UpdateNoteDto, userId: string, tx?: any) {
+  async execute(input: UpdateNoteDto, userId: string, tx?: unknown) {
     // Sanitize sensitive data from the note content
     const { title: sanitizedTitle, rawText: sanitizedRawText } = sanitizeManualNoteContent(
       input.title || '',
@@ -74,7 +74,7 @@ export class UpdateNoteUseCase {
       categoryIds: sanitizedInput.categoryIds,
     };
 
-    const save = (transaction?: any) => this.noteLifecycleService.saveNote(
+    const save = (transaction: unknown) => this.noteLifecycleService.saveNote(
       userId,
       { noteInput: updatedNoteInput, attachments: sanitizedInput.attachments },
       { existingNoteId: note.id, workspaceSlug: note.workspaceSlug || undefined, projectSlug: note.projectSlug || undefined },
@@ -82,9 +82,7 @@ export class UpdateNoteUseCase {
     );
     const { note: updated } = tx
       ? await save(tx)
-      : typeof (this.transactionManager as any)?.runInTransaction === 'function'
-        ? await this.transactionManager.runInTransaction(save)
-        : await (this.transactionManager as any).getDb().transaction(save);
+      : await this.transactionManager.runInTransaction(save);
 
     return { ok: true as const, noteId: updated.id };
   }

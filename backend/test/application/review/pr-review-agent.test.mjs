@@ -161,7 +161,6 @@ test('PrReviewAgentToolsService builds 3 tools and executes read_repository_file
   const tools = toolsService.buildTools({
     userId: 'user-1',
     scope: { workspaceId: 'ws-1' },
-    embeddingConfig: { provider: 'none', baseUrl: '', model: '', apiKey: '' },
     ragConfig: { candidateLimit: 10, minSimilarity: 0.5, hybridVectorWeight: 0.7, hybridKeywordWeight: 0.3, topChunksLimit: 5, rrfK: 20, recencyBonusEnabled: false, recencyMaxBonus: 0, recencyMaxBonusDays: 180 },
     githubToken: 'gh-token-123',
     repoFullName: 'octocat/hello-world',

@@ -72,7 +72,6 @@ export function toIngestPayload(
       importance: Importance.Low,
       status,
       tags: dto.tags,
-      decisionFlag: false,
     },
     actions: {
       reminderAt,

@@ -1,4 +1,4 @@
-import type { NoteDetail, NoteSummary } from './models/note';
+import type { NoteDetail, NoteSummary, PendingAttachment } from './models/note';
 import type { NoteStatusFilter, QuickNoteStatus } from './models/note-status';
 import type { LinkedCommitSummary } from './models/project-commits';
 import { DEFAULT_PAGE_SIZE, type PaginatedResponse } from './models/pagination';
@@ -23,33 +23,17 @@ export function fetchNotes(params: { page?: number; pageSize?: number; workspace
   return request<PaginatedResponse<NoteSummary, 'notes'>>(`${API_PATHS.NOTES}?${search.toString()}`);
 }
 
-export type CreateNoteParams = {
+export type CreateNoteParams = UpdateNoteParams & {
   projectSlug: string;
-  folderId?: string;
-  title?: string;
-  rawText?: string;
-  tags?: string[];
-  status?: QuickNoteStatus;
-  categoryIds?: string[];
-  reminderAt?: string;
   sourceChannel?: string;
   source?: string;
   sessionId?: string;
-  attachments?: Array<{
-    fileName: string;
-    mimeType: string;
-    sizeBytes: number;
-    dataBase64: string;
-  }>;
 };
 
 export type CreateNoteResponse = {
   ok: true;
-  project: string;
   noteId: string;
-  eventPath: string;
   note: {
-    id: string;
     title: string;
     type: string;
     status: string;
@@ -59,7 +43,7 @@ export type CreateNoteResponse = {
     folderId: string | null;
     folderName: string;
     folderPath: string;
-    eventPath: string;
+    path: string;
     reminderAt: string;
     hasReminder: boolean;
     attachmentCount: number;
@@ -83,12 +67,7 @@ export type UpdateNoteParams = {
   status?: QuickNoteStatus;
   categoryIds?: string[];
   reminderAt?: string;
-  attachments?: Array<{
-    fileName: string;
-    mimeType: string;
-    sizeBytes: number;
-    dataBase64: string;
-  }>;
+  attachments?: PendingAttachment[];
 };
 
 export function updateNote(id: string, params: UpdateNoteParams) {

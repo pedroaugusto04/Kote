@@ -132,7 +132,7 @@ test('PostgresNoteSynthesisRepository.getByNoteIds executes successfully against
     sourceChannel: 'ai_chat',
     summary: 'Test summary',
     markdown: '# Content',
-    frontmatter: {},
+
   });
 
   const synthesisRepo = new PostgresNoteSynthesisRepository(repositories.database);

@@ -14,7 +14,6 @@ import { AskKnowledgeUseCase, type AskKnowledgeOptions, type AskKnowledgeResult 
 import {
   AI_UNAVAILABLE_FALLBACK_ANSWER,
   resolveConversationAiConfig,
-  resolveEmbeddingConfig,
   resolveRagConfig,
 } from '../../utils/query/query-config.utils.js';
 
@@ -59,7 +58,6 @@ export class AgentAskKnowledgeUseCase extends AskKnowledgeUseCase {
       metadata: { question, workspaceSlug },
     });
 
-    const embeddingConfig = resolveEmbeddingConfig(this.env);
     const ragConfig = resolveRagConfig(this.env);
     const conversationHistory = options.conversationHistory?.slice(-5);
 
@@ -67,7 +65,6 @@ export class AgentAskKnowledgeUseCase extends AskKnowledgeUseCase {
     const tools = this.askAgentToolsService.buildTools(
       userId,
       options,
-      embeddingConfig,
       ragConfig,
       tracker,
     );

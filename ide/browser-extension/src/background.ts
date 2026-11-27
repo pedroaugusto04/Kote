@@ -338,7 +338,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'SAVE_CLIP') {
     saveClippedNote(message.clip, message.tags, message.projectSlug)
-      .then((res) => sendResponse({ success: true, noteId: res.noteId || res.id }))
+      .then((res) => sendResponse({ success: true, noteId: res.noteId }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true; // Keep message channel open for async response
   }
@@ -346,7 +346,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Helper function to save note via backend API
-async function saveClippedNote(clip: ClipPayload, tags: string[] = [], projectSlugOverride?: string): Promise<any> {
+async function saveClippedNote(clip: ClipPayload, tags: string[] = [], projectSlugOverride?: string): Promise<{ noteId: string }> {
   const { apiUrl, connectionToken, defaultProject, authMethod, accessToken: storedAccessToken } = await chrome.storage.local.get([
     'apiUrl',
     'connectionToken',

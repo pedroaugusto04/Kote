@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { CreateManualNoteUseCase, IngestEntryUseCase } from '../../../dist/application/use-cases/index.js';
+import { IngestEntryUseCase } from '../../../dist/application/use-cases/index.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
 function payload() {
@@ -9,7 +9,6 @@ function payload() {
     source: {
       channel: 'n8n-workflow',
       system: 'test-suite',
-      actor: 'tester',
       conversationId: 'conv',
       correlationId: 'corr-ingest',
     },
@@ -43,11 +42,9 @@ function payload() {
       importance: 'medium',
       status: 'active',
       tags: ['deploy'],
-      decisionFlag: false,
     },
     actions: {
       reminderAt: '2026-04-28T09:30:00.000Z',
-      followUpBy: '2026-04-29',
     },
     metadata: {},
   };
@@ -57,20 +54,13 @@ test('ingest fails when the target workspace does not exist', async (t) => {
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
 
-  const loggerMock = {
-    info() { },
-    warn() { },
-    error() { },
-    debug() { },
-  };
   await assert.rejects(
     () => new IngestEntryUseCase(
       repositories.contentRepository,
       repositories.runtimeEnvironmentProvider,
       repositories.noteLifecycleService,
-      loggerMock,
-      repositories.database,
-    repositories.scopeResolver,
+      repositories.transactionManager,
+      repositories.scopeResolver,
     ).execute(payload(), user.id, 'default'),
     /workspace_not_found/,
   );

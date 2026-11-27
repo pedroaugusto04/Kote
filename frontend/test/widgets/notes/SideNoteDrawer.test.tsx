@@ -30,7 +30,7 @@ const mockNote: NoteDetail = {
   status: NoteStatus.Active,
   summary: 'Drawer note summary content',
   markdown: '# Drawer Note Title\n\nFull note body in drawer.',
-  frontmatter: {},
+
   links: [],
   origin: 'manual-api',
   attachments: [],

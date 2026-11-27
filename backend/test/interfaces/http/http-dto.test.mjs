@@ -236,10 +236,10 @@ test('agent conversation dto accepts valid payloads', () => {
 
 test('whatsapp webhook dto rejects canonical ingest payloads', () => {
   assert.throws(() => whatsappWebhookBodySchema.parse({
-    source: { channel: 'whatsapp', system: 'test', actor: '', conversationId: '120363@g.us', correlationId: 'corr-1' },
+    source: { channel: 'whatsapp', system: 'test', conversationId: '120363@g.us', correlationId: 'corr-1' },
     event: { type: 'manual_note', occurredAt: '2026-04-27T10:00:00.000Z', projectSlug: 'n8n' },
     content: { rawText: 'texto', title: '', attachments: [], sections: {} },
-    classification: { kind: 'note', canonicalType: 'event', importance: 'low', tags: [], decisionFlag: false },
+    classification: { kind: 'note', canonicalType: 'event', importance: 'low', tags: [] },
     actions: {},
     metadata: {},
   }));

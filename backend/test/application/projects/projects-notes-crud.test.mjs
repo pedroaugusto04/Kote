@@ -94,7 +94,6 @@ async function seedManualNote(repositories, userId) {
     sourceChannel: 'external',
     summary: 'confirmar deploy',
     markdown: '# Deploy antigo\n\n## Summary\n\nconfirmar deploy\n',
-    frontmatter: { id: 'manual:1' },
     metadata: { manual: true, rawText: 'confirmar deploy' },
     source: 'manual-api',
     sessionId: '',
@@ -110,7 +109,7 @@ test('updates manual note content and reminder metadata only', async (t) => {
   const { note } = await seedManualNote(repositories, user.id);
 
   const noopDispatcher = { dispatch: async () => {} };
-  const useCase = new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.database, repositories.scopeResolver);
+  const useCase = new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.transactionManager, repositories.scopeResolver);
   const result = await useCase.execute({
     id: note.id,
     title: 'Deploy revisado',
@@ -145,8 +144,7 @@ test('updates existing manual note when matching sessionId and source instead of
     repositories.contentRepository,
     repositories.runtimeEnvironmentProvider,
     repositories.noteLifecycleService,
-    loggerMock,
-    repositories.database,
+    repositories.transactionManager,
     repositories.scopeResolver,
   );
   const noopDispatcher = { dispatch: async () => {} };
@@ -213,7 +211,7 @@ test('resolves the primary note type from selected categories by priority', asyn
   });
 
   const loggerMock = { info(){}, warn(){}, error(){}, debug(){} };
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock, repositories.database,
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.transactionManager,
     repositories.scopeResolver,);
   const noopDispatcher = { dispatch: async () => {} };
   const createNote = new CreateManualNoteUseCase(repositories.contentRepository, ingest, repositories.runtimeEnvironmentProvider, noopDispatcher, loggerMock, repositories.scopeResolver);
@@ -228,9 +226,13 @@ test('resolves the primary note type from selected categories by priority', asyn
 
   const note = await repositories.contentQueryRepository.getById(user.id, created.noteId);
   assert.equal(note?.type, 'decision');
-  assert.equal(note?.frontmatter.type, 'decision');
+  assert.equal(created.note.type, 'decision');
+  assert.equal(created.note.path, note.path);
+  assert.equal('frontmatter' in note, false);
+  assert.match(note.markdown, /^canonical_type: "?decision"?$/m);
+  assert.doesNotMatch(note.markdown, /^related:/m);
 
-  await new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.database, repositories.scopeResolver).execute({
+  await new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.transactionManager, repositories.scopeResolver).execute({
     id: created.noteId,
     title: 'Choose queue provider',
     rawText: 'Move this back to a regular event',
@@ -241,7 +243,7 @@ test('resolves the primary note type from selected categories by priority', asyn
 
   const updated = await repositories.contentQueryRepository.getById(user.id, created.noteId);
   assert.equal(updated?.type, 'event');
-  assert.equal(updated?.frontmatter.type, 'event');
+  assert.deepEqual(updated?.categories, []);
 });
 
 test('lists project timeline by derived category without raw webhook events', async (t) => {
@@ -273,7 +275,6 @@ test('lists project timeline by derived category without raw webhook events', as
     sourceChannel: 'whatsapp',
     summary: 'from chat',
     markdown: '# WhatsApp update',
-    frontmatter: {},
     metadata: {},
     origin: 'postgres',
     source: 'evolution',
@@ -292,7 +293,6 @@ test('lists project timeline by derived category without raw webhook events', as
     sourceChannel: 'github',
     summary: 'push received',
     markdown: '# GitHub push',
-    frontmatter: {},
     metadata: {},
     origin: 'postgres',
     source: 'github',
@@ -311,7 +311,6 @@ test('lists project timeline by derived category without raw webhook events', as
     sourceChannel: 'external',
     summary: 'manual',
     markdown: '# Manual note',
-    frontmatter: {},
     metadata: { manual: true },
     origin: 'postgres',
     source: 'manual-api',
@@ -330,7 +329,6 @@ test('lists project timeline by derived category without raw webhook events', as
     sourceChannel: 'external',
     summary: 'remind me',
     markdown: '# Reminder note',
-    frontmatter: {},
     metadata: {},
     source: 'manual-api',
     sessionId: '',
@@ -349,7 +347,6 @@ test('lists project timeline by derived category without raw webhook events', as
     sourceChannel: 'external',
     summary: 'decision',
     markdown: '# Decision note',
-    frontmatter: {},
     metadata: { manual: true },
     origin: 'postgres',
     source: 'manual-api',
@@ -386,7 +383,6 @@ test('lists project timeline by derived category without raw webhook events', as
     sourceChannel: 'external',
     summary: 'qa details',
     markdown: '# Release QA checklist',
-    frontmatter: {},
     metadata: { manual: true },
     origin: 'postgres',
     source: 'manual-api',
@@ -412,7 +408,7 @@ test('clears manual note reminder metadata', async (t) => {
   await seedProject(repositories, user.id);
   const { note } = await seedManualNote(repositories, user.id);
 
-  const useCase = new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.database, repositories.scopeResolver);
+  const useCase = new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.transactionManager, repositories.scopeResolver);
   await useCase.execute({
     id: note.id,
     title: 'Deploy revisado',
@@ -484,7 +480,6 @@ test('note list and detail expose attachment metadata without storage internals'
     sourceChannel: 'external',
     summary: 'um anexo',
     markdown: '# Nota com um anexo',
-    frontmatter: {},
     metadata: {},
     origin: 'postgres',
     source: 'manual-api',
@@ -503,7 +498,6 @@ test('note list and detail expose attachment metadata without storage internals'
     sourceChannel: 'external',
     summary: 'sem anexo',
     markdown: '# Nota sem anexo',
-    frontmatter: {},
     metadata: {},
     origin: 'postgres',
     source: 'manual-api',
@@ -571,7 +565,6 @@ test('note pagination filters by note status', async (t) => {
     sourceChannel: 'external',
     summary: 'ativa',
     markdown: '# Nota ativa',
-    frontmatter: {},
     metadata: {},
     origin: 'postgres',
     source: 'manual-api',
@@ -590,7 +583,6 @@ test('note pagination filters by note status', async (t) => {
     sourceChannel: 'external',
     summary: 'resolvida',
     markdown: '# Nota resolvida',
-    frontmatter: {},
     metadata: {},
     origin: 'postgres',
     source: 'manual-api',
@@ -691,7 +683,6 @@ test('updates any note type and still blocks project deletion while notes exist'
       'No findings registered.',
       '',
     ].join('\n'),
-    frontmatter: { id: 'review:1' },
     metadata: { manual: false },
     origin: 'postgres',
     source: 'github',
@@ -699,7 +690,7 @@ test('updates any note type and still blocks project deletion while notes exist'
   });
 
   const noopDispatcher = { dispatch: async () => {} };
-  const result = await new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.database, repositories.scopeResolver).execute({
+  const result = await new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.transactionManager, repositories.scopeResolver).execute({
     id: reviewNote.id,
     title: 'Review atualizada',
     rawText: 'texto atualizado',
@@ -791,7 +782,7 @@ test('folders organize manual notes and update derived note paths on rename', as
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository, repositories.scopeResolver);
   const updateFolder = new UpdateProjectFolderUseCase(repositories.contentRepository, repositories.scopeResolver);
   const deleteFolder = new DeleteProjectFolderUseCase(repositories.contentRepository, repositories.scopeResolver);
-  const updateNote = new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.database, repositories.scopeResolver);
+  const updateNote = new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.transactionManager, repositories.scopeResolver);
 
   const opsFolder = (await createFolder.execute({ projectId: platformId, displayName: 'Ops' }, user.id)).folder;
   const runbooksFolder = (await createFolder.execute({ projectId: platformId, displayName: 'Runbooks', parentFolderId: opsFolder.id }, user.id)).folder;
@@ -843,8 +834,7 @@ test('manages uncategorized notes creation and updates', async (t) => {
     repositories.contentRepository,
     repositories.runtimeEnvironmentProvider,
     repositories.noteLifecycleService,
-    loggerMock,
-    repositories.database,
+    repositories.transactionManager,
     repositories.scopeResolver,
   );
   const noopDispatcher = { dispatch: async () => {} };
@@ -874,7 +864,8 @@ test('manages uncategorized notes creation and updates', async (t) => {
     repositories.contentRepository,
     repositories.runtimeEnvironmentProvider,
     repositories.noteLifecycleService,
-    repositories.database,
+    repositories.transactionManager,
+    repositories.scopeResolver,
   );
 
   await updateUseCase.execute({
@@ -920,8 +911,7 @@ test('manages manual note creation with title but empty/missing rawText', async 
     repositories.contentRepository,
     repositories.runtimeEnvironmentProvider,
     repositories.noteLifecycleService,
-    loggerMock,
-    repositories.database,
+    repositories.transactionManager,
     repositories.scopeResolver,
   );
   const noopDispatcher = { dispatch: async () => {} };

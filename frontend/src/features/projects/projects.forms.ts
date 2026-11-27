@@ -25,7 +25,12 @@ export const noteFormSchema = z.object({
   rawText: z.string().trim().max(500000, 'Use at most 500000 characters.').optional(),
   tags: z.array(z.string().trim().max(50)).max(10),
   reminderAt: z.string().optional(),
-  attachments: z.array(z.any()).optional(),
+  attachments: z.array(z.object({
+    fileName: z.string(),
+    mimeType: z.string(),
+    sizeBytes: z.number(),
+    dataBase64: z.string(),
+  })),
 });
 
 export type NoteFormValues = z.infer<typeof noteFormSchema>;

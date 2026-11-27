@@ -64,7 +64,6 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
         createNote('inbox', title, attachments);
       }
     },
-    projectSlug: 'inbox',
   });
 
   // Set callback to process next file in queue when modal closes

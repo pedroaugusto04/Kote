@@ -145,7 +145,6 @@ export function ProjectsWorkspace({
         initialAttachments: attachments,
       });
     },
-    projectSlug: selectedSlug || 'inbox',
   });
 
   const foldersQuery = useQuery({

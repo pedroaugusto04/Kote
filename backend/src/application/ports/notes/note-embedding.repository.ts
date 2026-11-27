@@ -1,11 +1,9 @@
 export const EmbeddingRepresentation = {
   Raw: 'raw',
   Synthesis: 'synthesis',
-  All: 'all',
 } as const;
 
 export type EmbeddingRepresentation = typeof EmbeddingRepresentation.Raw | typeof EmbeddingRepresentation.Synthesis;
-export type EmbeddingRepresentationFilter = EmbeddingRepresentation | typeof EmbeddingRepresentation.All;
 
 export type NoteEmbeddingRecord = {
   id: string;
@@ -27,12 +25,10 @@ export type SimilarChunk = NoteEmbeddingRecord & {
 
 export type FindSimilarOptions = {
   limit: number;
-  minSimilarity?: number;
+  minSimilarity: number;
   workspaceId?: string;
   projectId?: string;
-  representation?: EmbeddingRepresentationFilter;
-  /** Preserve legacy synthesis preference for consumers that are not synthesis-aware. */
-  synthesisBoost?: number;
+  representation: EmbeddingRepresentation;
 };
 
 export abstract class NoteEmbeddingRepository {

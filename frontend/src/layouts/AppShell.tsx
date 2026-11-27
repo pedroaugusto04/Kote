@@ -9,7 +9,7 @@ import { navItems, routes, type View } from '../app/routing/routes';
 import { ApiClientError, deleteNote, exportGlobalData, fetchCurrentUser, fetchDashboard, fetchNote, fetchProjectFolders, logout, runQuery, setProjectFavorite, setActiveWorkspaceSlug } from '../shared/api/client';
 import { fetchSubscriptionStatus } from '../shared/api/billing';
 import { hasQuotaWarning } from '../features/quota/quota.utils';
-import type { NoteSummary } from '../shared/api/models/note';
+import type { NoteSummary, PendingAttachment } from '../shared/api/models/note';
 import { ensureNoteDetail, getCachedNoteDetail, invalidateNoteRelatedQueries, noteDetailQueryOptions } from '../shared/api/note-query';
 import { GlobalLoadingOverlay } from '../shared/ui/GlobalLoadingOverlay';
 
@@ -335,7 +335,7 @@ export function AppShell() {
       createNote: (
         projectSlug?: string,
         initialTitle?: string,
-        initialAttachments?: Array<{ fileName: string; mimeType: string; sizeBytes: number; dataBase64: string }>,
+        initialAttachments?: PendingAttachment[],
       ) => {
         const slug = projectSlug || currentProject || dashboard.projects[0]?.projectSlug || UI_MESSAGES.DEFAULT_PROJECT_SLUG;
         setNoteModal({

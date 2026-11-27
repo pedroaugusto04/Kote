@@ -57,7 +57,6 @@ test('postgres repositories share state across content query and workflow ports'
     sourceChannel: 'test',
     summary: 'Shared state summary',
     markdown: '',
-    frontmatter: {},
     metadata: {
       reminderTime: '09:00',
     },

@@ -29,11 +29,11 @@ export class CreateNoteTool implements McpTool {
   async execute(args: CreateNoteArgs, apiClient: ApiClient): Promise<unknown> {
     const response = await apiClient.createNote(args.title, args.markdown, args.projectSlug);
     
-    if (response.id || response.noteId) {
+    if (response.noteId) {
       return {
         ok: true,
         message: 'Note created successfully',
-        noteId: response.id || response.noteId
+        noteId: response.noteId
       };
     }
 

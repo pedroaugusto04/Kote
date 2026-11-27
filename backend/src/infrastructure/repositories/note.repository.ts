@@ -30,25 +30,13 @@ import { resolveNoteBodySearchText } from '../../domain/utils/note-search-text.u
 import { normalizeFilePath } from '../../domain/utils/file-path.utils.js';
 import type { ProductivityInsightsRaw } from '../../application/models/productivity.models.js';
 import {
-  NOTE_ATTACHMENT_COUNT_SELECT_COLUMN,
+  NOTE_BASE_SELECT_FIELDS,
   NOTE_CATEGORIES_SELECT_COLUMN,
+  NOTE_FULL_SELECT_FIELDS,
   NOTE_LINKED_COMMITS_SELECT_COLUMN,
   NOTE_PROJECT_SELECT_COLUMNS,
   NOTE_SELECT_COLUMNS,
 } from './projections/note.projections.js';
-
-
-export const NOTE_BASE_SELECT_FIELDS = {
-  ...NOTE_SELECT_COLUMNS,
-  categories: NOTE_CATEGORIES_SELECT_COLUMN,
-  linkedCommits: NOTE_LINKED_COMMITS_SELECT_COLUMN,
-};
-
-export const NOTE_FULL_SELECT_FIELDS = {
-  ...NOTE_BASE_SELECT_FIELDS,
-  attachmentCount: NOTE_ATTACHMENT_COUNT_SELECT_COLUMN,
-};
-
 import {
   RAW_CATEGORIES_JSON_AGG_SQL,
   RAW_LINKED_COMMITS_JSON_AGG_SQL,

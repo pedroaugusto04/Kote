@@ -11,6 +11,7 @@ test('normalizes canonical ingest payload and uses reminderAt directly', () => {
         channel: 'external',
         system: 'test',
         actor: 'tester',
+        source: 'legacy',
         conversationId: 'conv-1',
         correlationId: 'corr-1',
       },
@@ -49,7 +50,10 @@ test('normalizes canonical ingest payload and uses reminderAt directly', () => {
 
   assert.equal(parsed.event.projectSlug, 'n8n-automations');
   assert.deepEqual(parsed.classification.tags, ['deploy', 'n8n']);
-  assert.equal(parsed.actions.reminderAt, '2026-04-27T12:15:00.000Z');
+  assert.deepEqual(parsed.actions, { reminderAt: '2026-04-27T12:15:00.000Z' });
+  assert.equal('actor' in parsed.source, false);
+  assert.equal('source' in parsed.source, false);
+  assert.equal('decisionFlag' in parsed.classification, false);
 });
 
 

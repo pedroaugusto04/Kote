@@ -87,8 +87,7 @@ async function createFixture(t, turns) {
     repositories.contentRepository,
     repositories.runtimeEnvironmentProvider,
     repositories.noteLifecycleService,
-    loggerMock,
-    repositories.database,
+    repositories.transactionManager,
     repositories.scopeResolver,
   );
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository, repositories.scopeResolver);
@@ -202,7 +201,7 @@ test('agent conversation preserves media from the first message and saves it imm
   const saved = await agentUseCase.execute(mediaInput('corrigi timeout do endpoint de webhook'), user.id, 'default');
 
   assert.equal(saved.action, 'submit');
-  assert.equal(saved.ingestResult.attachmentIds.length, 1);
+  assert.equal(saved.ingestResult.note.attachmentCount, 1);
   const attachments = await repositories.contentRepository.listAttachments(user.id, saved.ingestResult.noteId);
   assert.equal(attachments.length, 1);
   assert.equal(attachments[0].fileName, 'erro.png');

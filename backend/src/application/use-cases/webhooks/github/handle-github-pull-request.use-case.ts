@@ -14,7 +14,7 @@ import { AiEntitlementService } from '../../../services/ai/ai-entitlement.servic
 import { PrReviewAgentGateway } from '../../../ports/integrations/pr-review-agent.gateway.js';
 import { PrReviewAgentToolsService } from '../../../services/review/pr-review-agent-tools.service.js';
 import { AgentContextTracker } from '../../../services/query/agent-context-tracker.js';
-import { resolveEmbeddingConfig, resolveRagConfig } from '../../../utils/query/query-config.utils.js';
+import { resolveRagConfig } from '../../../utils/query/query-config.utils.js';
 import { GithubRepositoryResolutionService } from '../../../services/integrations/github-repository-resolution.service.js';
 import { AppLogger } from '../../../../observability/logger.js';
 import { githubPrAuditPayload, type GithubPullRequestPayload } from '../../../utils/github/github-audit.utils.js';
@@ -319,14 +319,12 @@ export class HandleGithubPullRequestUseCase {
       const workspaceId = matchedWorkspace?.id || '';
       const scope = { workspaceId };
 
-      const embeddingConfig = resolveEmbeddingConfig(environment);
       const ragConfig = resolveRagConfig(environment);
       const tracker = new AgentContextTracker();
 
       const tools = this.prReviewAgentToolsService.buildTools({
         userId: identity.userId,
         scope,
-        embeddingConfig,
         ragConfig,
         githubToken: token,
         repoFullName,

@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
 import { ContentRepository, ContentQueryRepository } from '../../ports/notes/content.repository.js';
-import type { EmbeddingConfig } from '../../ports/notes/embedding.gateway.js';
 import { RagRetrievalService, type RagConfig, type RagScope } from './rag-retrieval.service.js';
 import { RagContextAssemblerService } from './rag-context-assembler.service.js';
 import { AppLogger } from '../../../observability/logger.js';
@@ -34,7 +33,6 @@ export class AskAgentToolsService {
   buildTools(
     userId: string,
     scope: RagScope,
-    embeddingConfig: EmbeddingConfig,
     ragConfig: RagConfig,
     tracker: AgentContextTracker,
   ): AskAgentTool[] {
@@ -79,7 +77,6 @@ export class AskAgentToolsService {
           userId,
           query,
           effectiveScope,
-          embeddingConfig,
           ragConfig,
         );
 

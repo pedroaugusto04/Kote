@@ -68,7 +68,6 @@ export class FindRelatedNotesByFileUseCase {
       return [];
     }
 
-    const isEmbeddingConfigured = this.vectorChunkSearch.isEmbeddingConfigured(env);
     const ftsQueryText = searchProfile === 'snippet'
       ? extractCodeTokens(queryText).slice(0, 32).join(' ')
       : queryText;
@@ -80,7 +79,6 @@ export class FindRelatedNotesByFileUseCase {
       projectSlug,
       searchProfile,
       resultLimit,
-      isEmbeddingConfigured,
       ftsQueryText,
     });
 
@@ -95,33 +93,30 @@ export class FindRelatedNotesByFileUseCase {
       }
     }
 
-    const [vectorResult, ftsNotes] = await Promise.all([
-      isEmbeddingConfigured
-        ? this.vectorChunkSearch.search({
-            userId,
-            queryText,
-            limit: candidateLimit,
-            minSimilarity: searchConfig.minSimilarity,
-            projectId,
-            representations: [EmbeddingRepresentation.Raw],
-            rawCandidateMultiplier: 4,
-            maxRawCandidates: 200,
-            deduplicateByNote: true,
-            logPrefix: 'codelens_related',
-          })
-        : Promise.resolve({ chunks: [] as Array<{ noteId: string; similarity: number }> }),
+    const [vectorChunks, ftsNotes] = await Promise.all([
+      this.vectorChunkSearch.search({
+        userId,
+        queryText,
+        limit: candidateLimit,
+        minSimilarity: searchConfig.minSimilarity,
+        projectId,
+        representations: [EmbeddingRepresentation.Raw],
+        rawCandidateMultiplier: 4,
+        deduplicateByNote: true,
+        logPrefix: 'codelens_related',
+      }),
       ftsQueryText
         ? this.contentQueryRepository.list(userId, { query: ftsQueryText, ftsLimit: candidateLimit, projectSlug })
         : Promise.resolve([]),
     ]);
 
     this.logger.info('codelens_related.search_phase_complete', {
-      vectorChunksCount: vectorResult.chunks.length,
+      vectorChunksCount: vectorChunks.length,
       ftsNotesCount: ftsNotes.length,
     });
 
     const filteredFts = ftsNotes.filter((n) => !excludeSet.has(n.id));
-    const filteredChunks = vectorResult.chunks.filter((c) => !excludeSet.has(c.noteId));
+    const filteredChunks = vectorChunks.filter((c) => !excludeSet.has(c.noteId));
     const semanticSimilarityByNoteId = new Map<string, number>();
     for (const chunk of filteredChunks) {
       const currentSimilarity = semanticSimilarityByNoteId.get(chunk.noteId) || 0;
@@ -154,42 +149,18 @@ export class FindRelatedNotesByFileUseCase {
       limit: resultLimit,
     };
 
-    let matches: Array<ReturnType<typeof rankHybridKnowledgeMatches>[number]>;
-
-    if (hasVectorResults) {
-      matches = rankHybridKnowledgeMatches(
-        hybridCandidates,
-        filteredChunks,
-        queryInput,
-        { vector: searchConfig.vectorWeight, keyword: searchConfig.keywordWeight },
-        searchConfig.rrfK,
-      );
-    } else {
-      // Fallback: keyword only
-      matches = filteredFts
-        .filter((n) => (n.ftsRank ?? 0) > 0)
-        .sort((a, b) => (b.ftsRank ?? 0) - (a.ftsRank ?? 0))
-        .map((n) => ({
-          id: n.id,
-          path: n.path,
-          title: n.title,
-          type: n.type,
-          project: n.project,
-          workspace: n.workspace,
-          folderId: n.folderId,
-          categories: n.categories,
-          tags: n.tags,
-          date: n.date,
-          status: n.status,
-          summary: n.summary,
-          source: n.source,
-          projectSlug: n.project,
-          score: n.ftsRank ?? 0,
-          snippet: n.summary || n.title,
-          attachmentCount: n.attachmentCount,
-          isPinned: n.isPinned,
-        }));
-    }
+    const matches = hasVectorResults
+      ? rankHybridKnowledgeMatches(
+          hybridCandidates,
+          filteredChunks,
+          queryInput,
+          { vector: searchConfig.vectorWeight, keyword: searchConfig.keywordWeight },
+          searchConfig.rrfK,
+        )
+      : filteredFts
+          .map((note) => ({ id: note.id, score: note.ftsRank ?? 0 }))
+          .filter((match) => match.score > 0)
+          .sort((a, b) => b.score - a.score);
 
     const relevantMatches = searchProfile === 'snippet'
       ? matches.filter((match) => {

@@ -1,3 +1,4 @@
+import { PostgresTransactionManager } from '../../dist/infrastructure/persistence/postgres-transaction-manager.js';
 import crypto from 'node:crypto';
 
 import pg from 'pg';
@@ -382,6 +383,7 @@ export async function createPostgresTestRepositories(t) {
     noteLifecycleService,
     noteContextRepository,
     gitCommitRepository,
+    transactionManager: new PostgresTransactionManager(database),
     database,
   };
 }

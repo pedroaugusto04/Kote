@@ -31,7 +31,6 @@ function canonicalPayload(projectSlug = 'acme-api') {
     source: {
       channel: 'external',
       system: 'test',
-      actor: 'tester',
       conversationId: 'conversation-1',
       correlationId: `event:${projectSlug}:1`,
     },
@@ -58,12 +57,10 @@ function canonicalPayload(projectSlug = 'acme-api') {
       importance: 'medium',
       status: 'active',
       tags: ['setup'],
-      decisionFlag: false,
     },
     actions: {
       reminderDate: '',
       reminderTime: '',
-      followUpBy: '',
     },
     metadata: {},
   };
@@ -127,7 +124,7 @@ test('new users start with an empty scoped dashboard and cannot see another user
   configureEnv();
   const repositories = await createPostgresTestRepositories(t);
   const loggerMock = { info() {}, warn() {}, error() {}, debug() {} };
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock, repositories.database,
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.transactionManager,
     repositories.scopeResolver,);
   const dashboard = new BuildDashboardUseCase(
     repositories.contentRepository,
@@ -182,7 +179,7 @@ test('github app webhook resolves user by installation id and rejects unknown id
     workspaceSlug: 'default',
   }, user.id);
   const loggerMock = { info() {}, warn() {}, error() {}, debug() {} };
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock, repositories.database,
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.transactionManager,
     repositories.scopeResolver,);
   const processGithubPushService = new ProcessGithubPushService(
     ingest,
@@ -320,7 +317,7 @@ test('github push resolves project by explicit repository mapping', async (t) =>
     publicMetadata: { label: 'Review AI', connectedAccount: 'openrouter' },
   });
   const loggerMock = { info() {}, warn() {}, error() {}, debug() {} };
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock, repositories.database,
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.transactionManager,
     repositories.scopeResolver,);
   const processGithubPushService = new ProcessGithubPushService(
     ingest,
@@ -497,7 +494,6 @@ test('github pull request webhook processes event, searches context, and posts c
       importance: 'medium',
       status: 'active',
       tags: [],
-      decisionFlag: false,
     },
     metadata: {},
     createdAt: '2026-04-27T00:00:00.000Z',
@@ -563,7 +559,7 @@ test('github pull request webhook processes event, searches context, and posts c
   );
 
   const loggerMock = { info() {}, warn() {}, error() {}, debug() {} };
-  const ingestMock = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock, repositories.database,
+  const ingestMock = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.transactionManager,
     repositories.scopeResolver,);
 
   const prLoggerMock = { info() {}, warn() {}, error() {}, debug() {} };
@@ -715,8 +711,7 @@ test('github pull request webhook processes diff and posts comment even when sem
     repositories.contentRepository,
     repositories.runtimeEnvironmentProvider,
     repositories.noteLifecycleService,
-    loggerMock,
-    repositories.database,
+    repositories.transactionManager,
     repositories.scopeResolver,
   );
   const prLoggerMock = { info() {}, warn() {}, error() {}, debug() {} };

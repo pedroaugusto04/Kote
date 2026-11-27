@@ -1,13 +1,8 @@
 import React from 'react';
 import { notifyError } from './notifications';
 import { isMimeTypeSupported, getAcceptAttribute, normalizeAttachmentMimeType } from '../constants/attachment-types';
-
-export type PendingAttachment = {
-  fileName: string;
-  mimeType: string;
-  sizeBytes: number;
-  dataBase64: string;
-};
+import { toPendingAttachment } from '../utils/note-attachments';
+import type { PendingAttachment } from '../api/models/note';
 
 type AttachmentInputProps = {
   value: PendingAttachment[];
@@ -17,18 +12,6 @@ type AttachmentInputProps = {
 };
 
 const MAX_SIZE = Number(import.meta.env.VITE_ATTACHMENT_MAX_SIZE_BYTES || 10 * 1024 * 1024);
-
-export const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      const base64 = (reader.result as string).split(',')[1] || '';
-      resolve(base64);
-    };
-    reader.onerror = (error) => reject(error);
-  });
-};
 
 export function AttachmentInput({
   value,
@@ -53,13 +36,7 @@ export function AttachmentInput({
         continue;
       }
       try {
-        const base64 = await fileToBase64(file);
-        newAttachments.push({
-          fileName: file.name,
-          mimeType,
-          sizeBytes: file.size,
-          dataBase64: base64,
-        });
+        newAttachments.push(await toPendingAttachment(file, mimeType));
       } catch (error) {
         console.error('Failed to read file:', error);
       }

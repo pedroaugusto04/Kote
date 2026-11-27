@@ -1,15 +1,17 @@
-import { slugify } from '../../domain/strings.js';
+import { slugify, trimText } from '../../domain/strings.js';
 import type { Project } from '../../domain/projects.js';
 import { ingestPayloadSchema, type IngestPayload } from '../../contracts/ingest.js';
 import { CanonicalType, type EventType, Importance, KnowledgeKind, KnowledgeStatus, type SourceChannel } from '../../contracts/enums.js';
-import type { SaveProjectInput } from '../models/repository-records.models.js';
-import type { SaveNoteInput } from '../models/repository-records.models.js';
+import type {
+  AttachmentRecord,
+  NoteRecord,
+  ProjectFolderRecord,
+  SaveNoteInput,
+  SaveProjectInput,
+} from '../models/repository-records.models.js';
 import type { SaveNoteResult } from '../models/note-save-result.models.js';
-import type { NoteRecord } from '../models/repository-records.models.js';
-import type { AttachmentRecord } from '../models/repository-records.models.js';
-import { buildNotePaths, renderEventNote } from '../../domain/notes.js';
+import { buildNotePath, renderEventNote } from '../../domain/notes.js';
 import { normalizeOccurredAtToUtc } from '../../domain/time.js';
-import { trimText } from '../../domain/strings.js';
 import { normalizeManualNoteStatus, hasReminder } from '../../domain/note-status.js';
 import { resolveCanonicalTypeFromCategories } from '../../domain/note-classification.js';
 
@@ -17,8 +19,6 @@ export interface BuildIngestPayloadInput {
   source: {
     channel?: SourceChannel | string;
     system: string;
-    source?: string;
-    actor?: string;
     conversationId?: string;
     correlationId: string;
     sessionId?: string;
@@ -51,11 +51,9 @@ export interface BuildIngestPayloadInput {
     importance?: Importance;
     status?: KnowledgeStatus;
     tags?: string[];
-    decisionFlag?: boolean;
   };
   actions?: {
     reminderAt?: string;
-    followUpBy?: string;
   };
   links?: string[];
   metadata?: Record<string, unknown>;
@@ -76,8 +74,6 @@ export function buildIngestPayload(input: BuildIngestPayloadInput): IngestPayloa
     source: {
       channel: input.source.channel,
       system: input.source.system,
-      source: input.source.source || '',
-      actor: input.source.actor || '',
       conversationId: input.source.conversationId || '',
       correlationId: input.source.correlationId,
       sessionId: input.source.sessionId || '',
@@ -105,11 +101,9 @@ export function buildIngestPayload(input: BuildIngestPayloadInput): IngestPayloa
       importance: input.classification?.importance ?? Importance.Medium,
       status: input.classification?.status,
       tags: input.classification?.tags || [],
-      decisionFlag: input.classification?.decisionFlag ?? false,
     },
     actions: {
       reminderAt: input.actions?.reminderAt || '',
-      followUpBy: input.actions?.followUpBy || '',
     },
     links: input.links || [],
     metadata: input.metadata || {},
@@ -193,14 +187,13 @@ export interface IngestNoteMappingContext {
   project: Project;
   workspaceId: string;
   workspaceSlug: string;
-  folderFullSlugPath?: string | null;
-  folderId?: string | null;
+  folder: Pick<ProjectFolderRecord, 'id' | 'fullSlugPath'> | null;
   existingNoteId?: string;
   existingNotePath?: string;
   categoryIds?: string[];
 }
 
-export function toNoteInputFromIngest(
+export function mapIngestedNote(
   payload: IngestPayload,
   context: IngestNoteMappingContext,
 ): SaveNoteInput {
@@ -208,27 +201,25 @@ export function toNoteInputFromIngest(
     project,
     workspaceId,
     workspaceSlug,
-    folderFullSlugPath,
+    folder,
     existingNoteId,
     existingNotePath,
     categoryIds,
-    folderId = null,
   } = context;
 
-  const paths = buildNotePaths(project, payload, folderFullSlugPath || '');
-  const markdown = renderEventNote(project, payload, paths);
+  const markdown = renderEventNote(project, payload);
   const title = trimText(payload.content.title, payload.content.rawText);
-  
+
   return {
     id: existingNoteId,
     projectId: '',
     workspaceId,
-    path: existingNotePath || paths.eventRelativePath.replace(/\\/g, '/'),
+    path: existingNotePath || buildNotePath(project, payload, folder?.fullSlugPath),
     categoryIds,
     title,
     projectSlug: project.projectSlug,
     workspaceSlug,
-    folderId,
+    folderId: folder?.id || null,
     status: payload.classification.status || KnowledgeStatus.Active,
     tags: payload.classification.tags,
     occurredAt: payload.event.occurredAt,
@@ -273,41 +264,25 @@ export function toProjectSaveInput(project: Project, workspaceId: string, projec
   };
 }
 
-export function toNotePathsFromIngest(
-  payload: IngestPayload,
-  project: Project,
-  folderFullSlugPath: string | null
-) {
-  return buildNotePaths(project, payload, folderFullSlugPath || '');
-}
-
 export interface SaveNoteResultParams {
   note: NoteRecord;
   attachments: AttachmentRecord[];
   project: Project;
   folderName: string;
   folderPath: string;
-  paths: ReturnType<typeof buildNotePaths>;
 }
 
 export function toSaveNoteResult(params: SaveNoteResultParams): SaveNoteResult {
-  const { note, attachments: atts, project: proj, folderName, folderPath, paths } = params;
-  const reminderAt = String(note.reminderAt || '');
+  const { note, attachments: atts, project: proj, folderName, folderPath } = params;
+  const { reminderAt } = note;
+  const noteHasReminder = hasReminder({ reminderAt });
 
   return {
     ok: true,
-    project: proj.projectSlug,
     noteId: note.id,
-    eventPath: note.path,
-    canonicalPath: paths.canonicalRelativePath.replace(/\\/g, '/'),
-    followupPath: paths.followupRelativePath.replace(/\\/g, '/'),
-    dailyPath: paths.dailyRelativePath.replace(/\\/g, '/'),
-    attachmentIds: atts.map((attachment) => attachment.id),
-    assetPaths: [],
     note: {
-      id: note.id,
       title: note.title,
-      type: hasReminder({ reminderAt }) ? 'reminder' : resolveCanonicalTypeFromCategories(note.categories || [], (note.categories || []).map((c) => c.id)),
+      type: noteHasReminder ? 'reminder' : resolveCanonicalTypeFromCategories(note.categories, note.categories.map((category) => category.id)),
       status: note.status,
       projectSlug: proj.projectSlug,
       projectName: proj.displayName || proj.projectSlug,
@@ -315,9 +290,9 @@ export function toSaveNoteResult(params: SaveNoteResultParams): SaveNoteResult {
       folderId: note.folderId,
       folderName,
       folderPath,
-      eventPath: note.path,
+      path: note.path,
       reminderAt,
-      hasReminder: hasReminder({ reminderAt }),
+      hasReminder: noteHasReminder,
       attachmentCount: atts.length,
     },
   };

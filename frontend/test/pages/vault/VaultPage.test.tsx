@@ -560,7 +560,7 @@ function buildNoteDetail(note: NoteSummary): NoteDetail {
   return {
     ...note,
     markdown: `# ${note.title}\n\nConteudo`,
-    frontmatter: {},
+
     links: [],
     origin: 'manual-api',
     attachments: [],

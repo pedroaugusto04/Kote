@@ -15,7 +15,6 @@ test('FindRelatedNotesUseCase preserves descending similarity order from note em
           path: 'source.md',
           markdown: 'source content',
           markdownStorageKey: '',
-          frontmatter: {},
           metadata: {},
           origin: '',
           source: '',
@@ -27,9 +26,9 @@ test('FindRelatedNotesUseCase preserves descending similarity order from note em
     getNotesByIds: async (userId, ids) => {
       // Return notes in an arbitrary order to verify that the use case sorts them back correctly
       const notes = [
-        { id: 'note-C', title: 'Note C', workspaceSlug: 'ws', projectSlug: 'ps', path: 'note-c.md', markdown: '', markdownStorageKey: '', frontmatter: {}, metadata: {}, origin: '', source: '', links: [] },
-        { id: 'note-A', title: 'Note A', workspaceSlug: 'ws', projectSlug: 'ps', path: 'note-a.md', markdown: '', markdownStorageKey: '', frontmatter: {}, metadata: {}, origin: '', source: '', links: [] },
-        { id: 'note-B', title: 'Note B', workspaceSlug: 'ws', projectSlug: 'ps', path: 'note-b.md', markdown: '', markdownStorageKey: '', frontmatter: {}, metadata: {}, origin: '', source: '', links: [] },
+        { id: 'note-C', title: 'Note C', workspaceSlug: 'ws', projectSlug: 'ps', path: 'note-c.md', markdown: '', markdownStorageKey: '', categories: [], metadata: {}, origin: '', source: '', links: [] },
+        { id: 'note-A', title: 'Note A', workspaceSlug: 'ws', projectSlug: 'ps', path: 'note-a.md', markdown: '', markdownStorageKey: '', categories: [], metadata: {}, origin: '', source: '', links: [] },
+        { id: 'note-B', title: 'Note B', workspaceSlug: 'ws', projectSlug: 'ps', path: 'note-b.md', markdown: '', markdownStorageKey: '', categories: [], metadata: {}, origin: '', source: '', links: [] },
       ];
       return notes.filter((n) => ids.includes(n.id));
     },
@@ -77,14 +76,13 @@ test('FindRelatedNotesUseCase uses raw embedding chunk 0 even when synthesis emb
       path: 'source.md',
       markdown: 'source content',
       markdownStorageKey: '',
-      frontmatter: {},
       metadata: {},
       origin: '',
       source: '',
       links: [],
     }),
     getNotesByIds: async (userId, ids) => [
-      { id: 'note-A', title: 'Note A', workspaceSlug: 'ws', projectSlug: 'ps', path: 'note-a.md', markdown: '', markdownStorageKey: '', frontmatter: {}, metadata: {}, origin: '', source: '', links: [] },
+      { id: 'note-A', title: 'Note A', workspaceSlug: 'ws', projectSlug: 'ps', path: 'note-a.md', markdown: '', markdownStorageKey: '', categories: [], metadata: {}, origin: '', source: '', links: [] },
     ],
   };
 

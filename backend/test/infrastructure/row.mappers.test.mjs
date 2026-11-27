@@ -30,7 +30,6 @@ test('row mappers read drizzle camelCase rows', () => {
     sourceChannel: 'test',
     summary: 'Shared state summary',
     markdownStorageKey: 'notes/note-1.md',
-    frontmatter: {},
     metadata: {},
     source: 'test',
     sessionId: '',

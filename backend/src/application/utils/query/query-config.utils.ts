@@ -1,6 +1,5 @@
 import { AiProvider } from '../../../contracts/enums.js';
 import type { RuntimeEnvironment } from '../../ports/observability/runtime-environment.port.js';
-import type { EmbeddingConfig } from '../../ports/notes/embedding.gateway.js';
 import type { RagConfig } from '../../services/query/rag-retrieval.service.js';
 import type { AnswerGenerationConfig } from '../../ports/query/answer-generation.gateway.js';
 
@@ -18,15 +17,6 @@ export function resolveRagConfig(env: Partial<RuntimeEnvironment>): RagConfig {
     recencyBonusEnabled: env.ragRecencyBonusEnabled ?? true,
     recencyMaxBonus: env.ragRecencyMaxBonus ?? 0.008,
     recencyMaxBonusDays: env.ragRecencyMaxBonusDays ?? 180,
-  };
-}
-
-export function resolveEmbeddingConfig(env: Partial<RuntimeEnvironment>): EmbeddingConfig {
-  return {
-    provider: env.embeddingAiProvider || AiProvider.None,
-    baseUrl: env.embeddingAiBaseUrl || '',
-    model: env.embeddingAiModel || '',
-    apiKey: env.embeddingAiApiKey || '',
   };
 }
 

@@ -35,7 +35,6 @@ export function buildConversationIngestPayload(payload: ConversationPayloadInput
     source: {
       channel: payload.sourceChannel || SourceChannel.External,
       system: payload.sourceSystem || 'external',
-      actor: payload.input.senderId,
       conversationId: payload.input.chatId,
       correlationId: `${payload.correlationPrefix}:${payload.input.messageId || Date.now().toString()}`,
     },
@@ -58,7 +57,6 @@ export function buildConversationIngestPayload(payload: ConversationPayloadInput
       importance: payload.importance,
       status: payload.status,
       tags: payload.tags,
-      decisionFlag: payload.canonicalType === CanonicalType.Decision,
     },
     actions: {
       reminderAt: payload.reminderAt,

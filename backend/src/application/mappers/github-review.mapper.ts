@@ -43,8 +43,6 @@ export class GithubReviewMapper {
       source: {
         channel: SourceChannel.Github,
         system: 'github',
-        source: 'github push',
-        actor: String(body.pusher?.name || ''),
         conversationId: repoInfo.fullName,
         correlationId: formatCorrelationId('push', repoInfo.fullName, String(body.after || Date.now())),
       },
@@ -90,8 +88,6 @@ export class GithubReviewMapper {
       source: {
         channel: SourceChannel.Github,
         system: 'github',
-        source: 'github pull request',
-        actor: String(body.sender?.login || ''),
         conversationId: repoInfo.fullName,
         correlationId: formatCorrelationId('pr', repoInfo.fullName, `${prNumber}:${headSha}`),
       },

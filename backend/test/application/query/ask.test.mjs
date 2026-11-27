@@ -26,7 +26,6 @@ const dummyAiEntitlement = {
 };
 
 function createAskKnowledgeUseCase({
-  mockEmbeddingGateway = {},
   mockNoteEmbeddingRepository = {},
   mockContentRepository = {},
   mockAnswerGenerationGateway = {},
@@ -51,7 +50,6 @@ function createAskKnowledgeUseCase({
   };
 
   const ragRetrievalService = new RagRetrievalService(
-    mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
     contentQueryRepo,
@@ -76,14 +74,8 @@ function createAskKnowledgeUseCase({
 }
 
 test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates answer', async () => {
+  const embeddingQueries = [];
   // Mocks
-  const mockEmbeddingGateway = {
-    generateEmbeddings: async (config, texts) => {
-      assert.deepEqual(texts, ['How to deploy?']);
-      return [[0.1, 0.2, 0.3]];
-    },
-  };
-
   const mockNoteEmbeddingRepository = {
     findSimilar: async (userId, embedding, options) => {
       assert.equal(userId, 'user-123');
@@ -130,7 +122,6 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
           summary: '',
           markdown: 'Deploy to staging first.',
           markdownStorageKey: '',
-          frontmatter: {},
           metadata: {},
           origin: '',
           source: '',
@@ -191,7 +182,6 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
   };
 
   const useCase = createAskKnowledgeUseCase({
-    mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
     mockAnswerGenerationGateway,
@@ -199,7 +189,12 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
     dummyContentQueryRepository,
     dummyLogger,
     dummyAiEntitlement,
-    queryEmbeddingPublisher: { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
+    queryEmbeddingPublisher: {
+      publishQueryEmbedding: async ({ queryText }) => {
+        embeddingQueries.push(queryText);
+        return [[0.1, 0.2, 0.3]];
+      },
+    },
   });
 
   const result = await useCase.execute('How to deploy?', 'user-123', { projectSlug: 'infra' });
@@ -220,6 +215,7 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
       workspaceId: undefined,
     },
   ]);
+  assert.deepEqual(embeddingQueries, ['How to deploy?']);
 });
 
 test('RunAskAiUseCase saves only successful web Ask AI answers and returns requested attachments', async () => {
@@ -439,13 +435,7 @@ test('ListAskHistoryUseCase delegates pagination and project filtering to reposi
 });
 
 test('AskKnowledgeUseCase rewrites the question using the gateway when history is present', async () => {
-  const mockEmbeddingGateway = {
-    generateEmbeddings: async (config, texts) => {
-      assert.deepEqual(texts, ['How to deploy the platform application?']);
-      return [[0.1, 0.2, 0.3]];
-    },
-  };
-
+  const embeddingQueries = [];
   const mockNoteEmbeddingRepository = {
     findSimilar: async () => [],
   };
@@ -485,7 +475,6 @@ test('AskKnowledgeUseCase rewrites the question using the gateway when history i
   };
 
   const useCase = createAskKnowledgeUseCase({
-    mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
     mockAnswerGenerationGateway,
@@ -493,7 +482,12 @@ test('AskKnowledgeUseCase rewrites the question using the gateway when history i
     dummyContentQueryRepository,
     dummyLogger,
     dummyAiEntitlement,
-    queryEmbeddingPublisher: { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
+    queryEmbeddingPublisher: {
+      publishQueryEmbedding: async ({ queryText }) => {
+        embeddingQueries.push(queryText);
+        return [[0.1, 0.2, 0.3]];
+      },
+    },
   });
 
   const history = [
@@ -501,16 +495,11 @@ test('AskKnowledgeUseCase rewrites the question using the gateway when history i
   ];
 
   await useCase.execute('And how do I deploy it?', 'user-123', { conversationHistory: history });
+  assert.deepEqual(embeddingQueries, ['How to deploy the platform application?']);
 });
 
 test('AskKnowledgeUseCase ignores history for standalone questions', async () => {
-  const mockEmbeddingGateway = {
-    generateEmbeddings: async (config, texts) => {
-      assert.deepEqual(texts, ['envie minha monografia']);
-      return [[0.1, 0.2, 0.3]];
-    },
-  };
-
+  const embeddingQueries = [];
   const mockNoteEmbeddingRepository = {
     findSimilar: async () => [{
       id: 'emb-1',
@@ -543,7 +532,6 @@ test('AskKnowledgeUseCase ignores history for standalone questions', async () =>
       summary: '',
       markdown: 'Monografia final em PDF.',
       markdownStorageKey: '',
-      frontmatter: {},
       metadata: {},
       origin: '',
       source: '',
@@ -594,7 +582,6 @@ test('AskKnowledgeUseCase ignores history for standalone questions', async () =>
   };
 
   const useCase = createAskKnowledgeUseCase({
-    mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
     mockAnswerGenerationGateway,
@@ -602,7 +589,12 @@ test('AskKnowledgeUseCase ignores history for standalone questions', async () =>
     dummyContentQueryRepository,
     dummyLogger,
     dummyAiEntitlement,
-    queryEmbeddingPublisher: { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
+    queryEmbeddingPublisher: {
+      publishQueryEmbedding: async ({ queryText }) => {
+        embeddingQueries.push(queryText);
+        return [[0.1, 0.2, 0.3]];
+      },
+    },
   });
 
   const history = [
@@ -613,15 +605,11 @@ test('AskKnowledgeUseCase ignores history for standalone questions', async () =>
 
   assert.equal(rewriteCalled, false);
   assert.equal(result.requestedAttachmentPattern, 'monografia');
+  assert.deepEqual(embeddingQueries, ['envie minha monografia']);
 });
 
 test('AskKnowledgeUseCase handles special query intent and retrieves matching notes directly, bypassing embedding generation and vector search', async () => {
-  const mockEmbeddingGateway = {
-    generateEmbeddings: async () => {
-      assert.fail('Should not generate embeddings for special query intent');
-    },
-  };
-
+  const embeddingQueries = [];
   const mockNoteEmbeddingRepository = {
     findSimilar: async () => {
       assert.fail('Should not query similar chunks for special query intent');
@@ -733,7 +721,6 @@ test('AskKnowledgeUseCase handles special query intent and retrieves matching no
   };
 
   const useCase = createAskKnowledgeUseCase({
-    mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
     mockAnswerGenerationGateway,
@@ -741,7 +728,12 @@ test('AskKnowledgeUseCase handles special query intent and retrieves matching no
     dummyContentQueryRepository,
     dummyLogger,
     dummyAiEntitlement,
-    queryEmbeddingPublisher: { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
+    queryEmbeddingPublisher: {
+      publishQueryEmbedding: async ({ queryText }) => {
+        embeddingQueries.push(queryText);
+        return [[0.1, 0.2, 0.3]];
+      },
+    },
   });
 
   const result = await useCase.execute('Summarize my recent notes', 'user-123', { projectSlug: 'infra', workspaceSlug: 'default' });
@@ -752,15 +744,10 @@ test('AskKnowledgeUseCase handles special query intent and retrieves matching no
     { id: 'note-new', title: 'Newer Note', path: 'docs/new.md', projectSlug: 'infra', workspaceId: undefined },
     { id: 'note-old', title: 'Older Note', path: 'docs/old.md', projectSlug: 'infra', workspaceId: undefined },
   ]);
+  assert.deepEqual(embeddingQueries, []);
 });
 
-test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddings fails', async () => {
-  const mockEmbeddingGateway = {
-    generateEmbeddings: async () => {
-      throw new Error('Embedding API is offline');
-    },
-  };
-
+test('AskKnowledgeUseCase falls back to FTS keyword search when the embedding queue fails', async () => {
   const mockEmbeddingQueue = {
     publishQueryEmbedding: async () => {
       throw new Error('Embedding API is offline');
@@ -888,7 +875,6 @@ test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddin
   };
 
   const useCase = createAskKnowledgeUseCase({
-    mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
     mockAnswerGenerationGateway,
@@ -912,10 +898,6 @@ test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddin
 });
 
 test('AskKnowledgeUseCase selects lexically relevant FTS-only chunks instead of all note chunks', async () => {
-  const mockEmbeddingGateway = {
-    generateEmbeddings: async () => [[0.1, 0.2, 0.3]],
-  };
-
   const mockNoteEmbeddingRepository = {
     findSimilar: async () => [],
     getNotesEmbeddings: async (userId, noteIds) => {
@@ -991,7 +973,6 @@ test('AskKnowledgeUseCase selects lexically relevant FTS-only chunks instead of 
   };
 
   const useCase = createAskKnowledgeUseCase({
-    mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
     mockAnswerGenerationGateway,
@@ -1009,12 +990,6 @@ test('AskKnowledgeUseCase selects lexically relevant FTS-only chunks instead of 
 
 test('AskKnowledgeUseCase merges vector and FTS results into hybrid ranking context', async () => {
   // Vector search returns 'note-vector'
-  const mockEmbeddingGateway = {
-    generateEmbeddings: async (config, texts) => {
-      return [[0.1, 0.2, 0.3]];
-    },
-  };
-
   const mockNoteEmbeddingRepository = {
     findSimilar: async () => {
       return [
@@ -1153,7 +1128,6 @@ test('AskKnowledgeUseCase merges vector and FTS results into hybrid ranking cont
   };
 
   const useCase = createAskKnowledgeUseCase({
-    mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
     mockAnswerGenerationGateway,
@@ -1188,9 +1162,8 @@ test('AskKnowledgeUseCase excludes dependency notes from special intent recent c
         summary: 'Recent release summary',
         markdown: 'Release content',
         markdownStorageKey: '',
-        frontmatter: {},
+        categories: [],
         metadata: {},
-        origin: '',
         source: 'manual',
         links: [],
       },
@@ -1209,9 +1182,8 @@ test('AskKnowledgeUseCase excludes dependency notes from special intent recent c
         summary: 'Automated dependency update',
         markdown: 'Bumped lodash',
         markdownStorageKey: '',
-        frontmatter: {},
+        categories: [],
         metadata: {},
-        origin: '',
         source: 'dependency-watcher',
         links: [],
       },
@@ -1462,7 +1434,6 @@ test('RagRetrievalService.loadValidSyntheses batches queries via getByNoteIds', 
   };
 
   const service = new RagRetrievalService(
-    {},
     {},
     {},
     {},

@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
@@ -250,6 +250,22 @@ describe('HomePage', () => {
     expect(screen.getAllByText(/N8N Automations \/ 2026-04-27/i).length).toBeGreaterThan(0);
     expect(screen.queryByText('Prioridade 6')).not.toBeInTheDocument();
     expect(screen.getAllByTestId('chart')).toHaveLength(4);
+  });
+
+  it('creates an Inbox note with the dropped file as an attachment', async () => {
+    const { createNote } = renderHome();
+    const file = new File(['test'], 'report.txt');
+
+    fireEvent.drop(screen.getByRole('heading', { name: 'Home' }), {
+      dataTransfer: { files: [file] },
+    });
+
+    await waitFor(() => expect(createNote).toHaveBeenCalledWith('inbox', 'report.txt', [{
+      fileName: 'report.txt',
+      mimeType: 'application/octet-stream',
+      sizeBytes: 4,
+      dataBase64: 'dGVzdA==',
+    }]));
   });
 
   it('navigates from review, note and project entries', async () => {

@@ -65,8 +65,7 @@ export interface CliAskResult {
 }
 
 export interface CliCreateNoteResult {
-  noteId?: string;
-  id?: string;
+  noteId: string;
 }
 
 export interface CliAgentResponse {

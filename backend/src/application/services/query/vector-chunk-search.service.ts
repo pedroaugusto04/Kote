@@ -8,10 +8,7 @@ import {
   type SimilarChunk,
 } from '../../ports/notes/note-embedding.repository.js';
 import { EmbeddingQueuePublisher } from '../../ports/notes/embedding-queue.publisher.js';
-import {
-  RuntimeEnvironmentProvider,
-  type RuntimeEnvironment,
-} from '../../ports/observability/runtime-environment.port.js';
+import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { AppLogger } from '../../../observability/logger.js';
 
 export interface VectorChunkSearchOptions {
@@ -21,16 +18,10 @@ export interface VectorChunkSearchOptions {
   minSimilarity: number;
   workspaceId?: string;
   projectId?: string;
-  representations?: EmbeddingRepresentation[];
-  synthesisBoost?: number;
+  representations: readonly EmbeddingRepresentation[];
   rawCandidateMultiplier?: number;
-  maxRawCandidates?: number;
   deduplicateByNote?: boolean;
   logPrefix?: string;
-}
-
-export interface VectorChunkSearchResult {
-  chunks: SimilarChunk[];
 }
 
 @Injectable()
@@ -42,7 +33,8 @@ export class VectorChunkSearchService {
     private readonly logger: AppLogger,
   ) {}
 
-  isEmbeddingConfigured(env: RuntimeEnvironment = this.runtimeEnv.read()): boolean {
+  private isEmbeddingConfigured(): boolean {
+    const env = this.runtimeEnv.read();
     return Boolean(
       env.embeddingAiProvider
       && env.embeddingAiProvider !== AiProvider.None
@@ -51,12 +43,12 @@ export class VectorChunkSearchService {
     );
   }
 
-  async search(options: VectorChunkSearchOptions): Promise<VectorChunkSearchResult> {
+  async search(options: VectorChunkSearchOptions): Promise<SimilarChunk[]> {
     const prefix = options.logPrefix || 'vector_chunk_search';
 
     if (!this.isEmbeddingConfigured()) {
       this.logger.info(`${prefix}.embedding_not_configured`);
-      return { chunks: [] };
+      return [];
     }
 
     try {
@@ -72,29 +64,21 @@ export class VectorChunkSearchService {
 
       if (!queryEmbedding?.length) {
         this.logger.warn(`${prefix}.embedding_empty`, { queryText: options.queryText });
-        return { chunks: [] };
+        return [];
       }
 
-      const representations = options.representations?.length
-        ? options.representations
-        : [EmbeddingRepresentation.Raw];
       const candidateLimit = options.rawCandidateMultiplier
-        ? Math.min(options.limit * options.rawCandidateMultiplier, options.maxRawCandidates ?? 200)
+        ? Math.min(options.limit * options.rawCandidateMultiplier, 200)
         : options.limit;
-
-      const chunkSets = await Promise.all(
-        representations.map((representation) => {
-          const searchOptions: FindSimilarOptions = {
-            limit: candidateLimit,
-            minSimilarity: options.minSimilarity,
-            projectId: options.projectId,
-            representation,
-            ...(options.workspaceId !== undefined ? { workspaceId: options.workspaceId } : {}),
-            ...(options.synthesisBoost !== undefined ? { synthesisBoost: options.synthesisBoost } : {}),
-          };
-          return this.noteEmbeddingRepository.findSimilar(options.userId, queryEmbedding, searchOptions);
-        }),
-      );
+      const searchOptions: Omit<FindSimilarOptions, 'representation'> = {
+        limit: candidateLimit,
+        minSimilarity: options.minSimilarity,
+        projectId: options.projectId,
+        workspaceId: options.workspaceId,
+      };
+      const chunkSets = await Promise.all(options.representations.map((representation) =>
+        this.noteEmbeddingRepository.findSimilar(options.userId, queryEmbedding, { ...searchOptions, representation }),
+      ));
 
       let chunks = chunkSets.flat();
 
@@ -117,14 +101,14 @@ export class VectorChunkSearchService {
           : 0,
       });
 
-      return { chunks };
+      return chunks;
     } catch (error) {
       this.logger.warn(`${prefix}.vector_search_failed`, {
         userId: options.userId,
         query: options.queryText,
         error: error instanceof Error ? error.message : String(error),
       });
-      return { chunks: [] };
+      return [];
     }
   }
 }

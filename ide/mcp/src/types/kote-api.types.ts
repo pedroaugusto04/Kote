@@ -39,7 +39,6 @@ export interface ApiNoteDetail {
 }
 
 export interface ApiCreateNoteResponse {
-  noteId?: string;
-  id?: string;
-  ok?: boolean;
+  noteId: string;
+  ok: true;
 }

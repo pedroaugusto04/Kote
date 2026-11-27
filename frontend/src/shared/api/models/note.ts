@@ -82,7 +82,6 @@ export type NoteDetail = NoteSummary & {
     sourceHash: string;
   } | null;
   markdown: string;
-  frontmatter: Record<string, unknown>;
   links: string[];
   origin: string;
   attachments: NoteAttachment[];
@@ -95,4 +94,11 @@ export type NoteDetail = NoteSummary & {
     previous: { id: string; title: string } | null;
     next: { id: string; title: string } | null;
   };
+};
+
+export type PendingAttachment = {
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  dataBase64: string;
 };

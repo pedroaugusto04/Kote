@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { EmbeddingGateway, type EmbeddingConfig } from '../../ports/notes/embedding.gateway.js';
 import { EmbeddingRepresentation, NoteEmbeddingRepository, type SimilarChunk } from '../../ports/notes/note-embedding.repository.js';
 import { EmbeddingQueuePublisher } from '../../ports/notes/embedding-queue.publisher.js';
 import { ContentRepository, ContentQueryRepository } from '../../ports/notes/content.repository.js';
@@ -52,7 +51,6 @@ export interface HybridRetrievalResult {
 @Injectable()
 export class RagRetrievalService {
   constructor(
-    private readonly embeddingGateway: EmbeddingGateway,
     private readonly noteEmbeddingRepository: NoteEmbeddingRepository,
     private readonly contentRepository: ContentRepository,
     private readonly contentQueryRepository: ContentQueryRepository,
@@ -65,11 +63,10 @@ export class RagRetrievalService {
     userId: string,
     queryText: string,
     options: RagScope,
-    embeddingConfig: EmbeddingConfig,
     ragConfig: RagConfig,
   ): Promise<HybridRetrievalResult> {
     const [vectorChunks, ftsNotes] = await Promise.all([
-      this.searchVectorCandidateChunks(userId, queryText, options, embeddingConfig, ragConfig),
+      this.searchVectorCandidateChunks(userId, queryText, options, ragConfig),
       this.searchFtsCandidateNotes(userId, queryText, options, ragConfig.candidateLimit),
     ]);
 
@@ -129,7 +126,6 @@ export class RagRetrievalService {
     });
 
     this.logger.info('ask_knowledge.rrf_complete', {
-      k: ragConfig.rrfK,
       rrfK: ragConfig.rrfK,
       topChunksLimit: ragConfig.topChunksLimit,
       rankedChunksCount: rankedChunks.length,
@@ -149,7 +145,6 @@ export class RagRetrievalService {
     userId: string,
     queryText: string,
     options: RagScope,
-    embeddingConfig: EmbeddingConfig,
     ragConfig: { candidateLimit: number; minSimilarity: number },
   ): Promise<SimilarChunk[]> {
     try {
@@ -174,27 +169,19 @@ export class RagRetrievalService {
         candidateLimit: ragConfig.candidateLimit,
       });
 
-      const [synthesisResults, rawResults] = await Promise.all([
-        this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, {
-          limit: ragConfig.candidateLimit,
-          workspaceId: options.workspaceId,
-          projectId: options.projectId,
-          minSimilarity: ragConfig.minSimilarity,
-          representation: EmbeddingRepresentation.Synthesis,
-          synthesisBoost: 0,
-        }),
-        this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, {
-          limit: ragConfig.candidateLimit,
-          workspaceId: options.workspaceId,
-          projectId: options.projectId,
-          minSimilarity: ragConfig.minSimilarity,
-          representation: EmbeddingRepresentation.Raw,
-          synthesisBoost: 0,
-        }),
-      ]);
+      const searchOptions = {
+        ...options,
+        limit: ragConfig.candidateLimit,
+        minSimilarity: ragConfig.minSimilarity,
+      };
+      const chunkSets = await Promise.all(
+        [EmbeddingRepresentation.Synthesis, EmbeddingRepresentation.Raw].map((representation) =>
+          this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, { ...searchOptions, representation }),
+        ),
+      );
       const results = Array.from(
         new Map(
-          [...synthesisResults, ...rawResults].map((chunk) => [
+          chunkSets.flat().map((chunk) => [
             chunkRankKey(chunk.noteId, chunk.chunkIndex, chunk.representation),
             chunk,
           ] as const),

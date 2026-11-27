@@ -14,7 +14,7 @@ import { ContentObjectStorageService } from '../../application/services/content/
 import { resolveReminderScheduledAt } from '../../application/use-cases/reminders/reminder-schedule.js';
 import { reminderDispatchEligibleStatuses } from '../../domain/note-status.js';
 import { noteSummary } from '../../application/mappers/vault-note.mapper.js';
-import { noteDetail, reminderFromNote, reviewFromNote } from '../mappers/content-query.mappers.js';
+import { noteDetail, reminderFromNote, reminderNoteText, reviewFromNote } from '../mappers/content-query.mappers.js';
 import { noteFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { notes, attachments, workspaces, projects, categories, noteCategories } from '../persistence/schema/index.js';
@@ -23,9 +23,8 @@ import { PostgresAttachmentRepository } from './attachment.repository.js';
 import { SPECIAL_PROJECT_SLUGS, isSpecialProjectSlug } from '../../domain/projects.js';
 import { PostgresNoteSynthesisRepository } from './note-synthesis.repository.js';
 import {
-  NOTE_ATTACHMENT_COUNT_SELECT_COLUMN,
-  NOTE_CATEGORIES_SELECT_COLUMN,
-  NOTE_LINKED_COMMITS_SELECT_COLUMN,
+  NOTE_BASE_SELECT_FIELDS,
+  NOTE_FULL_SELECT_FIELDS,
   NOTE_SELECT_COLUMNS,
 } from './projections/note.projections.js';
 import { isUuid } from '../../domain/utils/uuid.utils.js';
@@ -141,11 +140,8 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
 
     const baseQuery = db
       .select({
-        ...NOTE_SELECT_COLUMNS,
+        ...NOTE_FULL_SELECT_FIELDS,
         tsRank: tsRankField,
-        attachmentCount: NOTE_ATTACHMENT_COUNT_SELECT_COLUMN,
-        categories: NOTE_CATEGORIES_SELECT_COLUMN,
-        linkedCommits: NOTE_LINKED_COMMITS_SELECT_COLUMN,
       })
       .from(notes)
       .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
@@ -186,12 +182,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     if (!isUuid(id)) return null;
     const db = this.database.getDb();
     const result = await db
-      .select({
-        ...NOTE_SELECT_COLUMNS,
-        attachmentCount: NOTE_ATTACHMENT_COUNT_SELECT_COLUMN,
-        categories: NOTE_CATEGORIES_SELECT_COLUMN,
-        linkedCommits: NOTE_LINKED_COMMITS_SELECT_COLUMN,
-      })
+      .select(NOTE_FULL_SELECT_FIELDS)
       .from(notes)
       .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
       .leftJoin(projects, eq(projects.id, notes.projectId))
@@ -208,14 +199,14 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     const note = result[0] ? await this.hydrateMarkdown(noteFromRow(result[0])) : null;
     if (!note) return null;
 
-    const [noteAttachments, neighbors] = await Promise.all([
+    const [noteAttachments, neighbors, synthesis] = await Promise.all([
       this.attachmentRepository.list(userId, id),
       this.noteRepository.getNoteNeighbors(userId, id, {
         projectId: note.projectId,
         workspaceId: note.workspaceId,
       }),
+      this.synthesisRepository.getByNoteId(userId, id),
     ]);
-    const synthesis = this.synthesisRepository ? await this.synthesisRepository.getByNoteId(userId, id) : null;
     return noteDetail(note, noteAttachments, neighbors, synthesis);
   }
 
@@ -230,11 +221,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
   async getReviewById(userId: string, id: string) {
     const db = this.database.getDb();
     const result = await db
-      .select({
-        ...NOTE_SELECT_COLUMNS,
-        categories: NOTE_CATEGORIES_SELECT_COLUMN,
-        linkedCommits: NOTE_LINKED_COMMITS_SELECT_COLUMN,
-      })
+      .select(NOTE_BASE_SELECT_FIELDS)
       .from(notes)
       .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
       .leftJoin(projects, eq(projects.id, notes.projectId))
@@ -308,7 +295,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
       : await rowsQuery.limit(pagination.pageSize).offset((pagination.page - 1) * pagination.pageSize);
 
     const items = rows
-      .map((row) => reminderFromNote(noteFromRow({ ...row, categories: [], attachmentCount: 0 })))
+      .map((row) => reminderFromNote(noteFromRow(row)))
       .filter((reminder): reminder is ReminderView => Boolean(reminder));
 
     return { items, pagination };
@@ -425,8 +412,6 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
 
     return result
       .map((row) => {
-        const metadata = (row.metadata || {}) as Record<string, unknown>;
-        const noteText = String(metadata.rawText || '').trim() || String(row.summary || '').trim() || String(row.title || '').trim();
         const scheduledAt = resolveReminderScheduledAt({
           reminderAt: row.reminderAt ? new Date(row.reminderAt).toISOString() : '',
         }, reminderTimeZone);
@@ -438,7 +423,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
           recipientId: String(row.recipientId || ''),
           reminderId: String(row.reminderId || ''),
           title: String(row.title || ''),
-          noteText,
+          noteText: reminderNoteText(row),
           project: String(row.projectSlug || ''),
           relativePath: String(row.path || ''),
           status: String(row.status || ''),

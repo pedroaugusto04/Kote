@@ -196,7 +196,6 @@ test('AskAgentToolsService creates all 6 agent tools and executes them', async (
   const tools = service.buildTools(
     'user-1',
     { workspaceId: 'ws-1' },
-    { provider: 'gemini', baseUrl: '', model: 'gemini-embedding-001', apiKey: 'key' },
     {
       candidateLimit: 16,
       minSimilarity: 0.45,
@@ -569,7 +568,6 @@ test('AskAgentToolsService truncates oversized note content and narrows search w
   const tools = service.buildTools(
     'user-1',
     { workspaceId: 'ws-1' },
-    { provider: 'gemini', baseUrl: '', model: 'gemini-embedding-001', apiKey: 'key' },
     { candidateLimit: 16, minSimilarity: 0.45, hybridVectorWeight: 0.7, hybridKeywordWeight: 0.3, topChunksLimit: 10, rrfK: 20, recencyBonusEnabled: true, recencyMaxBonus: 0.008, recencyMaxBonusDays: 180 },
     tracker,
   );

@@ -40,7 +40,6 @@ async function createStoreWithReminder(t) {
     sourceChannel: 'test',
     summary: 'Validar rollout antes da janela de deploy.',
     markdown: '',
-    frontmatter: {},
     metadata: {
       rawText: 'Validar rollout antes da janela de deploy.',
       reminderAt: '2099-12-31T12:00:00.000Z',
@@ -95,7 +94,6 @@ async function insertReminder(repositories, userId, input) {
       sourceChannel: 'test',
       summary: rawText,
       markdown: '',
-      frontmatter: {},
       metadata: {
         rawText,
         ...input.metadata,
@@ -536,7 +534,6 @@ test('reminder status update reopens terminal reminders and remains isolated by 
     sourceChannel: 'test',
     summary: 'Plain note',
     markdown: '',
-    frontmatter: {},
     metadata: {},
     origin: 'postgres',
     source: 'test',

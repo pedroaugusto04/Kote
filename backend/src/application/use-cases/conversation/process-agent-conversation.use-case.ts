@@ -25,7 +25,7 @@ import { AiEntitlementService } from '../../services/ai/ai-entitlement.service.j
 import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 import { toProjectRecord } from '../../mappers/project.mapper.js';
 import { AskAgentToolsService, AgentContextTracker } from '../../services/query/ask-agent-tools.service.js';
-import { resolveEmbeddingConfig, resolveRagConfig } from '../../utils/query/query-config.utils.js';
+import { resolveRagConfig } from '../../utils/query/query-config.utils.js';
 import type { AgentTool } from '../../../contracts/agent-tool.js';
 import {
   buildAgentConversationPayload as buildAgentPayload,
@@ -262,9 +262,9 @@ export class ProcessAgentConversationUseCase {
       workspaceSlug,
       conversationKey: key,
       noteId: ingestResult.noteId,
-      projectSlug: ingestResult.project,
+      projectSlug: ingestResult.note.projectSlug,
       folderId,
-      eventPath: ingestResult.eventPath,
+      eventPath: ingestResult.note.path,
       mode: 'react_agent',
     });
 
@@ -369,11 +369,10 @@ export class ProcessAgentConversationUseCase {
       };
     }
 
-    const embeddingConfig = resolveEmbeddingConfig(environment);
     const ragConfig = resolveRagConfig(environment);
 
     const knowledgeTools = this.askAgentToolsService
-      .buildTools(userId, { workspaceId }, embeddingConfig, ragConfig, tracker)
+      .buildTools(userId, { workspaceId }, ragConfig, tracker)
       .filter((tool) => [
         'search_knowledge',
         'get_note_content',

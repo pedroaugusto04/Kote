@@ -15,7 +15,6 @@ import { AskKnowledgeUseCase, type AskKnowledgeOptions, type AskKnowledgeResult 
 import {
   AI_UNAVAILABLE_FALLBACK_ANSWER,
   resolveConversationAiConfig,
-  resolveEmbeddingConfig,
   resolveRagConfig,
 } from '../../utils/query/query-config.utils.js';
 
@@ -61,7 +60,6 @@ export class StandardRagAskKnowledgeUseCase extends AskKnowledgeUseCase {
       metadata: { question, workspaceSlug },
     });
 
-    const embeddingConfig = resolveEmbeddingConfig(this.env);
     const conversationHistory = shouldUseConversationHistory(question)
       ? options.conversationHistory?.slice(-5)
       : undefined;
@@ -87,7 +85,6 @@ export class StandardRagAskKnowledgeUseCase extends AskKnowledgeUseCase {
         userId,
         queryText,
         options,
-        embeddingConfig,
         ragConfig,
       );
 

@@ -31,8 +31,6 @@ export const ingestPayloadSchema = z
     source: z.object({
       channel: sourceChannelSchema,
       system: z.string().min(1),
-      source: z.string().default(''),
-      actor: z.string().default(''),
       conversationId: z.string().default(''),
       correlationId: z.string().min(1),
       sessionId: z.string().default(''),
@@ -62,12 +60,10 @@ export const ingestPayloadSchema = z
       importance: importanceSchema,
       status: statusSchema.optional(),
       tags: z.array(z.string()).default([]),
-      decisionFlag: z.boolean().default(false),
     }),
     actions: z
       .object({
         reminderAt: z.string().default(''),
-        followUpBy: z.string().default(''),
       })
       .default({}),
     links: z.array(z.string()).default([]),

@@ -19,6 +19,7 @@ test('findSimilar filters note embeddings by workspace and project ids', async (
   const repository = new PostgresNoteEmbeddingRepository(database);
   const result = await repository.findSimilar('user-1', [0.1, 0.2], {
     limit: 8,
+    representation: 'raw',
     minSimilarity: 0.65,
     workspaceId: 'workspace-id',
     projectId: 'project-id',
@@ -26,7 +27,8 @@ test('findSimilar filters note embeddings by workspace and project ids', async (
 
   assert.deepEqual(result, []);
   assert.equal(queries.length, 1);
-  assert.match(queries[0].sql, /n\.workspace_id = \$5/);
-  assert.match(queries[0].sql, /n\.project_id = \$6/);
-  assert.deepEqual(queries[0].params, ['user-1', '[0.1,0.2]', 0.65, 8, 'workspace-id', 'project-id']);
+  assert.match(queries[0].sql, /e\.representation = \$5/);
+  assert.match(queries[0].sql, /n\.workspace_id = \$6/);
+  assert.match(queries[0].sql, /n\.project_id = \$7/);
+  assert.deepEqual(queries[0].params, ['user-1', '[0.1,0.2]', 0.65, 8, 'raw', 'workspace-id', 'project-id']);
 });

@@ -2,7 +2,8 @@ import { useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { formatDisplayToken } from '../../shared/utils/format';
 import { TagInput } from '../../shared/ui/tag-input';
 import { Select } from '../../shared/ui/select';
-import { AttachmentInput, type PendingAttachment } from '../../shared/ui/attachment-input';
+import { AttachmentInput } from '../../shared/ui/attachment-input';
+import type { PendingAttachment } from '../../shared/api/models/note';
 import type { Project } from '../../shared/api/models/project';
 import type { FlatProjectFolder } from '../../features/projects/projects.types';
 

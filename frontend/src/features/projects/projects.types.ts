@@ -1,4 +1,4 @@
-import type { NoteDetail, NoteSummary } from '../../shared/api/models/note';
+import type { NoteDetail, NoteSummary, PendingAttachment } from '../../shared/api/models/note';
 import type { ProjectFolder } from '../../shared/api/models/project-folder';
 import type { Project } from '../../shared/api/models/project';
 
@@ -29,12 +29,7 @@ export type NoteModalState =
       projectSlug: string;
       folderId?: string;
       initialTitle?: string;
-      initialAttachments?: Array<{
-        fileName: string;
-        mimeType: string;
-        sizeBytes: number;
-        dataBase64: string;
-      }>;
+      initialAttachments?: PendingAttachment[];
     }
   | { mode: WorkspaceModalMode.Edit; note: NoteDetail };
 

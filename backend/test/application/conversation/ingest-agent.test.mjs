@@ -94,8 +94,7 @@ async function createFixture(t, handler, askAgentToolsService, aiEntitlementOver
     repositories.contentRepository,
     repositories.runtimeEnvironmentProvider,
     repositories.noteLifecycleService,
-    loggerMock,
-    repositories.database,
+    repositories.transactionManager,
     repositories.scopeResolver,
   );
   const presenter = new ConversationAgentPresenter();
@@ -291,7 +290,7 @@ test('AgentProcessConversationUseCase handles unavailable agent gateway graceful
 
 test('AgentProcessConversationUseCase uses semantic search tools and returns a standard answer without saving a note', async (t) => {
   const knowledgeToolsService = {
-    buildTools(_userId, _scope, _embeddingConfig, _ragConfig, tracker) {
+    buildTools(_userId, _scope, _ragConfig, tracker) {
       return [{
         name: 'search_knowledge',
         description: 'Search knowledge',

@@ -13,7 +13,8 @@ import { FormActions, FormField } from '../../../shared/forms/fields';
 import { ConfirmationModal } from '../../../shared/ui/confirmation-modal';
 import { Select } from '../../../shared/ui/select';
 import { TagInput } from '../../../shared/ui/tag-input';
-import { AttachmentInput, type PendingAttachment } from '../../../shared/ui/attachment-input';
+import { AttachmentInput } from '../../../shared/ui/attachment-input';
+import type { PendingAttachment } from '../../../shared/api/models/note';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../../shared/ui/use-modal-close-guard';
 import { useGlobalLoading } from '../../../app/global-loading';
 import { noteFormSchema, type NoteFormValues } from '../projects.forms';
@@ -35,12 +36,7 @@ type ProjectNoteModalProps = {
   projects?: Project[];
   workspaceSlug: string;
   initialTitle?: string;
-  initialAttachments?: Array<{
-    fileName: string;
-    mimeType: string;
-    sizeBytes: number;
-    dataBase64: string;
-  }>;
+  initialAttachments?: PendingAttachment[];
 };
 
 export function ProjectNoteModal({
@@ -60,10 +56,6 @@ export function ProjectNoteModal({
   const formRef = useRef<HTMLFormElement>(null);
   const [selectedProjectSlug, setSelectedProjectSlug] = useState(
     mode === WorkspaceModalMode.Edit && note ? note.project : projectSlug
-  );
-
-  const [attachments, setAttachments] = useState<PendingAttachment[]>(
-    initialAttachments || []
   );
 
   const hasInitialAttachments = Boolean(
@@ -147,16 +139,18 @@ export function ProjectNoteModal({
   const mutation = useMutation({
     mutationFn: async (values: NoteFormValues) => {
       const payload = {
+        projectSlug: selectedProjectSlug,
         folderId: values.folderId || undefined,
         categoryIds: values.categoryIds,
         title: values.title,
         rawText: values.rawText,
         tags: values.tags,
         reminderAt: reminderAtToUtc(values.reminderAt),
+        attachments: values.attachments,
       };
       const result = mode === WorkspaceModalMode.Create
-        ? createNote({ ...payload, projectSlug: selectedProjectSlug, source: 'manual', attachments })
-        : updateNote(note?.id || '', { ...payload, projectSlug: selectedProjectSlug, attachments });
+        ? createNote({ ...payload, source: 'manual' })
+        : updateNote(note?.id || '', payload);
 
       return globalLoading.trackPromise(
         result.then(async (res) => {
@@ -411,14 +405,19 @@ export function ProjectNoteModal({
 
             <FormField name="attachments" label="Attachments" error={attachmentError} optional>
               {() => (
-                <AttachmentInput
-                  value={attachments}
-                  onChange={(newAttachments) => {
-                    setAttachments(newAttachments);
-                    setValue('attachments', newAttachments, { shouldDirty: true });
-                    clearErrors('attachments');
-                  }}
-                  disabled={mutation.isPending}
+                <Controller
+                  control={control}
+                  name="attachments"
+                  render={({ field }) => (
+                    <AttachmentInput
+                      value={field.value}
+                      onChange={(newAttachments) => {
+                        field.onChange(newAttachments);
+                        clearErrors('attachments');
+                      }}
+                      disabled={mutation.isPending}
+                    />
+                  )}
                 />
               )}
             </FormField>

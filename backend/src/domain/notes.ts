@@ -1,12 +1,12 @@
 import path from 'node:path';
 
 import type { IngestPayload } from '../contracts/ingest.js';
-import { CanonicalType, SourceChannel } from '../contracts/enums.js';
+import { SourceChannel } from '../contracts/enums.js';
 import { renderFrontmatter } from './frontmatter.js';
 import type { Project } from './projects.js';
 import { sanitizeFileStem, trimText } from './strings.js';
 import { getUtcParts } from './time.js';
-import { VAULT_FOLDERS } from './constants/vault.constants.js';
+import { VAULT_INBOX_FOLDER } from './constants/vault.constants.js';
 import { AI_SOURCE_PATTERNS } from './constants/ai.constants.js';
 import {
   MARKDOWN_LIST_NONE,
@@ -16,13 +16,6 @@ import {
   MARKDOWN_SECTIONS,
 } from './constants/markdown.constants.js';
 
-export function folderForCanonicalType(type: IngestPayload['classification']['canonicalType']): string {
-  if (type === CanonicalType.Knowledge || type === CanonicalType.Decision) return VAULT_FOLDERS.KNOWLEDGE;
-  if (type === CanonicalType.Incident) return VAULT_FOLDERS.INCIDENTS;
-  if (type === CanonicalType.Followup) return VAULT_FOLDERS.FOLLOWUPS;
-  return VAULT_FOLDERS.INBOX;
-}
-
 function folderPathSegments(folderSlugPath = ''): string[] {
   return String(folderSlugPath || '')
     .split('/')
@@ -31,7 +24,7 @@ function folderPathSegments(folderSlugPath = ''): string[] {
 }
 
 export function noteProjectPathPrefix(projectSlug: string, folderSlugPath = ''): string {
-  return path.join(VAULT_FOLDERS.INBOX, projectSlug, ...folderPathSegments(folderSlugPath)).replace(/\\/g, '/');
+  return path.join(VAULT_INBOX_FOLDER, projectSlug, ...folderPathSegments(folderSlugPath)).replace(/\\/g, '/');
 }
 
 export function rewriteNotePathForFolder(
@@ -57,37 +50,13 @@ export function relocateNotePath(
     : normalizedPath;
 }
 
-export function buildNotePaths(project: Project, payload: IngestPayload, folderSlugPath = ''): {
-  eventRelativePath: string;
-  canonicalRelativePath: string;
-  followupRelativePath: string;
-  assetRelativePaths: string[];
-  dailyRelativePath: string;
-} {
+export function buildNotePath(project: Project, payload: IngestPayload, folderSlugPath = ''): string {
   const occurredAt = new Date(payload.event.occurredAt);
   const safeDate = Number.isNaN(occurredAt.getTime()) ? new Date() : occurredAt;
   const { year, month, day, time } = getUtcParts(safeDate);
   const titleStem = sanitizeFileStem(payload.content.title || payload.content.rawText, payload.classification.kind);
   const baseFile = `${year}${month}${day}-${time}-${titleStem}.md`;
-  const eventRelativePath = path.join(noteProjectPathPrefix(project.projectSlug, folderSlugPath), year, month, baseFile);
-  const canonicalRelativePath =
-    payload.classification.canonicalType !== CanonicalType.Event
-      ? path.join(folderForCanonicalType(payload.classification.canonicalType), project.projectSlug, ...folderPathSegments(folderSlugPath), year, month, baseFile)
-      : '';
-  const followupRelativePath = payload.actions.followUpBy
-    ? path.join(VAULT_FOLDERS.FOLLOWUPS, project.projectSlug, ...folderPathSegments(folderSlugPath), year, month, `${year}${month}${day}-${time}-${titleStem}-followup.md`)
-    : '';
-  const assetRelativePaths = payload.content.attachments.map((attachment) =>
-    path.join(VAULT_FOLDERS.ASSETS, project.projectSlug, ...folderPathSegments(folderSlugPath), year, month, `${year}${month}${day}-${time}-${sanitizeFileStem(attachment.fileName, 'attachment')}`),
-  );
-  const dailyRelativePath = path.join(noteProjectPathPrefix(project.projectSlug, folderSlugPath), year, `${year}-${month}-${day}.md`);
-  return {
-    eventRelativePath,
-    canonicalRelativePath,
-    followupRelativePath,
-    assetRelativePaths,
-    dailyRelativePath,
-  };
+  return path.join(noteProjectPathPrefix(project.projectSlug, folderSlugPath), year, month, baseFile).replace(/\\/g, '/');
 }
 
 function renderList(items: string[]): string {
@@ -121,7 +90,7 @@ export function isAiNote(payload: IngestPayload): boolean {
   );
 }
 
-export function renderEventNote(project: Project, payload: IngestPayload, paths: ReturnType<typeof buildNotePaths>): string {
+export function renderEventNote(project: Project, payload: IngestPayload): string {
   const sections = payload.content.sections;
   const frontmatter = renderFrontmatter({
     id: payload.source.correlationId,
@@ -137,7 +106,6 @@ export function renderEventNote(project: Project, payload: IngestPayload, paths:
     status: payload.classification.status || 'active',
     tags: payload.classification.tags,
     occurred_at: payload.event.occurredAt,
-    related: [paths.canonicalRelativePath, paths.followupRelativePath].filter(Boolean),
   });
 
   if (isAiNote(payload)) {

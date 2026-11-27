@@ -180,8 +180,7 @@ async function syncDirectory(
 
       if (!noteId) {
         // Create new note
-        const res = await client.createNote(notePayload);
-        const createdId = res.noteId || res.id;
+        const { noteId: createdId } = await client.createNote(notePayload);
         if (!createdId) {
           throw new Error('Failed to retrieve note ID from server response');
         }
@@ -190,12 +189,12 @@ async function syncDirectory(
         console.log(pc.green(`Created: ${relativePath}`));
 
         // Inject ID back to frontmatter
-        injectIdIntoFrontmatter(filePath, content, noteId as string);
+        injectIdIntoFrontmatter(filePath, content, noteId);
       }
 
       // Record in ledger
       updatedLedgerFiles[relativePath] = {
-        noteId: noteId as string,
+        noteId,
         sha256: calculateSha256(fs.readFileSync(filePath, 'utf8')), // recalculate in case we injected id
         lastModified: mtime,
       };

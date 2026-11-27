@@ -34,7 +34,7 @@ test('commit ordering does not treat a missing note SHA as an exact match', asyn
     source: 'ide',
     summary: '',
     markdown: '',
-    frontmatter: {},
+
     sessionId: '',
     links: ['src/billing/retry.ts'],
   };
@@ -95,7 +95,7 @@ test('handles multiple commitHashes in findNotesByFile without query errors', as
     source: 'ide',
     summary: '',
     markdown: '',
-    frontmatter: {},
+
     sessionId: '',
     links: ['backend/src/application/services/billing/subscription-cancellation.service.ts'],
     path: '20 Inbox/kote/cancellation.md',

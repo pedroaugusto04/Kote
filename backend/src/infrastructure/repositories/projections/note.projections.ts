@@ -73,3 +73,14 @@ export const NOTE_LINKED_COMMITS_SELECT_COLUMN = sql<unknown[]>`COALESCE(
 )`.as('linked_commits');
 
 export const NOTE_ATTACHMENT_COUNT_SELECT_COLUMN = count(attachments.id).as('attachment_count');
+
+export const NOTE_BASE_SELECT_FIELDS = {
+  ...NOTE_SELECT_COLUMNS,
+  categories: NOTE_CATEGORIES_SELECT_COLUMN,
+  linkedCommits: NOTE_LINKED_COMMITS_SELECT_COLUMN,
+};
+
+export const NOTE_FULL_SELECT_FIELDS = {
+  ...NOTE_BASE_SELECT_FIELDS,
+  attachmentCount: NOTE_ATTACHMENT_COUNT_SELECT_COLUMN,
+};

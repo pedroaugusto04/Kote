@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@testing-library/jest-dom/vitest';
 
 import { ProjectNoteModal } from '../../../src/features/projects/modals/ProjectNoteModal';
 import { ProjectModal } from '../../../src/features/projects/modals/ProjectModal';
+import { createNote } from '../../../src/shared/api/client';
 import { WorkspaceModalMode } from '../../../src/features/projects/projects.types';
 
 vi.mock('../../../src/app/global-loading', () => ({
@@ -61,6 +62,31 @@ describe('ProjectNoteModal (Quick Note UX)', () => {
     // Secondary inputs start collapsed
     expect(screen.queryByPlaceholderText(/Add tags/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Reminder/i)).not.toBeInTheDocument();
+  });
+
+  it('submits files selected in the note form', async () => {
+    renderWithClient(
+      <ProjectNoteModal
+        mode={WorkspaceModalMode.Create}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+        projectSlug="default-project"
+        workspaceSlug="default-ws"
+        initialTitle="Release report"
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText(/Upload files/i), {
+      target: { files: [new File(['test'], 'report.txt', { type: 'text/plain' })] },
+    });
+    await screen.findByText('report.txt');
+    fireEvent.click(screen.getByRole('button', { name: 'Create note' }));
+
+    await waitFor(() => expect(createNote).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Release report',
+      projectSlug: 'default-project',
+      attachments: [{ fileName: 'report.txt', mimeType: 'text/plain', sizeBytes: 4, dataBase64: 'dGVzdA==' }],
+    })));
   });
 
   it('expands optional sections upon clicking toolbar buttons', async () => {

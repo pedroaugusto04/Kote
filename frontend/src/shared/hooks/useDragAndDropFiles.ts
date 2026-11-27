@@ -1,26 +1,18 @@
 import { useState } from 'react';
-import { fileToBase64 } from '../ui/attachment-input';
-
-export interface Attachment {
-  fileName: string;
-  mimeType: string;
-  sizeBytes: number;
-  dataBase64: string;
-}
+import type { PendingAttachment } from '../api/models/note';
+import { toPendingAttachment } from '../utils/note-attachments';
 
 export interface PendingNote {
   title: string;
-  attachments: Attachment[];
+  attachments: PendingAttachment[];
 }
 
 export interface UseDragAndDropFilesOptions {
-  onCreateNote: (title: string, attachments: Attachment[]) => void;
-  projectSlug?: string;
+  onCreateNote: (title: string, attachments: PendingAttachment[]) => void;
 }
 
 export function useDragAndDropFiles({
   onCreateNote,
-  projectSlug = 'inbox',
 }: UseDragAndDropFilesOptions) {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [pendingNotesQueue, setPendingNotesQueue] = useState<PendingNote[]>([]);
@@ -50,18 +42,8 @@ export function useDragAndDropFiles({
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       try {
-        const base64 = await fileToBase64(file);
-        pendingNotes.push({
-          title: file.name,
-          attachments: [
-            {
-              fileName: file.name,
-              mimeType: file.type || 'application/octet-stream',
-              sizeBytes: file.size,
-              dataBase64: base64,
-            },
-          ],
-        });
+        const attachment = await toPendingAttachment(file, file.type || 'application/octet-stream');
+        pendingNotes.push({ title: file.name, attachments: [attachment] });
       } catch (error) {
         console.error('Failed to parse dropped file:', error);
       }

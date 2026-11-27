@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 
 import type { AgentTool } from '../../../contracts/agent-tool.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
-import type { EmbeddingConfig } from '../../ports/notes/embedding.gateway.js';
 import { RagRetrievalService, type RagConfig, type RagScope } from '../query/rag-retrieval.service.js';
 import { RagContextAssemblerService } from '../query/rag-context-assembler.service.js';
 import { GithubIntegrationGateway } from '../../ports/integrations/github-integration.port.js';
@@ -25,14 +24,13 @@ export class PrReviewAgentToolsService {
   buildTools(params: {
     userId: string;
     scope: RagScope;
-    embeddingConfig: EmbeddingConfig;
     ragConfig: RagConfig;
     githubToken: string;
     repoFullName: string;
     headSha: string;
     tracker: AgentContextTracker;
   }): AgentTool[] {
-    const { userId, scope, embeddingConfig, ragConfig, githubToken, repoFullName, headSha, tracker } = params;
+    const { userId, scope, ragConfig, githubToken, repoFullName, headSha, tracker } = params;
 
     const searchKnowledgeTool: AgentTool = {
       name: 'search_knowledge',
@@ -75,7 +73,6 @@ export class PrReviewAgentToolsService {
           userId,
           query,
           effectiveScope,
-          embeddingConfig,
           ragConfig,
         );
 

@@ -126,7 +126,7 @@ class StubAskKnowledgeUseCase {
     };
   }
 
-  buildTools(userId, scope, _embeddingConfig, _ragConfig, tracker) {
+  buildTools(userId, scope, _ragConfig, tracker) {
     return [{
       name: 'search_knowledge',
       description: 'Search semantic knowledge',
@@ -205,8 +205,7 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
     repositories.contentRepository,
     repositories.runtimeEnvironmentProvider,
     repositories.noteLifecycleService,
-    loggerMock,
-    repositories.database,
+    repositories.transactionManager,
     repositories.scopeResolver,
   );
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository, repositories.scopeResolver);
@@ -341,7 +340,6 @@ async function seedAskNoteWithAttachment(repositories, userId, input = {}) {
     sourceChannel: 'external',
     summary: 'Deploy checklist',
     markdown: '# Deploy checklist\n',
-    frontmatter: {},
     metadata: {},
     origin: 'postgres',
     source: 'manual-api',
@@ -556,7 +554,7 @@ test('linked whatsapp chat saves captioned media as a Supabase-backed attachment
   }));
 
   assert.equal(result.action, 'submit');
-  assert.equal(result.ingestResult.attachmentIds.length, 1);
+  assert.equal(result.ingestResult.note.attachmentCount, 1);
   const attachments = await repositories.contentRepository.listAttachments(user.id, result.ingestResult.noteId);
   assert.equal(attachments.length, 1);
   assert.equal(attachments[0].fileName, 'erro.png');
@@ -585,7 +583,7 @@ test('linked whatsapp chat normalizes attachment storage keys for accented filen
   }));
 
   assert.equal(result.action, 'submit');
-  assert.equal(result.ingestResult.attachmentIds.length, 1);
+  assert.equal(result.ingestResult.note.attachmentCount, 1);
   const attachments = await repositories.contentRepository.listAttachments(user.id, result.ingestResult.noteId);
   assert.equal(attachments.length, 1);
   assert.equal(attachments[0].fileName, 'FéConect-52e25237-dd8a-4511-ba6b-1e394674930f (11).pdf');
@@ -617,7 +615,7 @@ test('direct whatsapp webhook downloads media when Evolution payload has metadat
 
   assert.equal(downloader.calls.length, 1);
   assert.equal(result.action, 'submit');
-  assert.equal(result.ingestResult.attachmentIds.length, 1);
+  assert.equal(result.ingestResult.note.attachmentCount, 1);
   const attachments = await repositories.contentRepository.listAttachments(user.id, result.ingestResult.noteId);
   assert.equal(attachments.length, 1);
   assert.equal((await repositories.objectStorage.get(attachments[0].storageKey)).toString('utf8'), 'downloaded image');
@@ -787,7 +785,6 @@ test('whatsapp natural language query reports no attachments when related notes 
     sourceChannel: 'external',
     summary: 'No attachment here',
     markdown: '# Empty\n',
-    frontmatter: {},
     metadata: {},
     origin: 'postgres',
     source: 'manual-api',
@@ -999,7 +996,7 @@ test('linked whatsapp chat computes attachment size from downloaded base64 when 
   }));
 
   assert.equal(result.action, 'submit');
-  assert.equal(result.ingestResult.attachmentIds.length, 1);
+  assert.equal(result.ingestResult.note.attachmentCount, 1);
   const attachments = await repositories.contentRepository.listAttachments(user.id, result.ingestResult.noteId);
   assert.equal(attachments.length, 1);
   assert.equal(attachments[0].fileName, 'erro.png');

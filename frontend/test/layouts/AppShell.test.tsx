@@ -229,7 +229,7 @@ function mockFetch() {
             '- none\n\n' +
             '## Next steps\n\n' +
             '- none',
-          frontmatter: {},
+
           links: [],
           origin: 'vault',
           attachments: [],
@@ -566,7 +566,7 @@ describe('AppShell', () => {
         folderId: null,
         attachmentCount: 0,
         markdown: '# Deploy rollout\n\nRevisar deploy.',
-        frontmatter: {},
+
         links: [],
         origin: 'vault',
         attachments: [],

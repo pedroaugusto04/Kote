@@ -3,9 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { updateNote, fetchWorkspaceCategories, fetchProjectFolders } from '../../shared/api/client';
 import { invalidateNoteRelatedQueries } from '../../shared/api/note-query';
-import type { NoteDetail } from '../../shared/api/models/note';
+import type { NoteDetail, PendingAttachment } from '../../shared/api/models/note';
 import type { Project } from '../../shared/api/models/project';
-import type { PendingAttachment } from '../../shared/ui/attachment-input';
 import { notifySuccess, notifyError } from '../../shared/ui/notifications';
 import { useGlobalLoading } from '../../app/global-loading';
 import { flattenFolders } from '../../features/projects/projects.helpers';
