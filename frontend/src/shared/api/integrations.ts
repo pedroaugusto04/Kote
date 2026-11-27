@@ -9,11 +9,10 @@ import type {
   IntegrationTestResponse,
 } from './models/integration';
 import { request } from './request';
-import { API_PATHS, buildApiPath } from './api-paths.constants';
+import { API_PATHS, buildApiPath, buildApiUrl } from './api-paths.constants';
 
 export function fetchIntegrations(workspaceSlug: string): Promise<IntegrationsResponse> {
-  const search = new URLSearchParams({ workspaceSlug });
-  return request<IntegrationsResponse>(`${API_PATHS.INTEGRATIONS}?${search.toString()}`);
+  return request<IntegrationsResponse>(buildApiUrl(API_PATHS.INTEGRATIONS, { workspaceSlug }));
 }
 
 export function connectIntegration(params: { provider: string; workspaceSlug: string; returnToPath?: string }): Promise<IntegrationConnectionResponse> {
@@ -31,18 +30,15 @@ export function fetchIntegrationSession(params: { provider: string; sessionId: s
 }
 
 export function revokeIntegration(provider: string, workspaceSlug: string) {
-  const search = new URLSearchParams({ workspaceSlug });
-  return request(`${buildApiPath(API_PATHS.INTEGRATIONS_DETAIL, { provider })}?${search.toString()}`, { method: 'DELETE' });
+  return request(buildApiUrl(buildApiPath(API_PATHS.INTEGRATIONS_DETAIL, { provider }), { workspaceSlug }), { method: 'DELETE' });
 }
 
 export function testIntegration(provider: string, workspaceSlug: string): Promise<IntegrationTestResponse> {
-  const search = new URLSearchParams({ workspaceSlug });
-  return request<IntegrationTestResponse>(`${buildApiPath(API_PATHS.INTEGRATIONS_TEST, { provider })}?${search.toString()}`, { method: 'POST' });
+  return request<IntegrationTestResponse>(buildApiUrl(buildApiPath(API_PATHS.INTEGRATIONS_TEST, { provider }), { workspaceSlug }), { method: 'POST' });
 }
 
 export function fetchGithubRepositories(workspaceSlug: string): Promise<GithubRepositoriesResponse> {
-  const search = new URLSearchParams({ workspaceSlug });
-  return request<GithubRepositoriesResponse>(`${API_PATHS.INTEGRATIONS_GITHUB_REPOSITORIES}?${search.toString()}`);
+  return request<GithubRepositoriesResponse>(buildApiUrl(API_PATHS.INTEGRATIONS_GITHUB_REPOSITORIES, { workspaceSlug }));
 }
 
 export function saveGithubRepositories(workspaceSlug: string, repositories: Array<Pick<GithubIntegrationRepository, 'id' | 'fullName'>>) {
@@ -62,8 +58,7 @@ export function startGithubBackfill(workspaceSlug: string, repositories: string[
 }
 
 export function fetchGithubBackfillStatus(workspaceSlug: string, jobId: string): Promise<GithubBackfillStatusResponse> {
-  const search = new URLSearchParams({ workspaceSlug, jobId });
-  return request<GithubBackfillStatusResponse>(`${API_PATHS.INTEGRATIONS_GITHUB_BACKFILL_STATUS}?${search.toString()}`);
+  return request<GithubBackfillStatusResponse>(buildApiUrl(API_PATHS.INTEGRATIONS_GITHUB_BACKFILL_STATUS, { workspaceSlug, jobId }));
 }
 
 export function cancelGithubBackfill(workspaceSlug: string, jobId: string): Promise<{ ok: boolean }> {
@@ -86,8 +81,9 @@ export function importDependenciesFromGithub(
 }
 
 export function fetchDependencyMonitoredRepositories(workspaceSlug: string) {
-  const search = new URLSearchParams({ workspaceSlug });
-  return request<import('./models/dependency-watcher').DependencyMonitoredRepositoriesResponse>(`${API_PATHS.INTEGRATIONS_DEPENDENCY_WATCH_REPOSITORIES}?${search.toString()}`);
+  return request<import('./models/dependency-watcher').DependencyMonitoredRepositoriesResponse>(
+    buildApiUrl(API_PATHS.INTEGRATIONS_DEPENDENCY_WATCH_REPOSITORIES, { workspaceSlug }),
+  );
 }
 
 export function saveDependencyMonitoredRepositories(workspaceSlug: string, repositoryIds: string[]) {

@@ -3,7 +3,7 @@ import type { NoteStatusFilter, QuickNoteStatus } from './models/note-status';
 import type { LinkedCommitSummary } from './models/project-commits';
 import { DEFAULT_PAGE_SIZE, type PaginatedResponse } from './models/pagination';
 import { request, requestText } from './request';
-import { API_PATHS, buildApiPath } from './api-paths.constants';
+import { API_PATHS, buildApiPath, buildApiUrl } from './api-paths.constants';
 
 export async function fetchNote(id: string): Promise<NoteDetail> {
   const result = await request<{ ok: true; note: NoteDetail }>(buildApiPath(API_PATHS.NOTE_DETAIL, { id }));
@@ -11,16 +11,15 @@ export async function fetchNote(id: string): Promise<NoteDetail> {
 }
 
 export function fetchNotes(params: { page?: number; pageSize?: number; workspaceSlug?: string; projectSlug?: string; folderId?: string; status?: NoteStatusFilter; selectedId?: string }) {
-  const search = new URLSearchParams({
-    page: String(params.page || 1),
-    pageSize: String(params.pageSize || DEFAULT_PAGE_SIZE),
+  return request<PaginatedResponse<NoteSummary, 'notes'>>(buildApiUrl(API_PATHS.NOTES, {
+    page: params.page || 1,
+    pageSize: params.pageSize || DEFAULT_PAGE_SIZE,
     workspaceSlug: params.workspaceSlug || '',
     projectSlug: params.projectSlug || '',
     folderId: params.folderId || '',
     status: params.status || '',
     selectedId: params.selectedId || '',
-  });
-  return request<PaginatedResponse<NoteSummary, 'notes'>>(`${API_PATHS.NOTES}?${search.toString()}`);
+  }));
 }
 
 export type CreateNoteParams = UpdateNoteParams & {

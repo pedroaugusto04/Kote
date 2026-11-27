@@ -1,7 +1,7 @@
 import { DEFAULT_PAGE_SIZE, type PaginatedResponse } from './models/pagination';
 import type { Reminder, ReminderBoardResponse } from './models/reminder';
 import { request } from './request';
-import { API_PATHS, buildApiPath } from './api-paths.constants';
+import { API_PATHS, buildApiPath, buildApiUrl } from './api-paths.constants';
 
 export function fetchReminders(params: {
   page?: number;
@@ -13,17 +13,16 @@ export function fetchReminders(params: {
   dueAfter?: string;
   dueBefore?: string;
 }) {
-  const search = new URLSearchParams({
-    page: String(params.page || 1),
-    pageSize: String(params.pageSize || DEFAULT_PAGE_SIZE),
+  return request<PaginatedResponse<Reminder, 'reminders'>>(buildApiUrl(API_PATHS.REMINDERS, {
+    page: params.page || 1,
+    pageSize: params.pageSize || DEFAULT_PAGE_SIZE,
     workspaceSlug: params.workspaceSlug || '',
     projectSlug: params.projectSlug || '',
     status: params.status || '',
-  });
-  if (params.query?.trim()) search.set('query', params.query.trim());
-  if (params.dueAfter) search.set('dueAfter', params.dueAfter);
-  if (params.dueBefore) search.set('dueBefore', params.dueBefore);
-  return request<PaginatedResponse<Reminder, 'reminders'>>(`${API_PATHS.REMINDERS}?${search.toString()}`);
+    query: params.query?.trim() || undefined,
+    dueAfter: params.dueAfter || undefined,
+    dueBefore: params.dueBefore || undefined,
+  }));
 }
 
 export function fetchReminderBoard(params: {
@@ -32,17 +31,15 @@ export function fetchReminderBoard(params: {
   limitPerColumn?: number;
   columnPage?: Record<string, number>;
 }) {
-  const search = new URLSearchParams({
+  return request<ReminderBoardResponse>(buildApiUrl(API_PATHS.REMINDERS_BOARD, {
     workspaceSlug: params.workspaceSlug || '',
     projectSlug: params.projectSlug || '',
-    limitPerColumn: String(params.limitPerColumn || 50),
-    overduePage: String(params.columnPage?.overdue || 1),
-    upcomingPage: String(params.columnPage?.upcoming || 1),
-    resolvedPage: String(params.columnPage?.resolved || 1),
-    archivedPage: String(params.columnPage?.archived || 1),
-  });
-
-  return request<ReminderBoardResponse>(`${API_PATHS.REMINDERS_BOARD}?${search.toString()}`);
+    limitPerColumn: params.limitPerColumn || 50,
+    overduePage: params.columnPage?.overdue || 1,
+    upcomingPage: params.columnPage?.upcoming || 1,
+    resolvedPage: params.columnPage?.resolved || 1,
+    archivedPage: params.columnPage?.archived || 1,
+  }));
 }
 
 export function updateReminderStatus(id: string, status: 'pending' | 'overdue' | 'resolved' | 'archived') {

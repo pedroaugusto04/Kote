@@ -116,6 +116,30 @@ export function toWorkspaceData(workspace: SaveWorkspaceInput) {
   };
 }
 
+function resolveWorkspaceMeta(
+  workspaceId: string,
+  workspaceSlug: string | undefined,
+  workspaces: ReadonlyMap<string, SaveWorkspaceInput>,
+) {
+  const workspace = workspaces.get(workspaceId);
+  return {
+    workspace: workspace?.displayName || workspaceSlug || workspaceId,
+    workspaceSlug: workspace?.workspaceSlug || workspaceSlug || null,
+  };
+}
+
+function resolveProjectMeta(
+  projectId: string,
+  projectSlug: string | undefined,
+  projects: ReadonlyMap<string, SaveProjectInput>,
+) {
+  const project = projects.get(projectId);
+  return {
+    project: project?.displayName || projectSlug || projectId,
+    projectSlug: project?.projectSlug || projectSlug || null,
+  };
+}
+
 export function toProjectData(project: SaveProjectInput, workspaces: ReadonlyMap<string, SaveWorkspaceInput>) {
   const workspace = workspaces.get(project.workspaceId);
   return {
@@ -140,8 +164,7 @@ export function toFolderData(folder: ProjectFolderRecord, context: ExportPresent
     name: folder.displayName || folder.folderSlug,
     path: folder.fullSlugPath,
     parent: parent?.fullSlugPath || null,
-    project: project?.displayName || folder.projectSlug || folder.projectId,
-    projectSlug: project?.projectSlug || folder.projectSlug || null,
+    ...resolveProjectMeta(folder.projectId, folder.projectSlug, context.projects),
     workspace: workspace?.displayName || folder.workspaceSlug || null,
     workspaceSlug: workspace?.workspaceSlug || folder.workspaceSlug || null,
     createdAt: folder.createdAt,
@@ -171,8 +194,7 @@ export function toRepositoryData(
 ) {
   return repositories.map((repository) => ({
     name: repository.fullName,
-    workspace: workspaces.get(repository.workspaceId)?.displayName || repository.workspaceSlug || repository.workspaceId,
-    workspaceSlug: workspaces.get(repository.workspaceId)?.workspaceSlug || repository.workspaceSlug || null,
+    ...resolveWorkspaceMeta(repository.workspaceId, repository.workspaceSlug, workspaces),
     url: repository.htmlUrl,
     description: repository.description,
     defaultBranch: repository.defaultBranch,
@@ -204,16 +226,12 @@ function toCustomFields(metadata: Record<string, unknown>): Record<string, unkno
 }
 
 export function toNoteData(note: ExportedNote, context: ExportPresentationContext, attachmentPaths: string[] = []) {
-  const project = context.projects.get(note.projectId);
-  const workspace = context.workspaces.get(note.workspaceId);
   const folder = note.folderId ? context.folders.get(note.folderId) : undefined;
   return {
     title: note.title || 'Untitled note',
     file: note.markdownPath,
-    workspace: workspace?.displayName || note.workspaceSlug || note.workspaceId,
-    workspaceSlug: workspace?.workspaceSlug || note.workspaceSlug || null,
-    project: project?.displayName || note.projectSlug || note.projectId,
-    projectSlug: project?.projectSlug || note.projectSlug || null,
+    ...resolveWorkspaceMeta(note.workspaceId, note.workspaceSlug, context.workspaces),
+    ...resolveProjectMeta(note.projectId, note.projectSlug, context.projects),
     folder: folder?.fullSlugPath || null,
     categories: note.categories.map((category) => category.name),
     tags: note.tags,

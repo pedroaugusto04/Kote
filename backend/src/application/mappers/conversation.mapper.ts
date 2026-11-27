@@ -31,24 +31,28 @@ export function toPendingClarificationContext(state: AgentConversationState) {
   };
 }
 
+const MAX_RECENT_TURNS = 5;
+
+function appendConversationTurn(
+  turns: AgentConversationState['turns'] | undefined,
+  userMessage: string,
+  agentReply: string,
+  action: string,
+) {
+  return [...(turns || []), { userMessage, agentReply, action }].slice(-MAX_RECENT_TURNS);
+}
+
 export function toReplyAgentConversationState(
   current: AgentConversationState,
   userMessage: string,
   agentReply: string,
 ): AgentConversationState {
-  const newTurn = {
-    userMessage,
-    agentReply,
-    action: AgentConversationAction.Answer,
-  };
-  const updatedTurns = [...(current.turns || []), newTurn].slice(-5);
-
   return agentConversationStateSchema.parse({
     ...emptyAgentConversationState,
     project: {
       selectedProjectSlug: current.project.selectedProjectSlug || '',
     },
-    turns: updatedTurns,
+    turns: appendConversationTurn(current.turns, userMessage, agentReply, AgentConversationAction.Answer),
     updatedAt: nowIso(),
   });
 }
@@ -59,23 +63,18 @@ export function toClarifyAgentConversationState(
   decision: ConversationAgentDecision,
   clarificationText: string,
 ): AgentConversationState {
+  const { resolvedDraft } = decision;
   return agentConversationStateSchema.parse({
     ...current,
     turns: current.turns || [],
     draft: {
-      rawText: decision.resolvedDraft.rawText || current.draft.rawText || userMessage,
-      title: decision.resolvedDraft.title || current.draft.title,
-      kind: decision.resolvedDraft.kind !== 'note' ? decision.resolvedDraft.kind : current.draft.kind,
-      canonicalType:
-        decision.resolvedDraft.canonicalType !== 'event'
-          ? decision.resolvedDraft.canonicalType
-          : current.draft.canonicalType,
-      importance:
-        decision.resolvedDraft.importance !== 'low'
-          ? decision.resolvedDraft.importance
-          : current.draft.importance,
-      tags: decision.resolvedDraft.tags.length ? decision.resolvedDraft.tags : current.draft.tags,
-      reminderAt: decision.resolvedDraft.reminderAt || current.draft.reminderAt,
+      rawText: resolvedDraft.rawText || current.draft.rawText || userMessage,
+      title: resolvedDraft.title || current.draft.title,
+      kind: resolvedDraft.kind !== 'note' ? resolvedDraft.kind : current.draft.kind,
+      canonicalType: resolvedDraft.canonicalType !== 'event' ? resolvedDraft.canonicalType : current.draft.canonicalType,
+      importance: resolvedDraft.importance !== 'low' ? resolvedDraft.importance : current.draft.importance,
+      tags: resolvedDraft.tags.length ? resolvedDraft.tags : current.draft.tags,
+      reminderAt: resolvedDraft.reminderAt || current.draft.reminderAt,
     },
     project: {
       selectedProjectSlug: decision.selectedProjectSlug || current.project.selectedProjectSlug,
@@ -157,7 +156,7 @@ export function toNextAgentConversationState(input: {
   const draft = agentConversationDraftSchema.parse({
     ...input.current.draft,
     ...input.decision.resolvedDraft,
-    rawText: normalizeMultiline(input.decision.resolvedDraft.rawText || normalizeMultiline(input.current.draft.rawText || input.messageText)),
+    rawText: normalizeMultiline(input.decision.resolvedDraft.rawText || input.current.draft.rawText || input.messageText),
     reminderAt: input.decision.resolvedDraft.reminderAt || input.current.draft.reminderAt || '',
     tags: [...new Set([...(input.current.draft.tags || []), ...(input.decision.resolvedDraft.tags || [])].map((tag) => slugify(tag)).filter(Boolean))],
   });
@@ -169,13 +168,6 @@ export function toNextAgentConversationState(input: {
     placeInRoot: input.decision.placeInRoot,
     folders: selectedProjectSlug && selectedProjectSlug !== 'inbox' ? input.candidateFolders : [],
   });
-
-  const newTurn = {
-    userMessage: input.messageText,
-    agentReply: input.decision.replyText || '',
-    action: input.decision.action,
-  };
-  const updatedTurns = [...(input.current.turns || []), newTurn].slice(-5);
 
   return agentConversationStateSchema.parse({
     draft,
@@ -190,7 +182,7 @@ export function toNextAgentConversationState(input: {
     lastUserMessage: input.messageText,
     lastAgentAction: input.decision.action,
     confidence: input.decision.confidence,
-    turns: updatedTurns,
+    turns: appendConversationTurn(input.current.turns, input.messageText, input.decision.replyText || '', input.decision.action),
     updatedAt: nowIso(),
   });
 }

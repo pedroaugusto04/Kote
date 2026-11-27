@@ -14,28 +14,14 @@ export class PipRegistryStrategy extends RegistryStrategy {
     const shouldFilterStable = stableOnly !== undefined ? stableOnly : this.stableOnly;
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.TIMEOUT_MS);
-
-      const response = await fetch(`https://pypi.org/pypi/${encodeURIComponent(packageName)}/json`, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'Kote-DependencyWatcher/1.0',
+      const data = await this.fetchRegistryJson<any>(
+        `https://pypi.org/pypi/${encodeURIComponent(packageName)}/json`,
+        {
+          registryName: 'PyPI',
+          packageName,
+          timeoutMs: this.TIMEOUT_MS,
         },
-      });
-
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch package info from PyPI: ${response.status}`);
-      }
-
-      let data;
-      try {
-        data = await response.json();
-      } catch {
-        throw new Error(`Failed to parse PyPI response for ${packageName}`);
-      }
+      );
 
       if (!data.info || !data.info.version) {
         throw new Error(`Invalid package data from PyPI for ${packageName}`);
@@ -44,17 +30,12 @@ export class PipRegistryStrategy extends RegistryStrategy {
       let latestVersion = data.info.version;
       
       if (shouldFilterStable && isPipPrerelease(latestVersion)) {
-        // If latest is prerelease, find the latest stable version
         const releases = data.releases ? Object.keys(data.releases) : [];
-        const stableVersions = releases.filter(v => !isPipPrerelease(v));
-        
-        if (stableVersions.length > 0) {
-          stableVersions.sort((a, b) => this.comparePep440(a, b));
-          latestVersion = stableVersions[0];
-        } else if (releases.length > 0) {
-          // No stable versions found, use the latest version as fallback
-          releases.sort((a, b) => this.comparePep440(a, b));
-          latestVersion = releases[0];
+        const stableVersions = releases.filter((v) => !isPipPrerelease(v));
+        const pool = stableVersions.length > 0 ? stableVersions : releases;
+        if (pool.length > 0) {
+          pool.sort((a, b) => this.comparePep440(a, b));
+          latestVersion = pool[0];
         }
       }
 
@@ -66,8 +47,8 @@ export class PipRegistryStrategy extends RegistryStrategy {
         changelog: data.info.summary || '',
       };
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(`PyPI request timeout for ${packageName}`);
+      if (error instanceof Error && error.message.startsWith('PyPI request timeout')) {
+        throw error;
       }
       throw new Error(`PyPI registry fetch failed for ${packageName}: ${error instanceof Error ? error.message : String(error)}`);
     }

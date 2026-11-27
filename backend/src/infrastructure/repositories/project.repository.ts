@@ -99,30 +99,14 @@ export class PostgresProjectRepository {
   }
 
   async listPage(userId: string, input: ListProjectsInput) {
-    const db = this.database.getDb();
-    const totalResult = await db
-      .select({ count: count() })
-      .from(projects)
-      .where(and(eq(projects.userId, userId), eq(projects.enabled, true)));
-    const total = Number(totalResult[0]?.count || 0);
-
-    const selectedPage = input.selectedSlug ? await this.resolveProjectPage(userId, input.selectedSlug, input.pageSize) : input.page;
-    const pagination = buildPaginationMeta({ page: selectedPage, pageSize: input.pageSize }, total);
-    const offset = (pagination.page - 1) * pagination.pageSize;
-
-    const result = await db
-      .select(PROJECT_METADATA_SELECT)
-      .from(projects)
-      .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
-      .where(and(eq(projects.userId, userId), eq(projects.enabled, true)))
-      .orderBy(desc(projects.isFavorite), projects.displayName)
-      .limit(pagination.pageSize)
-      .offset(offset);
-
-    return { items: result.map(projectFromRow), pagination };
+    return this.listPaginated(userId, input, false);
   }
 
   async listPageWithNoteCount(userId: string, input: ListProjectsInput) {
+    return this.listPaginated(userId, input, true);
+  }
+
+  private async listPaginated(userId: string, input: ListProjectsInput, includeNoteCount: boolean) {
     const db = this.database.getDb();
     const totalResult = await db
       .select({ count: count() })
@@ -130,16 +114,23 @@ export class PostgresProjectRepository {
       .where(and(eq(projects.userId, userId), eq(projects.enabled, true)));
     const total = Number(totalResult[0]?.count || 0);
 
-    const selectedPage = input.selectedSlug ? await this.resolveProjectPageWithNoteCount(userId, input.selectedSlug, input.pageSize) : input.page;
+    const selectedPage = input.selectedSlug
+      ? includeNoteCount
+        ? await this.resolveProjectPageWithNoteCount(userId, input.selectedSlug, input.pageSize)
+        : await this.resolveProjectPage(userId, input.selectedSlug, input.pageSize)
+      : input.page;
     const pagination = buildPaginationMeta({ page: selectedPage, pageSize: input.pageSize }, total);
     const offset = (pagination.page - 1) * pagination.pageSize;
 
-    const result = await db
-      .select(PROJECT_WITH_NOTE_COUNT_SELECT)
+    const baseQuery = db
+      .select(includeNoteCount ? PROJECT_WITH_NOTE_COUNT_SELECT : PROJECT_METADATA_SELECT)
       .from(projects)
       .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
-      .where(and(eq(projects.userId, userId), eq(projects.enabled, true)))
-      .orderBy(desc(projects.isFavorite), desc(NOTE_COUNT_SUBQUERY), projects.displayName)
+      .where(and(eq(projects.userId, userId), eq(projects.enabled, true)));
+
+    const result = await (includeNoteCount
+      ? baseQuery.orderBy(desc(projects.isFavorite), desc(NOTE_COUNT_SUBQUERY), projects.displayName)
+      : baseQuery.orderBy(desc(projects.isFavorite), projects.displayName))
       .limit(pagination.pageSize)
       .offset(offset);
 

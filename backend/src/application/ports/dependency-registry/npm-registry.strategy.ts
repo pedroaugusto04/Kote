@@ -14,64 +14,24 @@ export class NpmRegistryStrategy extends RegistryStrategy {
     const shouldFilterStable = stableOnly !== undefined ? stableOnly : this.stableOnly;
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.TIMEOUT_MS);
-      timeoutId.unref?.();
-
-      let response;
-      try {
-        // Fetch full package metadata to access dist-tags and all versions
-        response = await fetch(`https://registry.npmjs.org/${packageName}`, {
-          signal: controller.signal,
-          headers: {
-            'User-Agent': 'Kote-DependencyWatcher/1.0',
-          },
-        });
-      } finally {
-        clearTimeout(timeoutId);
-      }
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch npm package: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = await this.fetchRegistryJson<any>(`https://registry.npmjs.org/${packageName}`, {
+        registryName: 'npm registry',
+        packageName,
+        timeoutMs: this.TIMEOUT_MS,
+        buildStatusError: (response) => `Failed to fetch npm package: ${response.statusText}`,
+      });
       const repositoryUrl = extractRepositoryUrl(data.repository?.url, data.homepage);
 
-      let version: string;
-
-      if (shouldFilterStable) {
-        // Try dist-tags.latest first (most common for stable releases)
-        version = data['dist-tags']?.latest;
-        
-        // Fallback: if dist-tags.latest is prerelease or missing, find latest stable from versions
-        if (!version || isSemverPrerelease(version)) {
-          const versions = data.versions ? Object.keys(data.versions) : [];
-          const stableVersions = versions.filter(v => !isSemverPrerelease(v));
-          
-          if (stableVersions.length > 0) {
-            // Sort versions semantically and get the latest
-            stableVersions.sort((a, b) => this.compareSemver(a, b));
-            version = stableVersions[stableVersions.length - 1];
-          } else if (versions.length > 0) {
-            // No stable versions found, use the latest version as fallback
-            versions.sort((a, b) => this.compareSemver(a, b));
-            version = versions[versions.length - 1];
-          } else {
-            throw new Error(`No versions found for package ${packageName}`);
-          }
+      let version: string | undefined = data['dist-tags']?.latest;
+      if (!version || (shouldFilterStable && isSemverPrerelease(version))) {
+        const versions = data.versions ? Object.keys(data.versions) : [];
+        const stableVersions = shouldFilterStable ? versions.filter((v) => !isSemverPrerelease(v)) : [];
+        const pool = stableVersions.length > 0 ? stableVersions : versions;
+        if (pool.length === 0) {
+          throw new Error(`No versions found for package ${packageName}`);
         }
-      } else {
-        // Include prereleases: use dist-tags.latest or fallback to highest version
-        version = data['dist-tags']?.latest;
-        if (!version) {
-          const versions = data.versions ? Object.keys(data.versions) : [];
-          if (versions.length === 0) {
-            throw new Error(`No versions found for package ${packageName}`);
-          }
-          versions.sort((a, b) => this.compareSemver(a, b));
-          version = versions[versions.length - 1];
-        }
+        pool.sort((a, b) => this.compareSemver(a, b));
+        version = pool[pool.length - 1];
       }
 
       return {
@@ -80,8 +40,8 @@ export class NpmRegistryStrategy extends RegistryStrategy {
         releaseNotes: data.description || undefined,
       };
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(`npm registry request timeout for ${packageName}`);
+      if (error instanceof Error && error.message.startsWith('npm registry request timeout')) {
+        throw error;
       }
       throw new Error(`Npm registry fetch failed for ${packageName}: ${error instanceof Error ? error.message : String(error)}`);
     }

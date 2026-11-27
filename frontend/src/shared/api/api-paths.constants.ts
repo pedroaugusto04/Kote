@@ -109,3 +109,17 @@ export function buildApiPath(template: string, params: Record<string, string>): 
   });
   return path;
 }
+
+export type QueryParamValue = string | number | boolean | null | undefined;
+
+export function buildApiUrl(path: string, params?: Record<string, QueryParamValue>): string {
+  if (!params) return path;
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null) {
+      search.set(key, String(value));
+    }
+  }
+  const query = search.toString();
+  return query ? `${path}?${query}` : path;
+}

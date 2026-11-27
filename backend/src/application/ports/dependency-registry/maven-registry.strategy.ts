@@ -20,33 +20,16 @@ export class MavenRegistryStrategy extends RegistryStrategy {
         throw new Error('Invalid Maven package format. Expected groupId:artifactId');
       }
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.TIMEOUT_MS);
-
       // Fetch more results to filter for stable versions if needed
       const rows = shouldFilterStable ? 50 : 1;
-      const response = await fetch(
+      const data = await this.fetchRegistryJson<{ response?: { docs?: Array<{ v: string; p?: string }> } }>(
         `https://search.maven.org/solrsearch/select?q=g:${encodeURIComponent(groupId)}+AND+a:${encodeURIComponent(artifactId)}&rows=${rows}&wt=json`,
         {
-          signal: controller.signal,
-          headers: {
-            'User-Agent': 'Kote-DependencyWatcher/1.0',
-          },
-        }
+          registryName: 'Maven Central',
+          packageName,
+          timeoutMs: this.TIMEOUT_MS,
+        },
       );
-
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch package info from Maven Central: ${response.status}`);
-      }
-
-      let data;
-      try {
-        data = await response.json();
-      } catch {
-        throw new Error(`Failed to parse Maven Central response for ${packageName}`);
-      }
 
       const docs = data.response?.docs;
       
@@ -57,32 +40,21 @@ export class MavenRegistryStrategy extends RegistryStrategy {
       let latestDoc = docs[0];
       
       if (shouldFilterStable && isMavenPrerelease(latestDoc.v)) {
-        // Find the latest stable version from the results
-        const stableDoc = docs.find((doc: { v: string }) => !isMavenPrerelease(doc.v));
-        if (stableDoc) {
-          latestDoc = stableDoc;
-        } else {
-          // No stable version found, use the latest version as fallback
-          latestDoc = docs[0];
-        }
+        latestDoc = docs.find((doc) => !isMavenPrerelease(doc.v)) ?? docs[0];
       }
       
       if (!latestDoc.v) {
         throw new Error(`Version not found for package ${packageName}`);
       }
       
-      const latestVersion = latestDoc.v;
-      const repositoryUrl = this.extractRepositoryUrl(latestDoc.p);
-      const changelog = latestDoc.p || '';
-
       return {
-        version: latestVersion,
-        repositoryUrl,
-        changelog,
+        version: latestDoc.v,
+        repositoryUrl: this.extractRepositoryUrl(latestDoc.p),
+        changelog: latestDoc.p || '',
       };
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(`Maven Central request timeout for ${packageName}`);
+      if (error instanceof Error && error.message.startsWith('Maven Central request timeout')) {
+        throw error;
       }
       throw new Error(`Maven registry fetch failed for ${packageName}: ${error instanceof Error ? error.message : String(error)}`);
     }

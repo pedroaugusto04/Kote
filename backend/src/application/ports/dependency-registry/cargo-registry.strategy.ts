@@ -12,28 +12,14 @@ export class CargoRegistryStrategy extends RegistryStrategy {
     const shouldFilterStable = stableOnly !== undefined ? stableOnly : this.stableOnly;
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.TIMEOUT_MS);
-
-      const response = await fetch(`https://crates.io/api/v1/crates/${encodeURIComponent(packageName)}`, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'Kote-DependencyWatcher/1.0',
+      const data = await this.fetchRegistryJson<{ crate?: { max_stable_version?: string; max_version?: string; repository?: string; description?: string } }>(
+        `https://crates.io/api/v1/crates/${encodeURIComponent(packageName)}`,
+        {
+          registryName: 'crates.io',
+          packageName,
+          timeoutMs: this.TIMEOUT_MS,
         },
-      });
-
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch package info from crates.io: ${response.status}`);
-      }
-
-      let data;
-      try {
-        data = await response.json();
-      } catch {
-        throw new Error(`Failed to parse crates.io response for ${packageName}`);
-      }
+      );
 
       const crate = data.crate;
       
@@ -41,28 +27,22 @@ export class CargoRegistryStrategy extends RegistryStrategy {
         throw new Error(`Package ${packageName} not found in crates.io`);
       }
 
-      let latestVersion: string;
-      if (shouldFilterStable) {
-        latestVersion = crate.max_stable_version || crate.max_version;
-      } else {
-        latestVersion = crate.max_version;
-      }
+      const latestVersion = shouldFilterStable
+        ? (crate.max_stable_version || crate.max_version)
+        : crate.max_version;
       
       if (!latestVersion) {
         throw new Error(`Version not found for package ${packageName}`);
       }
 
-      const repositoryUrl = crate.repository || '';
-      const changelog = crate.description || '';
-
       return {
         version: latestVersion,
-        repositoryUrl,
-        changelog,
+        repositoryUrl: crate.repository || '',
+        changelog: crate.description || '',
       };
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(`crates.io request timeout for ${packageName}`);
+      if (error instanceof Error && error.message.startsWith('crates.io request timeout')) {
+        throw error;
       }
       throw new Error(`Cargo registry fetch failed for ${packageName}: ${error instanceof Error ? error.message : String(error)}`);
     }

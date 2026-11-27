@@ -1,14 +1,13 @@
 import type { WebhookSubscription, WebhookTriggersResponse } from './models/webhook-subscription';
 import { request } from './request';
-import { API_PATHS, buildApiPath } from './api-paths.constants';
+import { API_PATHS, buildApiPath, buildApiUrl } from './api-paths.constants';
 
 export function fetchWebhookTriggers(): Promise<WebhookTriggersResponse> {
   return request<WebhookTriggersResponse>(API_PATHS.WEBHOOK_SUBSCRIPTIONS_TRIGGERS);
 }
 
 export function fetchWebhookSubscriptions(workspaceSlug: string): Promise<WebhookSubscription[]> {
-  const search = new URLSearchParams({ workspaceSlug });
-  return request<WebhookSubscription[]>(`${API_PATHS.WEBHOOK_SUBSCRIPTIONS}?${search.toString()}`);
+  return request<WebhookSubscription[]>(buildApiUrl(API_PATHS.WEBHOOK_SUBSCRIPTIONS, { workspaceSlug }));
 }
 
 export function createWebhookSubscription(input: {

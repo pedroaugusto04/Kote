@@ -7,7 +7,7 @@ import type {
   AskConversationTurn,
 } from './models/ask';
 import { request } from './request';
-import { API_PATHS } from './api-paths.constants';
+import { API_PATHS, buildApiUrl } from './api-paths.constants';
 
 export function runAsk(params: {
   question: string;
@@ -23,21 +23,19 @@ export function runAsk(params: {
 }
 
 export function fetchAskHistory(params: { page?: number; pageSize?: number; projectSlug?: string } = {}) {
-  const search = new URLSearchParams({
-    page: String(params.page || 1),
-    pageSize: String(params.pageSize || DEFAULT_PAGE_SIZE),
-  });
-  if (params.projectSlug) search.set('projectSlug', params.projectSlug);
-  return request<AskHistoryResponse>(`${API_PATHS.ASK}/history?${search.toString()}`);
+  return request<AskHistoryResponse>(buildApiUrl(`${API_PATHS.ASK}/history`, {
+    page: params.page || 1,
+    pageSize: params.pageSize || DEFAULT_PAGE_SIZE,
+    projectSlug: params.projectSlug || undefined,
+  }));
 }
 
 export function fetchAskConversations(params: { page?: number; pageSize?: number; projectSlug?: string } = {}) {
-  const search = new URLSearchParams({
-    page: String(params.page || 1),
-    pageSize: String(params.pageSize || DEFAULT_PAGE_SIZE),
-  });
-  if (params.projectSlug) search.set('projectSlug', params.projectSlug);
-  return request<AskConversationsResponse>(`${API_PATHS.ASK}/conversations?${search.toString()}`);
+  return request<AskConversationsResponse>(buildApiUrl(`${API_PATHS.ASK}/conversations`, {
+    page: params.page || 1,
+    pageSize: params.pageSize || DEFAULT_PAGE_SIZE,
+    projectSlug: params.projectSlug || undefined,
+  }));
 }
 
 export function fetchConversationTurns(id: string) {

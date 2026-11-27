@@ -44,20 +44,46 @@ function githubAppJwt(appId: string, privateKey: string): string {
   return `${body}.${signature}`;
 }
 
-export async function fetchGithubInstallationToken(input: { appId: string; privateKey: string; installationId: string }): Promise<string> {
-  if (!input.appId || !input.privateKey || !input.installationId) return '';
-  const response = await fetch(`https://api.github.com/app/installations/${encodeURIComponent(input.installationId)}/access_tokens`, {
-    method: 'POST',
+const GITHUB_API_HEADERS = {
+  accept: 'application/vnd.github+json',
+  'x-github-api-version': '2022-11-28',
+} as const;
+
+type GithubFilePayload = { filename?: string; status?: string; patch?: string };
+
+function mapGithubFiles(files: GithubFilePayload[] | undefined) {
+  return Array.isArray(files)
+    ? files.map((file) => ({
+      filename: String(file.filename || ''),
+      status: String(file.status || ''),
+      patch: String(file.patch || ''),
+    }))
+    : [];
+}
+
+async function githubFetch(url: string, authToken: string, init: RequestInit = {}): Promise<Response> {
+  const response = await fetch(url, {
+    ...init,
     headers: {
-      accept: 'application/vnd.github+json',
-      authorization: `Bearer ${githubAppJwt(input.appId, input.privateKey)}`,
-      'x-github-api-version': '2022-11-28',
+      ...GITHUB_API_HEADERS,
+      authorization: `Bearer ${authToken}`,
+      ...init.headers,
     },
   });
   if (response.status === 429) {
     const retryAfter = parseRateLimitFromHeaders(Object.fromEntries(response.headers.entries()));
     throw new RateLimitError('GitHub API rate limit exceeded', retryAfter ?? undefined);
   }
+  return response;
+}
+
+export async function fetchGithubInstallationToken(input: { appId: string; privateKey: string; installationId: string }): Promise<string> {
+  if (!input.appId || !input.privateKey || !input.installationId) return '';
+  const response = await githubFetch(
+    `https://api.github.com/app/installations/${encodeURIComponent(input.installationId)}/access_tokens`,
+    githubAppJwt(input.appId, input.privateKey),
+    { method: 'POST' },
+  );
   if (!response.ok) return '';
   const payload = await response.json() as { token?: string };
   return String(payload.token || '');
@@ -70,32 +96,16 @@ export async function fetchComparePayload(repoFullName: string, before: string, 
   if (!repoFullName || !before || !after || !token) {
     return { files: [], commits: [] };
   }
-  const response = await fetch(`https://api.github.com/repos/${repoFullName}/compare/${before}...${after}`, {
-    headers: {
-      accept: 'application/vnd.github+json',
-      authorization: `Bearer ${token}`,
-      'x-github-api-version': '2022-11-28',
-    },
-  });
-  if (response.status === 429) {
-    const retryAfter = parseRateLimitFromHeaders(Object.fromEntries(response.headers.entries()));
-    throw new RateLimitError('GitHub API rate limit exceeded', retryAfter ?? undefined);
-  }
+  const response = await githubFetch(`https://api.github.com/repos/${repoFullName}/compare/${before}...${after}`, token);
   if (!response.ok) {
     return { files: [], commits: [] };
   }
   const data = (await response.json()) as {
-    files?: Array<{ filename?: string; status?: string; patch?: string }>;
+    files?: GithubFilePayload[];
     commits?: Array<{ sha?: string; commit?: { message?: string } }>;
   };
   return {
-    files: Array.isArray(data.files)
-      ? data.files.map((file) => ({
-        filename: String(file.filename || ''),
-        status: String(file.status || ''),
-        patch: String(file.patch || ''),
-      }))
-      : [],
+    files: mapGithubFiles(data.files),
     commits: Array.isArray(data.commits)
       ? data.commits.map((commit) => ({
         sha: String(commit.sha || ''),
@@ -111,28 +121,12 @@ export async function fetchCommitDiff(repoFullName: string, sha: string, token: 
   if (!repoFullName || !sha || !token) {
     return { files: [] };
   }
-  const response = await fetch(`https://api.github.com/repos/${repoFullName}/commits/${sha}`, {
-    headers: {
-      accept: 'application/vnd.github+json',
-      authorization: `Bearer ${token}`,
-      'x-github-api-version': '2022-11-28',
-    },
-  });
+  const response = await githubFetch(`https://api.github.com/repos/${repoFullName}/commits/${sha}`, token);
   if (!response.ok) {
     return { files: [] };
   }
-  const data = (await response.json()) as {
-    files?: Array<{ filename?: string; status?: string; patch?: string }>;
-  };
-  return {
-    files: Array.isArray(data.files)
-      ? data.files.map((file) => ({
-        filename: String(file.filename || ''),
-        status: String(file.status || ''),
-        patch: String(file.patch || ''),
-      }))
-      : [],
-  };
+  const data = (await response.json()) as { files?: GithubFilePayload[] };
+  return { files: mapGithubFiles(data.files) };
 }
 
 export type GithubInstallationRepository = {
@@ -153,17 +147,7 @@ export async function fetchGithubInstallationRepositories(input: {
 }): Promise<GithubInstallationRepository[]> {
   const token = await fetchGithubInstallationToken(input);
   if (!token) return [];
-  const response = await fetch('https://api.github.com/installation/repositories?per_page=100', {
-    headers: {
-      accept: 'application/vnd.github+json',
-      authorization: `Bearer ${token}`,
-      'x-github-api-version': '2022-11-28',
-    },
-  });
-  if (response.status === 429) {
-    const retryAfter = parseRateLimitFromHeaders(Object.fromEntries(response.headers.entries()));
-    throw new RateLimitError('GitHub API rate limit exceeded', retryAfter ?? undefined);
-  }
+  const response = await githubFetch('https://api.github.com/installation/repositories?per_page=100', token);
   if (!response.ok) return [];
   const data = (await response.json()) as {
     repositories?: Array<{
@@ -211,17 +195,7 @@ export async function fetchRecentCommits(input: {
     sha: branch || 'main',
     per_page: String(Math.min(limit, 100)),
   });
-  const response = await fetch(`https://api.github.com/repos/${repoFullName}/commits?${params.toString()}`, {
-    headers: {
-      accept: 'application/vnd.github+json',
-      authorization: `Bearer ${token}`,
-      'x-github-api-version': '2022-11-28',
-    },
-  });
-  if (response.status === 429) {
-    const retryAfter = parseRateLimitFromHeaders(Object.fromEntries(response.headers.entries()));
-    throw new RateLimitError('GitHub API rate limit exceeded', retryAfter ?? undefined);
-  }
+  const response = await githubFetch(`https://api.github.com/repos/${repoFullName}/commits?${params.toString()}`, token);
   if (!response.ok) return [];
   const data = (await response.json()) as Array<{
     sha?: string;
@@ -248,14 +222,9 @@ export async function postGithubPullRequestComment(
   token: string,
 ): Promise<boolean> {
   if (!repoFullName || !prNumber || !bodyText || !token) return false;
-  const response = await fetch(`https://api.github.com/repos/${repoFullName}/issues/${prNumber}/comments`, {
+  const response = await githubFetch(`https://api.github.com/repos/${repoFullName}/issues/${prNumber}/comments`, token, {
     method: 'POST',
-    headers: {
-      accept: 'application/vnd.github+json',
-      authorization: `Bearer ${token}`,
-      'x-github-api-version': '2022-11-28',
-      'content-type': 'application/json',
-    },
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ body: bodyText }),
   });
   if (!response.ok) {
@@ -278,13 +247,7 @@ export async function fetchGithubPullRequestComments(
   token: string,
 ): Promise<Array<{ id: number; body: string }>> {
   if (!repoFullName || !prNumber || !token) return [];
-  const response = await fetch(`https://api.github.com/repos/${repoFullName}/issues/${prNumber}/comments?per_page=100`, {
-    headers: {
-      accept: 'application/vnd.github+json',
-      authorization: `Bearer ${token}`,
-      'x-github-api-version': '2022-11-28',
-    },
-  });
+  const response = await githubFetch(`https://api.github.com/repos/${repoFullName}/issues/${prNumber}/comments?per_page=100`, token);
   if (!response.ok) return [];
   const data = (await response.json()) as Array<{ id?: number; body?: string }>;
   if (!Array.isArray(data)) return [];
@@ -297,17 +260,10 @@ export async function fetchGithubPullRequestComments(
 export async function fetchGithubRepositoryTree(repoFullName: string, defaultBranch: string, token: string): Promise<string[]> {
   if (!repoFullName || !token) return [];
   const branch = defaultBranch || 'main';
-  const response = await fetch(`https://api.github.com/repos/${repoFullName}/git/trees/${encodeURIComponent(branch)}?recursive=1`, {
-    headers: {
-      accept: 'application/vnd.github+json',
-      authorization: `Bearer ${token}`,
-      'x-github-api-version': '2022-11-28',
-    },
-  });
-  if (response.status === 429) {
-    const retryAfter = parseRateLimitFromHeaders(Object.fromEntries(response.headers.entries()));
-    throw new RateLimitError('GitHub API rate limit exceeded', retryAfter ?? undefined);
-  }
+  const response = await githubFetch(
+    `https://api.github.com/repos/${repoFullName}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
+    token,
+  );
   if (!response.ok) throw new Error(`github_repository_tree_http_${response.status}`);
   const data = (await response.json()) as {
     tree?: Array<{ path?: string; type?: string }>;
@@ -324,17 +280,7 @@ export async function fetchGithubRepositoryTree(repoFullName: string, defaultBra
 
 export async function fetchGithubFileContent(repoFullName: string, path: string, token: string): Promise<string> {
   if (!repoFullName || !path || !token) return '';
-  const response = await fetch(`https://api.github.com/repos/${repoFullName}/contents/${encodeURIComponent(path)}`, {
-    headers: {
-      accept: 'application/vnd.github+json',
-      authorization: `Bearer ${token}`,
-      'x-github-api-version': '2022-11-28',
-    },
-  });
-  if (response.status === 429) {
-    const retryAfter = parseRateLimitFromHeaders(Object.fromEntries(response.headers.entries()));
-    throw new RateLimitError('GitHub API rate limit exceeded', retryAfter ?? undefined);
-  }
+  const response = await githubFetch(`https://api.github.com/repos/${repoFullName}/contents/${encodeURIComponent(path)}`, token);
   if (!response.ok) return '';
   const data = (await response.json()) as {
     content?: string;
@@ -359,24 +305,15 @@ export async function createGithubIssue(input: {
 }): Promise<GithubCreatedIssue | null> {
   const { repoFullName, title, body, labels, token } = input;
   if (!repoFullName || !title || !body || !token) return null;
-  const response = await fetch(`https://api.github.com/repos/${repoFullName}/issues`, {
+  const response = await githubFetch(`https://api.github.com/repos/${repoFullName}/issues`, token, {
     method: 'POST',
-    headers: {
-      accept: 'application/vnd.github+json',
-      authorization: `Bearer ${token}`,
-      'x-github-api-version': '2022-11-28',
-      'content-type': 'application/json',
-    },
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       title,
       body,
       labels: labels.filter(Boolean),
     }),
   });
-  if (response.status === 429) {
-    const retryAfter = parseRateLimitFromHeaders(Object.fromEntries(response.headers.entries()));
-    throw new RateLimitError('GitHub API rate limit exceeded', retryAfter ?? undefined);
-  }
   if (!response.ok) {
     return null;
   }

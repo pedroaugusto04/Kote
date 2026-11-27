@@ -5,6 +5,14 @@ import {
   type UpdatePaymentInput,
 } from '../IPaymentGateway.js';
 
+function extractStripeId(value: unknown): string | undefined {
+  if (typeof value === 'string') return value || undefined;
+  if (value && typeof value === 'object' && 'id' in value && typeof (value as { id?: unknown }).id === 'string') {
+    return (value as { id: string }).id || undefined;
+  }
+  return undefined;
+}
+
 export class StripePaymentMapper {
   static toGatewayPaymentFromInvoice(data: any): GatewayPayment {
     const paid = data.status === 'paid' || data.paid === true;
@@ -24,7 +32,7 @@ export class StripePaymentMapper {
       description: data.description || data.metadata?.description || undefined,
       externalReference: data.metadata?.externalReference || undefined,
       creditCardToken: data.default_payment_method || data.payment_intent?.payment_method || undefined,
-      customerId: typeof data.customer === 'string' ? data.customer : data.customer?.id || undefined,
+      customerId: extractStripeId(data.customer),
     };
   }
 
@@ -42,10 +50,8 @@ export class StripePaymentMapper {
       externalReference: data.metadata?.externalReference || input?.externalReference || undefined,
       subscription: data.metadata?.subscriptionId || data.metadata?.subscription || undefined,
       stripeClientSecret: data.client_secret || undefined,
-      creditCardToken: typeof data.payment_method === 'string'
-        ? data.payment_method
-        : data.payment_method?.id || undefined,
-      customerId: typeof data.customer === 'string' ? data.customer : data.customer?.id || (input as any)?.customerId || undefined,
+      creditCardToken: extractStripeId(data.payment_method),
+      customerId: extractStripeId(data.customer) ?? (input as { customerId?: string } | undefined)?.customerId,
     };
   }
 }

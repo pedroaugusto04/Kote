@@ -52,6 +52,10 @@ export class AsaasPaymentMapper {
     );
   }
 
+  static asString(value: unknown): string | undefined {
+    return typeof value === 'string' ? value : undefined;
+  }
+
   static toGatewayPayment(
     data: any,
     fallback?: AsaasPaymentFallbackInput,
@@ -66,19 +70,15 @@ export class AsaasPaymentMapper {
       paidAt: this.normalizeOptionalDate(
         data?.paymentDate ?? data?.clientPaymentDate ?? data?.confirmedDate,
       ),
-      invoiceUrl: typeof data?.invoiceUrl === 'string' ? data.invoiceUrl : undefined,
-      bankSlipUrl: typeof data?.bankSlipUrl === 'string' ? data.bankSlipUrl : undefined,
-      pixQrCode: typeof data?.pixQrCode === 'string' ? data.pixQrCode : undefined,
-      pixQrCodeUrl: typeof data?.pixQrCodeUrl === 'string' ? data.pixQrCodeUrl : undefined,
+      invoiceUrl: this.asString(data?.invoiceUrl),
+      bankSlipUrl: this.asString(data?.bankSlipUrl),
+      pixQrCode: this.asString(data?.pixQrCode),
+      pixQrCodeUrl: this.asString(data?.pixQrCodeUrl),
       subscription: data?.subscription
         ? String(data.subscription)
         : (fallback?.subscriptionId ? String(fallback.subscriptionId) : this.normalizeGatewayId(data?.subscription)),
-      description: typeof (data?.description ?? fallback?.description) === 'string'
-        ? (data?.description ?? fallback?.description)
-        : undefined,
-      externalReference: typeof (data?.externalReference ?? fallback?.externalReference) === 'string'
-        ? (data?.externalReference ?? fallback?.externalReference)
-        : undefined,
+      description: this.asString(data?.description ?? fallback?.description),
+      externalReference: this.asString(data?.externalReference ?? fallback?.externalReference),
       customerId: this.normalizeGatewayId(data?.customer),
     };
   }

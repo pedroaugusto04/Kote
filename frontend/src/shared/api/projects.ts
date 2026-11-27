@@ -8,7 +8,20 @@ import type { ProjectCommitsResponse, FetchProjectCommitsParams } from './models
 import { DEFAULT_PAGE_SIZE, type PaginatedResponse } from './models/pagination';
 import type { Workspace } from './models/workspace';
 import { request, requestBlob } from './request';
-import { API_PATHS, buildApiPath } from './api-paths.constants';
+import { API_PATHS, buildApiPath, buildApiUrl } from './api-paths.constants';
+
+function triggerBlobDownload(blob: Blob, filename: string) {
+  if (typeof window === 'undefined') return;
+  const objectUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.style.display = 'none';
+  a.href = objectUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(objectUrl);
+  document.body.removeChild(a);
+}
 
 export type CreateProjectParams = {
   displayName: string;
@@ -24,12 +37,11 @@ export type CreateProjectResponse = {
 };
 
 export function fetchProjects(params: { page?: number; pageSize?: number; selectedSlug?: string }) {
-  const search = new URLSearchParams({
-    page: String(params.page || 1),
-    pageSize: String(params.pageSize || DEFAULT_PAGE_SIZE),
+  return request<PaginatedResponse<Project, 'projects'>>(buildApiUrl(API_PATHS.PROJECTS, {
+    page: params.page || 1,
+    pageSize: params.pageSize || DEFAULT_PAGE_SIZE,
     selectedSlug: params.selectedSlug || '',
-  });
-  return request<PaginatedResponse<Project, 'projects'>>(`${API_PATHS.PROJECTS}?${search.toString()}`);
+  }));
 }
 
 export function createProject(params: CreateProjectParams) {
@@ -73,63 +85,66 @@ export function fetchProjectFolders(projectSlug: string) {
 }
 
 export function fetchProjectTimeline(projectSlug: string, params: { page?: number; pageSize?: number; category?: ProjectTimelineCategory; folderId?: string; status?: string; orderByPin?: boolean }) {
-  const search = new URLSearchParams({
-    page: String(params.page || 1),
-    pageSize: String(params.pageSize || DEFAULT_PAGE_SIZE),
-    category: params.category || 'all',
-  });
-  if (params.folderId) search.set('folderId', params.folderId);
-  if (params.status !== undefined) search.set('status', params.status);
-  if (params.orderByPin !== undefined) search.set('orderByPin', String(params.orderByPin));
-  return request<PaginatedResponse<ProjectTimelineItem, 'timeline'>>(`${buildApiPath(API_PATHS.PROJECT_TIMELINE, { projectSlug })}?${search.toString()}`);
+  return request<PaginatedResponse<ProjectTimelineItem, 'timeline'>>(
+    buildApiUrl(buildApiPath(API_PATHS.PROJECT_TIMELINE, { projectSlug }), {
+      page: params.page || 1,
+      pageSize: params.pageSize || DEFAULT_PAGE_SIZE,
+      category: params.category || 'all',
+      folderId: params.folderId || undefined,
+      status: params.status,
+      orderByPin: params.orderByPin,
+    }),
+  );
 }
 
 export function fetchProjectKnowledgeMap(projectSlug: string, params: ProjectKnowledgeMapQuery = {}) {
-  const search = new URLSearchParams({
-    limit: String(params.limit || 80),
-    category: params.category || 'all',
-  });
-  if (params.folderId) search.set('folderId', params.folderId);
-  if (params.excludeReviewNotes) search.set('excludeReviewNotes', 'true');
-  return request<ProjectKnowledgeMapResponse>(`${buildApiPath(API_PATHS.PROJECT_KNOWLEDGE_MAP, { projectSlug })}?${search.toString()}`);
+  return request<ProjectKnowledgeMapResponse>(
+    buildApiUrl(buildApiPath(API_PATHS.PROJECT_KNOWLEDGE_MAP, { projectSlug }), {
+      limit: params.limit || 80,
+      category: params.category || 'all',
+      folderId: params.folderId || undefined,
+      excludeReviewNotes: params.excludeReviewNotes ? true : undefined,
+    }),
+  );
 }
 
 export function generateProjectBrief(projectSlug: string, workspaceSlug?: string) {
-  const search = new URLSearchParams();
-  if (workspaceSlug) search.set('workspaceSlug', workspaceSlug);
-  const query = search.toString();
-  const url = `${buildApiPath(API_PATHS.PROJECT_BRIEF, { projectSlug })}${query ? `?${query}` : ''}`;
-  return request<ProjectBriefResponse>(url, {
-    method: 'POST',
-  });
+  return request<ProjectBriefResponse>(
+    buildApiUrl(buildApiPath(API_PATHS.PROJECT_BRIEF, { projectSlug }), {
+      workspaceSlug: workspaceSlug || undefined,
+    }),
+    { method: 'POST' },
+  );
 }
 
 export function fetchLatestProjectBrief(projectSlug: string, workspaceSlug?: string) {
-  const search = new URLSearchParams();
-  if (workspaceSlug) search.set('workspaceSlug', workspaceSlug);
-  const query = search.toString();
-  const url = `${buildApiPath(API_PATHS.PROJECT_BRIEF, { projectSlug })}${query ? `?${query}` : ''}`;
-  return request<SavedProjectBriefResponse>(url);
+  return request<SavedProjectBriefResponse>(
+    buildApiUrl(buildApiPath(API_PATHS.PROJECT_BRIEF, { projectSlug }), {
+      workspaceSlug: workspaceSlug || undefined,
+    }),
+  );
 }
 
 export function fetchProjectBriefHistory(projectSlug: string, params: { page?: number; pageSize?: number; workspaceSlug?: string } = {}) {
-  const search = new URLSearchParams({
-    page: String(params.page || 1),
-    pageSize: String(params.pageSize || DEFAULT_PAGE_SIZE),
-  });
-  if (params.workspaceSlug) search.set('workspaceSlug', params.workspaceSlug);
-  return request<ProjectBriefHistoryResponse>(`${buildApiPath(API_PATHS.PROJECT_BRIEF_HISTORY, { projectSlug })}?${search.toString()}`);
+  return request<ProjectBriefHistoryResponse>(
+    buildApiUrl(buildApiPath(API_PATHS.PROJECT_BRIEF_HISTORY, { projectSlug }), {
+      page: params.page || 1,
+      pageSize: params.pageSize || DEFAULT_PAGE_SIZE,
+      workspaceSlug: params.workspaceSlug || undefined,
+    }),
+  );
 }
 
 export function fetchAllProjectsTimeline(params: { page?: number; pageSize?: number; category?: ProjectTimelineCategory; status?: string; orderByPin?: boolean }) {
-  const search = new URLSearchParams({
-    page: String(params.page || 1),
-    pageSize: String(params.pageSize || DEFAULT_PAGE_SIZE),
-    category: params.category || 'all',
-  });
-  if (params.status !== undefined) search.set('status', params.status);
-  if (params.orderByPin !== undefined) search.set('orderByPin', String(params.orderByPin));
-  return request<PaginatedResponse<ProjectTimelineItem, 'timeline'>>(`${API_PATHS.PROJECTS_TIMELINE}?${search.toString()}`);
+  return request<PaginatedResponse<ProjectTimelineItem, 'timeline'>>(
+    buildApiUrl(API_PATHS.PROJECTS_TIMELINE, {
+      page: params.page || 1,
+      pageSize: params.pageSize || DEFAULT_PAGE_SIZE,
+      category: params.category || 'all',
+      status: params.status,
+      orderByPin: params.orderByPin,
+    }),
+  );
 }
 
 export function createProjectFolder(projectSlug: string, params: { displayName: string; parentFolderId?: string }) {
@@ -174,90 +189,58 @@ export type ExportProjectNotesZipParams = {
 };
 
 export async function exportProjectNotesZip(params: ExportProjectNotesZipParams = {}) {
-  const search = new URLSearchParams();
-  if (params.projectSlug) search.set('projectSlug', params.projectSlug);
-  if (params.folderId) search.set('folderId', params.folderId);
-  if (params.category && params.category !== 'all') search.set('category', params.category);
-  if (params.status !== undefined) search.set('status', params.status);
-  if (params.query?.trim()) search.set('query', params.query.trim());
-
-  const queryString = search.toString();
-  const url = `${API_PATHS.PROJECTS_EXPORT_ZIP}${queryString ? `?${queryString}` : ''}`;
+  const url = buildApiUrl(API_PATHS.PROJECTS_EXPORT_ZIP, {
+    projectSlug: params.projectSlug || undefined,
+    folderId: params.folderId || undefined,
+    category: params.category && params.category !== 'all' ? params.category : undefined,
+    status: params.status,
+    query: params.query?.trim() || undefined,
+  });
   const result = await requestBlob(url);
-
   const fallbackFilename = `kote-${params.projectSlug || 'all-projects'}-${new Date().toISOString().split('T')[0]}.zip`;
   const filename = result.filename || fallbackFilename;
-
-  if (typeof window !== 'undefined') {
-    const objectUrl = window.URL.createObjectURL(result.blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = objectUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(objectUrl);
-    document.body.removeChild(a);
-  }
-
+  triggerBlobDownload(result.blob, filename);
   return { ok: true, filename };
 }
 
 export function fetchProjectDecisions(projectSlug: string, params: FetchProjectDecisionsParams = {}) {
-  const search = new URLSearchParams({
-    page: String(params.page || 1),
-    pageSize: String(params.pageSize || 20),
-  });
-  if (params.status) search.set('status', params.status);
-  if (params.file) search.set('file', params.file);
-  if (params.search?.trim()) search.set('search', params.search.trim());
-  if (params.kind && params.kind !== 'all') search.set('kind', params.kind);
-
-  return request<ProjectDecisionsResponse>(`${buildApiPath(API_PATHS.PROJECT_DECISIONS, { projectSlug })}?${search.toString()}`);
+  return request<ProjectDecisionsResponse>(
+    buildApiUrl(buildApiPath(API_PATHS.PROJECT_DECISIONS, { projectSlug }), {
+      page: params.page || 1,
+      pageSize: params.pageSize || 20,
+      status: params.status || undefined,
+      file: params.file || undefined,
+      search: params.search?.trim() || undefined,
+      kind: params.kind && params.kind !== 'all' ? params.kind : undefined,
+    }),
+  );
 }
 
 export async function exportProjectAdrsZip(projectSlug: string, params: ExportProjectAdrsParams = {}) {
-  const search = new URLSearchParams();
-  if (params.status) search.set('status', params.status);
-  if (params.file) search.set('file', params.file);
-  if (params.search?.trim()) search.set('search', params.search.trim());
-  if (params.kind && params.kind !== 'all') search.set('kind', params.kind);
-
-  const queryString = search.toString();
-  const url = `${buildApiPath(API_PATHS.PROJECT_DECISIONS_EXPORT_ADR, { projectSlug })}${queryString ? `?${queryString}` : ''}`;
+  const url = buildApiUrl(buildApiPath(API_PATHS.PROJECT_DECISIONS_EXPORT_ADR, { projectSlug }), {
+    status: params.status || undefined,
+    file: params.file || undefined,
+    search: params.search?.trim() || undefined,
+    kind: params.kind && params.kind !== 'all' ? params.kind : undefined,
+  });
   const result = await requestBlob(url);
-
   const fallbackFilename = `kote-${projectSlug}-adrs-${new Date().toISOString().split('T')[0]}.zip`;
   const filename = result.filename || fallbackFilename;
-
-  if (typeof window !== 'undefined') {
-    const objectUrl = window.URL.createObjectURL(result.blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = objectUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(objectUrl);
-    document.body.removeChild(a);
-  }
-
+  triggerBlobDownload(result.blob, filename);
   return { ok: true, filename };
 }
 
 export function fetchProjectCommits(projectSlug: string, params: FetchProjectCommitsParams = {}) {
-  const search = new URLSearchParams({
-    page: String(params.page || 1),
-    pageSize: String(params.pageSize || 20),
-  });
-  if (params.linkFilter && params.linkFilter !== 'all') {
-    search.set('linkFilter', params.linkFilter);
-  } else if (params.onlyLinked) {
-    search.set('onlyLinked', 'true');
-  }
-  if (params.query?.trim()) search.set('query', params.query.trim());
-
-  return request<ProjectCommitsResponse>(`${buildApiPath(API_PATHS.PROJECT_COMMITS, { projectSlug })}?${search.toString()}`);
+  const hasLinkFilter = params.linkFilter && params.linkFilter !== 'all';
+  return request<ProjectCommitsResponse>(
+    buildApiUrl(buildApiPath(API_PATHS.PROJECT_COMMITS, { projectSlug }), {
+      page: params.page || 1,
+      pageSize: params.pageSize || 20,
+      linkFilter: hasLinkFilter ? params.linkFilter : undefined,
+      onlyLinked: !hasLinkFilter && params.onlyLinked ? true : undefined,
+      query: params.query?.trim() || undefined,
+    }),
+  );
 }
 
 
