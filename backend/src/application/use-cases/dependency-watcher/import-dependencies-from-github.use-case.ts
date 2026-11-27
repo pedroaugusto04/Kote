@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 
 import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
+import { AppErrorCode, CredentialNotFoundException } from '../../../domain/exceptions/index.js';
 import { DependencyWatcherRepository } from '../../ports/dependency-watcher/dependency-watcher.repository.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
@@ -59,7 +60,7 @@ export class ImportDependenciesFromGithubUseCase {
 
     const credential = await this.credentialRepository.findCredential(userId, workspaceSlug, IntegrationProvider.GithubApp);
     if (!credential || credential.status !== CredentialRecordStatus.Connected || credential.revokedAt) {
-      throw new NotFoundException('github_credential_not_found');
+      throw new CredentialNotFoundException(AppErrorCode.GithubCredentialNotFound);
     }
 
     const jobId = randomUUID();

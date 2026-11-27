@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { WebhookTrigger } from '../../../contracts/enums.js';
+import { NoteNotFoundException } from '../../../domain/exceptions/index.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/embedding-queue.publisher.js';
 import { EmbeddingPriority } from '../../../domain/enums/knowledge.enums.js';
@@ -15,7 +16,7 @@ export class DeleteNoteUseCase {
 
   async execute(id: string, userId: string) {
     const note = await this.contentRepository.getNoteById(userId, id);
-    if (!note) throw new NotFoundException('note_not_found');
+    if (!note) throw new NoteNotFoundException();
 
     await this.contentRepository.deleteNote(userId, note.id);
 

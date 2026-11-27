@@ -1,8 +1,16 @@
 import crypto from 'node:crypto';
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
+import {
+  AppErrorCode,
+  BackfillAlreadyCompletedException,
+  DomainRuleException,
+  GithubIntegrationException,
+  JobAlreadyFinishedException,
+  JobNotFoundException,
+} from '../../../domain/exceptions/index.js';
 import { ProcessGithubPushService } from '../../services/integrations/process-github-push.service.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
@@ -60,10 +68,10 @@ export class GithubBackfillUseCase {
   async cancel(jobId: string, userId: string): Promise<boolean> {
     const job = await this.githubBackfillJobRepository.findById(jobId, userId);
     if (!job) {
-      throw new NotFoundException('job_not_found');
+      throw new JobNotFoundException();
     }
     if (job.status === 'completed' || job.status === 'failed' || job.status === 'quota_exceeded' || job.status === 'cancelled') {
-      throw new BadRequestException('job_already_finished');
+      throw new JobAlreadyFinishedException();
     }
     await this.githubBackfillJobRepository.update(jobId, {
       status: 'cancelled',
@@ -78,7 +86,7 @@ export class GithubBackfillUseCase {
     const limit = environment.githubBackfillLimit;
     const repositories = [...new Set(input.repositories.map((repo) => repo.trim()).filter(Boolean))];
     if (!repositories.length) {
-      throw new BadRequestException('repositories_required');
+      throw new GithubIntegrationException(AppErrorCode.RepositoriesRequired);
     }
 
     // Check if a backfill has already been completed for this workspace
@@ -87,7 +95,7 @@ export class GithubBackfillUseCase {
       input.workspaceSlug,
     );
     if (existingBackfill) {
-      throw new BadRequestException('backfill_already_completed');
+      throw new BackfillAlreadyCompletedException();
     }
 
     const credential = await this.credentialRepository.findCredential(
@@ -96,7 +104,7 @@ export class GithubBackfillUseCase {
       IntegrationProvider.GithubApp,
     );
     if (!credential || credential.status !== CredentialRecordStatus.Connected || credential.revokedAt) {
-      throw new BadRequestException('github_connection_required');
+      throw new GithubIntegrationException(AppErrorCode.GithubConnectionRequired);
     }
 
     for (const repoFullName of repositories) {
@@ -106,8 +114,7 @@ export class GithubBackfillUseCase {
         repoFullName,
       );
       if (!projectSlug) {
-        throw new BadRequestException({
-          code: 'github_repository_not_selected',
+        throw new DomainRuleException(AppErrorCode.GithubRepositoryNotSelected, {
           details: { fieldErrors: { repositories: `Repository ${repoFullName} is not linked to a project.` } },
         });
       }

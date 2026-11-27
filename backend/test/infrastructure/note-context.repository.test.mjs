@@ -97,7 +97,7 @@ test('handles multiple commitHashes in findNotesByFile without query errors', as
     markdown: '',
     frontmatter: {},
     sessionId: '',
-    links: ['backend/src/application/services/billing/SubscriptionCancellationService.ts'],
+    links: ['backend/src/application/services/billing/subscription-cancellation.service.ts'],
     path: '20 Inbox/kote/cancellation.md',
     title: 'Cancellation service note',
     occurredAt: '2026-08-25T10:00:00.000Z',
@@ -106,7 +106,7 @@ test('handles multiple commitHashes in findNotesByFile without query errors', as
 
   const matches = await repositories.noteContextRepository.findNotesByFile(
     user.id,
-    'backend/src/application/services/billing/SubscriptionCancellationService.ts',
+    'backend/src/application/services/billing/subscription-cancellation.service.ts',
     {
       limit: 10,
       projectSlug: 'kote',

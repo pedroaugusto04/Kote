@@ -20,7 +20,6 @@ import {
 import {
   IntegrationCredentialService,
 } from '../../application/services/integrations/integration-credentials.service.js';
-import { PostgresWorkspaceRepository } from '../repositories/workspace.repository.js';
 import {
   HandleGithubPushUseCase,
   HandleGithubPullRequestUseCase,
@@ -31,16 +30,15 @@ import {
   CreateWebhookSubscriptionUseCase,
   UpdateWebhookSubscriptionUseCase,
   DeleteWebhookSubscriptionUseCase,
-  IngestEntryUseCase,
 } from '../../application/use-cases/index.js';
 import { ImportDependenciesFromGithubUseCase } from '../../application/use-cases/dependency-watcher/import-dependencies-from-github.use-case.js';
 import { WhatsappConversationTaskQueue, WhatsappWebhookRateLimiter } from '../../application/use-cases/webhooks/whatsapp/whatsapp-webhook-flow-control.js';
+import { WhatsappMediaProcessorService } from '../../application/use-cases/webhooks/whatsapp/whatsapp-media-processor.service.js';
+import { GithubPrCommentSyncService } from '../../application/use-cases/webhooks/github/github-pr-comment-sync.service.js';
+import { RouteGithubWebhookUseCase } from '../../application/use-cases/webhooks/github/route-github-webhook.use-case.js';
 import { ListDependencyMonitoredRepositoriesUseCase } from '../../application/use-cases/dependency-watcher/list-dependency-monitored-repositories.use-case.js';
 import { SaveDependencyMonitoredRepositoriesUseCase } from '../../application/use-cases/dependency-watcher/save-dependency-monitored-repositories.use-case.js';
 import { CheckProjectDependenciesUseCase } from '../../application/use-cases/dependency-watcher/check-project-dependencies.use-case.js';
-import { CheckDependencyUseCase } from '../../application/use-cases/dependency-watcher/check-dependency.use-case.js';
-import { DependencyWatcherRepository } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
-import { PostgresDependencyWatcherRepository } from '../repositories/dependency-watcher.repository.js';
 import { WebhookDeliveryService } from '../../application/services/webhooks/webhook-delivery.service.js';
 import { WebhookDeliveryWorker } from '../../application/workers/webhook-delivery.worker.js';
 import { ProcessGithubPushService } from '../../application/services/integrations/process-github-push.service.js';
@@ -50,9 +48,7 @@ import { BackfillQueuePublisher } from '../../application/ports/integrations/bac
 import { PostgresGithubBackfillJobRepository } from '../repositories/github-backfill-job.repository.js';
 import { RabbitMqBackfillQueuePublisher } from '../queue/rabbitmq-backfill-queue.publisher.js';
 import { RabbitMqBackfillQueueConsumer } from '../queue/rabbitmq-backfill-queue.consumer.js';
-import { RabbitMqDependencyCheckQueuePublisher } from '../queue/rabbitmq-dependency-check-queue.publisher.js';
 import { RabbitMqDependencyCheckQueueConsumer } from '../queue/rabbitmq-dependency-check-queue.consumer.js';
-import { RabbitMqDependencyImportQueuePublisher } from '../queue/rabbitmq-dependency-import-queue.publisher.js';
 import { RabbitMqDependencyImportQueueConsumer } from '../queue/rabbitmq-dependency-import-queue.consumer.js';
 
 import {
@@ -63,7 +59,6 @@ import {
   GithubAppCallbackController,
   DependencyWatcherController,
 } from '../../interfaces/http/controllers/index.js';
-import { NotifyHighSeverityFindingsService } from '../../application/use-cases/notifications/notify-high-severity-findings.use-case.js';
 
 @Module({
   imports: [
@@ -94,37 +89,34 @@ import { NotifyHighSeverityFindingsService } from '../../application/use-cases/n
     IntegrationConnectionService,
     IntegrationCredentialService,
     ProcessGithubPushService,
+    RouteGithubWebhookUseCase,
     HandleGithubPushUseCase,
+    GithubPrCommentSyncService,
     HandleGithubPullRequestUseCase,
+    WhatsappMediaProcessorService,
     HandleWhatsappWebhookUseCase,
     WhatsappWebhookRateLimiter,
     WhatsappConversationTaskQueue,
     HandleTelegramWebhookUseCase,
     GithubBackfillUseCase,
     GithubBackfillRunnerService,
-    { provide: GithubBackfillJobRepository, useClass: PostgresGithubBackfillJobRepository },
-    { provide: BackfillQueuePublisher, useClass: RabbitMqBackfillQueuePublisher },
+    PostgresGithubBackfillJobRepository,
+    { provide: GithubBackfillJobRepository, useExisting: PostgresGithubBackfillJobRepository },
     RabbitMqBackfillQueuePublisher,
+    { provide: BackfillQueuePublisher, useExisting: RabbitMqBackfillQueuePublisher },
     RabbitMqBackfillQueueConsumer,
-    RabbitMqDependencyCheckQueuePublisher,
     RabbitMqDependencyCheckQueueConsumer,
-    RabbitMqDependencyImportQueuePublisher,
     RabbitMqDependencyImportQueueConsumer,
-    NotifyHighSeverityFindingsService,
     WebhookDeliveryService,
     WebhookDeliveryWorker,
     ListWebhookSubscriptionsUseCase,
     CreateWebhookSubscriptionUseCase,
     UpdateWebhookSubscriptionUseCase,
     DeleteWebhookSubscriptionUseCase,
-    IngestEntryUseCase,
     ImportDependenciesFromGithubUseCase,
     ListDependencyMonitoredRepositoriesUseCase,
     SaveDependencyMonitoredRepositoriesUseCase,
     CheckProjectDependenciesUseCase,
-    CheckDependencyUseCase,
-    PostgresWorkspaceRepository,
-    { provide: DependencyWatcherRepository, useClass: PostgresDependencyWatcherRepository },
   ],
   exports: [
     IntegrationConnectionService,

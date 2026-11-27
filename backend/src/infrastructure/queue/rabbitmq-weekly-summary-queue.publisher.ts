@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { type Channel } from 'amqplib';
 
-import { WeeklySummaryQueuePublisher, type WeeklySummaryJobMessage } from '../../application/ports/weekly-summary/weekly-summary-queue.publisher.js';
+import { type WeeklySummaryQueuePublisher, type WeeklySummaryJobMessage } from '../../application/ports/weekly-summary/weekly-summary-queue.publisher.js';
 import { AppLogger } from '../../observability/logger.js';
 import { BaseRabbitMqPublisher } from './base-rabbitmq.publisher.js';
 

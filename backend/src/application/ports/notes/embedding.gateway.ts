@@ -1,4 +1,4 @@
-import { AiProvider, EmbeddingTaskType } from '../../../contracts/enums.js';
+import { type AiProvider, type EmbeddingTaskType } from '../../../contracts/enums.js';
 
 export type EmbeddingConfig = {
   provider: AiProvider;

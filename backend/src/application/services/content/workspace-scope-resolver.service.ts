@@ -1,5 +1,11 @@
 import crypto from 'node:crypto';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import {
+  FolderNotFoundException,
+  ProjectNotFoundException,
+  WorkspaceNotFoundException,
+  WorkspaceSlugMissingException,
+} from '../../../domain/exceptions/index.js';
 import type { Project } from '../../../domain/projects.js';
 import type { IngestPayload } from '../../../contracts/ingest.js';
 import { toProjectFromIngest, toProjectFromRecord, toProjectSaveInput } from '../../mappers/ingest.mapper.js';
@@ -7,7 +13,14 @@ import { ContentRepository } from '../../ports/notes/content.repository.js';
 import type { WorkspaceScope } from '../../models/workspace-scope.models.js';
 import type { ProjectRecord, SaveWorkspaceInput, SaveProjectInput, ProjectFolderRecord } from '../../models/repository-records.models.js';
 import { collectFolderDescendantIds } from '../../utils/content/project-folder.utils.js';
+import {
+  resolveContentScopeFromSlugs as resolveScopeSlugs,
+  type ContentScopeSlugs,
+  type ResolvedContentScope,
+} from '../../utils/content/content-scope.utils.js';
 import type { ResolvedProjectBriefScope } from '../../models/project-brief.models.js';
+
+export type { ContentScopeSlugs, ResolvedContentScope };
 
 export type ResolveScopeInput = {
   workspaceSlug?: string | null;
@@ -36,25 +49,6 @@ export interface ResolvedIngestProject {
   project: Project;
   projectId: string;
 }
-
-export type ContentScopeSlugs = {
-  projectSlug?: string;
-  workspaceSlug?: string;
-};
-
-export type ResolvedContentScope = {
-  projectId: string | null;
-  workspaceId: string | null;
-  project: SaveProjectInput | null;
-  workspace: SaveWorkspaceInput | null;
-};
-
-const emptyContentScope: ResolvedContentScope = {
-  projectId: null,
-  workspaceId: null,
-  project: null,
-  workspace: null,
-};
 
 @Injectable()
 export class WorkspaceScopeResolver {
@@ -101,7 +95,7 @@ export class WorkspaceScopeResolver {
   async resolveProject(userId: string, projectId: string): Promise<ProjectRecord> {
     const project = await this.contentRepository.getProjectById(userId, projectId);
     if (!project || (project.enabled !== undefined && !project.enabled)) {
-      throw new NotFoundException(SCOPE_ERROR_MESSAGES.PROJECT_NOT_FOUND);
+      throw new ProjectNotFoundException();
     }
     return project;
   }
@@ -113,7 +107,7 @@ export class WorkspaceScopeResolver {
   ): Promise<ProjectFolderRecord> {
     const folder = await this.contentRepository.getProjectFolderById(userId, projectId, folderId);
     if (!folder) {
-      throw new NotFoundException('folder_not_found');
+      throw new FolderNotFoundException();
     }
     return folder;
   }
@@ -122,37 +116,7 @@ export class WorkspaceScopeResolver {
     userId: string,
     input: ContentScopeSlugs,
   ): Promise<ResolvedContentScope> {
-    const projectSlug = String(input.projectSlug || '').trim();
-    if (projectSlug) {
-      const project = await this.contentRepository.getProjectBySlug(userId, projectSlug);
-      if (!project) {
-        return emptyContentScope;
-      }
-
-      return {
-        projectId: project.id,
-        workspaceId: project.workspaceId ?? null,
-        project,
-        workspace: null,
-      };
-    }
-
-    const workspaceSlug = String(input.workspaceSlug || '').trim();
-    if (workspaceSlug) {
-      const workspace = await this.findWorkspace(userId, workspaceSlug);
-      if (!workspace) {
-        return emptyContentScope;
-      }
-
-      return {
-        projectId: null,
-        workspaceId: workspace.id,
-        project: null,
-        workspace,
-      };
-    }
-
-    return emptyContentScope;
+    return resolveScopeSlugs(this.contentRepository, userId, input);
   }
 
   async resolveOrCreateCategoryIds(
@@ -192,7 +156,7 @@ export class WorkspaceScopeResolver {
     const folders = await this.contentRepository.listProjectFolders(userId, projectId);
     const selectedFolder = folders.find((folder) => folder.id === normalizedFolderId);
     if (!selectedFolder) {
-      throw new NotFoundException('folder_not_found');
+      throw new FolderNotFoundException();
     }
 
     return collectFolderDescendantIds(folders, normalizedFolderId);
@@ -201,11 +165,11 @@ export class WorkspaceScopeResolver {
   async resolveWorkspace(userId: string, workspaceSlug?: string | null): Promise<SaveWorkspaceInput> {
     const slug = workspaceSlug?.trim();
     if (!slug) {
-      throw new NotFoundException(SCOPE_ERROR_MESSAGES.WORKSPACE_SLUG_MISSING);
+      throw new WorkspaceSlugMissingException();
     }
     const workspace = await this.contentRepository.getWorkspaceBySlug(userId, slug);
     if (!workspace) {
-      throw new NotFoundException(SCOPE_ERROR_MESSAGES.WORKSPACE_NOT_FOUND);
+      throw new WorkspaceNotFoundException();
     }
     return workspace;
   }
@@ -238,7 +202,7 @@ export class WorkspaceScopeResolver {
       || project.workspaceId
       || (workspaceSlug ? (await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug))?.id : undefined);
     if (!resolvedWorkspaceId) {
-      throw new NotFoundException(SCOPE_ERROR_MESSAGES.WORKSPACE_NOT_FOUND);
+      throw new WorkspaceNotFoundException();
     }
 
     return {
@@ -265,7 +229,7 @@ export class WorkspaceScopeResolver {
 
     const project = await this.contentRepository.getProjectById(userId, projectId);
     if (!project || !project.enabled) {
-      throw new NotFoundException(SCOPE_ERROR_MESSAGES.PROJECT_NOT_FOUND);
+      throw new ProjectNotFoundException();
     }
 
     return {
@@ -279,13 +243,13 @@ export class WorkspaceScopeResolver {
   private async resolveTargetWorkspace(userId: string, workspaceIdInput?: string) {
     const workspaces = await this.contentRepository.listWorkspaces(userId);
     if (workspaces.length === 0) {
-      throw new NotFoundException(SCOPE_ERROR_MESSAGES.WORKSPACE_NOT_FOUND);
+      throw new WorkspaceNotFoundException();
     }
 
     if (workspaceIdInput) {
       const match = workspaces.find((w) => w.id === workspaceIdInput);
       if (!match) {
-        throw new NotFoundException(SCOPE_ERROR_MESSAGES.WORKSPACE_NOT_FOUND);
+        throw new WorkspaceNotFoundException();
       }
       return match;
     }
@@ -301,7 +265,7 @@ export class WorkspaceScopeResolver {
     if (rawProject) {
       if (rawProject === SCOPE_SPECIAL_PROJECT.ALL) {
         if (!input.allowAllProjects) {
-          throw new NotFoundException(SCOPE_ERROR_MESSAGES.PROJECT_NOT_FOUND);
+          throw new ProjectNotFoundException();
         }
 
         let resolvedWorkspaceId = '';
@@ -333,11 +297,11 @@ export class WorkspaceScopeResolver {
 
       const project = await this.contentRepository.getProjectBySlug(userId, rawProject, resolvedWorkspaceId || undefined);
       if (!project || !project.enabled) {
-        throw new NotFoundException(SCOPE_ERROR_MESSAGES.PROJECT_NOT_FOUND);
+        throw new ProjectNotFoundException();
       }
 
       if (resolvedWorkspaceId && project.workspaceId && project.workspaceId !== resolvedWorkspaceId) {
-        throw new NotFoundException(SCOPE_ERROR_MESSAGES.PROJECT_NOT_FOUND);
+        throw new ProjectNotFoundException();
       }
 
       const workspaceSlug = project.workspaceSlug || resolvedWorkspaceSlug || rawWorkspace || '';

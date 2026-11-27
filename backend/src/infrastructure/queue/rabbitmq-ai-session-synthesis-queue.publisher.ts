@@ -1,6 +1,6 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, type OnModuleDestroy } from '@nestjs/common';
 import amqplib from 'amqplib';
-import { AiSessionSynthesisQueuePublisher, type AiSessionSynthesisQueuePayload } from '../../application/ports/notes/ai-session-synthesis-queue.publisher.js';
+import { type AiSessionSynthesisQueuePublisher, type AiSessionSynthesisQueuePayload } from '../../application/ports/notes/ai-session-synthesis-queue.publisher.js';
 import { AppLogger } from '../../observability/logger.js';
 import { AI_SESSION_SYNTHESIS_QUEUE } from '../../application/constants/ai-session-synthesis.constants.js';
 

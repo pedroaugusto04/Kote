@@ -1,6 +1,5 @@
-import crypto from 'node:crypto';
-
 import { formatDisplayToken, slugify } from '../../../domain/strings.js';
+import { sha256Hex } from '../../../domain/utils/crypto.utils.js';
 import type {
   AttachmentRecord,
   CategoryRecord,
@@ -45,7 +44,7 @@ export function json(value: unknown): string {
 }
 
 export function sha256(body: Buffer | string): string {
-  return crypto.createHash('sha256').update(body).digest('hex');
+  return sha256Hex(body);
 }
 
 export function safeSegment(value: string | null | undefined, fallback: string): string {

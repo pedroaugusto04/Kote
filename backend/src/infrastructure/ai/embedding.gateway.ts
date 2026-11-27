@@ -1,6 +1,7 @@
-import { Injectable, Optional, InternalServerErrorException } from '@nestjs/common';
-import { AiProvider, EmbeddingTaskType } from '../../contracts/enums.js';
-import { EmbeddingConfig, EmbeddingGateway } from '../../application/ports/notes/embedding.gateway.js';
+import { Injectable } from '@nestjs/common';
+import { AiProvider, type EmbeddingTaskType } from '../../contracts/enums.js';
+import { type EmbeddingConfig, EmbeddingGateway } from '../../application/ports/notes/embedding.gateway.js';
+import { EmbeddingStrategyNotAvailableException } from '../../domain/exceptions/index.js';
 import { AppLogger } from '../../observability/logger.js';
 import type { EmbeddingStrategy } from './strategies/embedding.strategy.js';
 import { Gemini001EmbeddingStrategy } from './strategies/gemini-001-embedding.strategy.js';
@@ -12,36 +13,25 @@ import { OpenAiEmbeddingStrategy } from './strategies/openai-embedding.strategy.
 export class DefaultEmbeddingGateway extends EmbeddingGateway {
   constructor(
     private readonly logger: AppLogger,
-    @Optional() private readonly gemini001Strategy?: Gemini001EmbeddingStrategy,
-    @Optional() private readonly gemini2Strategy?: Gemini2EmbeddingStrategy,
-    @Optional() private readonly openAiStrategy?: OpenAiEmbeddingStrategy,
+    private readonly gemini001Strategy: Gemini001EmbeddingStrategy,
+    private readonly gemini2Strategy: Gemini2EmbeddingStrategy,
+    private readonly openAiStrategy: OpenAiEmbeddingStrategy,
   ) {
     super();
   }
 
   private getStrategy(config: EmbeddingConfig): EmbeddingStrategy {
     if (config.provider === AiProvider.Gemini) {
-      if (config.model === 'gemini-embedding-2') {
-        if (!this.gemini2Strategy) {
-          throw new InternalServerErrorException('embedding_strategy_not_available');
-        }
-        return this.gemini2Strategy;
-      }
-
-      if (!this.gemini001Strategy) {
-        throw new InternalServerErrorException('embedding_strategy_not_available');
-      }
-      return this.gemini001Strategy;
+      return config.model === 'gemini-embedding-2'
+        ? this.gemini2Strategy
+        : this.gemini001Strategy;
     }
 
     if (config.provider === AiProvider.Ollama || config.provider === AiProvider.OpenAi) {
-      if (!this.openAiStrategy) {
-        throw new InternalServerErrorException('embedding_strategy_not_available');
-      }
       return this.openAiStrategy;
     }
 
-    throw new InternalServerErrorException(`Unsupported embedding provider: ${config.provider}`);
+    throw new EmbeddingStrategyNotAvailableException({ provider: config.provider });
   }
 
   async generateEmbeddings(

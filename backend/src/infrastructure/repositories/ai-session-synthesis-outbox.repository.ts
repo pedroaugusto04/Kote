@@ -12,14 +12,15 @@ function map(row: Record<string, unknown>): AiSessionSynthesisJob {
 export class PostgresAiSessionSynthesisOutboxRepository extends AiSessionSynthesisOutboxRepository {
   constructor(private readonly database: PostgresDatabase) { super(); }
 
-  async enqueue(input: { noteId: string; userId: string; workspaceSlug: string; sourceHash: string; availableAt?: Date; force?: boolean }, tx?: any) {
+  async enqueue(input: { noteId: string; userId: string; workspaceSlug: string; sourceHash: string; availableAt?: Date; force?: boolean }, tx?: unknown) {
     const availableAt = input.availableAt || new Date();
     const force = Boolean(input.force);
     // Drizzle transactions expose execute(), while normal operation uses pg's pool.
     // Keeping this branch here makes the note, pending synthesis and outbox one unit.
-    if (tx?.execute) {
+    const drizzleTx = tx as { execute?: (query: unknown) => Promise<{ rows: Record<string, unknown>[] }> } | undefined;
+    if (drizzleTx?.execute) {
       const { sql } = await import('drizzle-orm');
-      const result: any = await tx.execute(sql`INSERT INTO kb_ai_session_synthesis_outbox (note_id,user_id,workspace_slug,source_hash,available_at)
+      const result = await drizzleTx.execute(sql`INSERT INTO kb_ai_session_synthesis_outbox (note_id,user_id,workspace_slug,source_hash,available_at)
         VALUES (${input.noteId},${input.userId},${input.workspaceSlug},${input.sourceHash},${availableAt})
         ON CONFLICT (note_id,source_hash,job_type) DO UPDATE SET
           status=CASE WHEN ${force} THEN ${AiSessionSynthesisJobStatus.Pending} WHEN kb_ai_session_synthesis_outbox.status IN (${AiSessionSynthesisJobStatus.Completed},${AiSessionSynthesisJobStatus.Failed},${AiSessionSynthesisJobStatus.Skipped},${AiSessionSynthesisJobStatus.Superseded}) THEN kb_ai_session_synthesis_outbox.status ELSE ${AiSessionSynthesisJobStatus.Pending} END,

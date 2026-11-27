@@ -1,15 +1,59 @@
 import crypto from 'node:crypto';
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { eq, and, desc, sql, isNull } from 'drizzle-orm';
 
 import { CredentialRecordStatus } from '../../contracts/enums.js';
-import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository, resolveExternalIdentity } from '../../application/ports/integrations/integrations.repository.js';
+import { CredentialRepository, type ExternalIdentityRepository, type IntegrationConnectionSessionRepository, resolveExternalIdentity } from '../../application/ports/integrations/integrations.repository.js';
 import { connectionSessionFromRow, credentialFromRow, identityFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { integrationCredentials, externalIdentities, integrationConnectionSessions, workspaces } from '../persistence/schema/index.js';
 
 import { resolveWorkspaceId } from './utils/id-resolution.helpers.js';
+
+const CREDENTIAL_SELECT_COLUMNS = {
+  id: integrationCredentials.id,
+  userId: integrationCredentials.userId,
+  workspaceId: integrationCredentials.workspaceId,
+  provider: integrationCredentials.provider,
+  status: integrationCredentials.status,
+  encryptedConfig: integrationCredentials.encryptedConfig,
+  publicMetadata: integrationCredentials.publicMetadata,
+  createdAt: integrationCredentials.createdAt,
+  updatedAt: integrationCredentials.updatedAt,
+  revokedAt: integrationCredentials.revokedAt,
+  workspaceSlug: workspaces.workspaceSlug,
+};
+
+const EXTERNAL_IDENTITY_SELECT_COLUMNS = {
+  id: externalIdentities.id,
+  userId: externalIdentities.userId,
+  workspaceId: externalIdentities.workspaceId,
+  provider: externalIdentities.provider,
+  identityType: externalIdentities.identityType,
+  externalId: externalIdentities.externalId,
+  credentialId: externalIdentities.credentialId,
+  verifiedAt: externalIdentities.verifiedAt,
+  createdAt: externalIdentities.createdAt,
+  updatedAt: externalIdentities.updatedAt,
+  workspaceSlug: workspaces.workspaceSlug,
+};
+
+const CONNECTION_SESSION_SELECT_COLUMNS = {
+  id: integrationConnectionSessions.id,
+  userId: integrationConnectionSessions.userId,
+  workspaceId: integrationConnectionSessions.workspaceId,
+  provider: integrationConnectionSessions.provider,
+  stateHash: integrationConnectionSessions.stateHash,
+  verificationCodeHash: integrationConnectionSessions.verificationCodeHash,
+  status: integrationConnectionSessions.status,
+  metadata: integrationConnectionSessions.metadata,
+  expiresAt: integrationConnectionSessions.expiresAt,
+  consumedAt: integrationConnectionSessions.consumedAt,
+  createdAt: integrationConnectionSessions.createdAt,
+  updatedAt: integrationConnectionSessions.updatedAt,
+  workspaceSlug: workspaces.workspaceSlug,
+};
 
 @Injectable()
 export class PostgresIntegrationRepository extends CredentialRepository implements ExternalIdentityRepository, IntegrationConnectionSessionRepository {
@@ -24,19 +68,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
   async listCredentials(userId: string, workspaceSlug: string) {
     const db = this.database.getDb();
     const result = await db
-      .select({
-        id: integrationCredentials.id,
-        userId: integrationCredentials.userId,
-        workspaceId: integrationCredentials.workspaceId,
-        provider: integrationCredentials.provider,
-        status: integrationCredentials.status,
-        encryptedConfig: integrationCredentials.encryptedConfig,
-        publicMetadata: integrationCredentials.publicMetadata,
-        createdAt: integrationCredentials.createdAt,
-        updatedAt: integrationCredentials.updatedAt,
-        revokedAt: integrationCredentials.revokedAt,
-        workspaceSlug: workspaces.workspaceSlug,
-      })
+      .select(CREDENTIAL_SELECT_COLUMNS)
       .from(integrationCredentials)
       .innerJoin(workspaces, eq(workspaces.id, integrationCredentials.workspaceId))
       .where(and(eq(integrationCredentials.userId, userId), eq(workspaces.workspaceSlug, workspaceSlug)))
@@ -99,19 +131,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
   async findCredential(userId: string, workspaceSlug: string, provider: string) {
     const db = this.database.getDb();
     const result = await db
-      .select({
-        id: integrationCredentials.id,
-        userId: integrationCredentials.userId,
-        workspaceId: integrationCredentials.workspaceId,
-        provider: integrationCredentials.provider,
-        status: integrationCredentials.status,
-        encryptedConfig: integrationCredentials.encryptedConfig,
-        publicMetadata: integrationCredentials.publicMetadata,
-        createdAt: integrationCredentials.createdAt,
-        updatedAt: integrationCredentials.updatedAt,
-        revokedAt: integrationCredentials.revokedAt,
-        workspaceSlug: workspaces.workspaceSlug,
-      })
+      .select(CREDENTIAL_SELECT_COLUMNS)
       .from(integrationCredentials)
       .innerJoin(workspaces, eq(workspaces.id, integrationCredentials.workspaceId))
       .where(and(
@@ -131,19 +151,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
   async findExternalIdentity(provider: string, identityType: string, externalId: string) {
     const db = this.database.getDb();
     const result = await db
-      .select({
-        id: externalIdentities.id,
-        userId: externalIdentities.userId,
-        workspaceId: externalIdentities.workspaceId,
-        provider: externalIdentities.provider,
-        identityType: externalIdentities.identityType,
-        externalId: externalIdentities.externalId,
-        credentialId: externalIdentities.credentialId,
-        verifiedAt: externalIdentities.verifiedAt,
-        createdAt: externalIdentities.createdAt,
-        updatedAt: externalIdentities.updatedAt,
-        workspaceSlug: workspaces.workspaceSlug,
-      })
+      .select(EXTERNAL_IDENTITY_SELECT_COLUMNS)
       .from(externalIdentities)
       .innerJoin(workspaces, eq(workspaces.id, externalIdentities.workspaceId))
       .where(and(
@@ -242,21 +250,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
   async findConnectionSession(id: string) {
     const db = this.database.getDb();
     const result = await db
-      .select({
-        id: integrationConnectionSessions.id,
-        userId: integrationConnectionSessions.userId,
-        workspaceId: integrationConnectionSessions.workspaceId,
-        provider: integrationConnectionSessions.provider,
-        stateHash: integrationConnectionSessions.stateHash,
-        verificationCodeHash: integrationConnectionSessions.verificationCodeHash,
-        status: integrationConnectionSessions.status,
-        metadata: integrationConnectionSessions.metadata,
-        expiresAt: integrationConnectionSessions.expiresAt,
-        consumedAt: integrationConnectionSessions.consumedAt,
-        createdAt: integrationConnectionSessions.createdAt,
-        updatedAt: integrationConnectionSessions.updatedAt,
-        workspaceSlug: workspaces.workspaceSlug,
-      })
+      .select(CONNECTION_SESSION_SELECT_COLUMNS)
       .from(integrationConnectionSessions)
       .innerJoin(workspaces, eq(workspaces.id, integrationConnectionSessions.workspaceId))
       .where(eq(integrationConnectionSessions.id, id))
@@ -268,21 +262,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
   async findActiveConnectionSessionByState(provider: string, stateHash: string, nowIso: string) {
     const db = this.database.getDb();
     const result = await db
-      .select({
-        id: integrationConnectionSessions.id,
-        userId: integrationConnectionSessions.userId,
-        workspaceId: integrationConnectionSessions.workspaceId,
-        provider: integrationConnectionSessions.provider,
-        stateHash: integrationConnectionSessions.stateHash,
-        verificationCodeHash: integrationConnectionSessions.verificationCodeHash,
-        status: integrationConnectionSessions.status,
-        metadata: integrationConnectionSessions.metadata,
-        expiresAt: integrationConnectionSessions.expiresAt,
-        consumedAt: integrationConnectionSessions.consumedAt,
-        createdAt: integrationConnectionSessions.createdAt,
-        updatedAt: integrationConnectionSessions.updatedAt,
-        workspaceSlug: workspaces.workspaceSlug,
-      })
+      .select(CONNECTION_SESSION_SELECT_COLUMNS)
       .from(integrationConnectionSessions)
       .innerJoin(workspaces, eq(workspaces.id, integrationConnectionSessions.workspaceId))
       .where(and(
@@ -301,21 +281,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
   async findActiveConnectionSessionByCode(provider: string, verificationCodeHash: string, nowIso: string) {
     const db = this.database.getDb();
     const result = await db
-      .select({
-        id: integrationConnectionSessions.id,
-        userId: integrationConnectionSessions.userId,
-        workspaceId: integrationConnectionSessions.workspaceId,
-        provider: integrationConnectionSessions.provider,
-        stateHash: integrationConnectionSessions.stateHash,
-        verificationCodeHash: integrationConnectionSessions.verificationCodeHash,
-        status: integrationConnectionSessions.status,
-        metadata: integrationConnectionSessions.metadata,
-        expiresAt: integrationConnectionSessions.expiresAt,
-        consumedAt: integrationConnectionSessions.consumedAt,
-        createdAt: integrationConnectionSessions.createdAt,
-        updatedAt: integrationConnectionSessions.updatedAt,
-        workspaceSlug: workspaces.workspaceSlug,
-      })
+      .select(CONNECTION_SESSION_SELECT_COLUMNS)
       .from(integrationConnectionSessions)
       .innerJoin(workspaces, eq(workspaces.id, integrationConnectionSessions.workspaceId))
       .where(and(
@@ -350,21 +316,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
     if (!result[0]) return null;
 
     const detail = await db
-      .select({
-        id: integrationConnectionSessions.id,
-        userId: integrationConnectionSessions.userId,
-        workspaceId: integrationConnectionSessions.workspaceId,
-        provider: integrationConnectionSessions.provider,
-        stateHash: integrationConnectionSessions.stateHash,
-        verificationCodeHash: integrationConnectionSessions.verificationCodeHash,
-        status: integrationConnectionSessions.status,
-        metadata: integrationConnectionSessions.metadata,
-        expiresAt: integrationConnectionSessions.expiresAt,
-        consumedAt: integrationConnectionSessions.consumedAt,
-        createdAt: integrationConnectionSessions.createdAt,
-        updatedAt: integrationConnectionSessions.updatedAt,
-        workspaceSlug: workspaces.workspaceSlug,
-      })
+      .select(CONNECTION_SESSION_SELECT_COLUMNS)
       .from(integrationConnectionSessions)
       .innerJoin(workspaces, eq(workspaces.id, integrationConnectionSessions.workspaceId))
       .where(eq(integrationConnectionSessions.id, id))

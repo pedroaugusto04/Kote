@@ -1,8 +1,13 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
-import { AiOperationType } from '../../../domain/enums/plans.enums.js';
-import { QuotaExceededException } from '../../exceptions/quota-exceeded.exception.js';
+import { type AiOperationType } from '../../../domain/enums/plans.enums.js';
+import {
+  AiNotConnectedException,
+  AppErrorCode,
+  QuotaExceededException,
+  type AiNotConnectedCode,
+} from '../../../domain/exceptions/index.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { QuotaService } from '../quota/quota.service.js';
 
@@ -26,13 +31,13 @@ export type AiEntitlementResult =
   | { enabled: false }
   | { enabled: true; quota: { allowed: boolean; limit: number; current: number } };
 
-const DISABLED_ERROR_CODES: Record<ManagedAiProvider, string> = {
-  [IntegrationProvider.AiReview]: 'review_ai_not_connected',
-  [IntegrationProvider.AiConversation]: 'ai_conversation_not_enabled',
-  [IntegrationProvider.ProjectBriefAi]: 'project_brief_ai_not_connected',
-  [IntegrationProvider.PrContextAi]: 'pr_context_ai_not_connected',
-  [IntegrationProvider.FileNotesSummaryAi]: 'file_notes_summary_ai_not_connected',
-  [IntegrationProvider.AiSessionSynthesis]: 'ai_session_synthesis_not_connected',
+const DISABLED_ERROR_CODES: Record<ManagedAiProvider, AiNotConnectedCode> = {
+  [IntegrationProvider.AiReview]: AppErrorCode.ReviewAiNotConnected,
+  [IntegrationProvider.AiConversation]: AppErrorCode.AiConversationNotEnabled,
+  [IntegrationProvider.ProjectBriefAi]: AppErrorCode.ProjectBriefAiNotConnected,
+  [IntegrationProvider.PrContextAi]: AppErrorCode.PrContextAiNotConnected,
+  [IntegrationProvider.FileNotesSummaryAi]: AppErrorCode.FileNotesSummaryAiNotConnected,
+  [IntegrationProvider.AiSessionSynthesis]: AppErrorCode.AiSessionSynthesisNotConnected,
 };
 
 @Injectable()
@@ -57,7 +62,7 @@ export class AiEntitlementService {
 
   async requireEnabled(userId: string, workspaceSlug: string, provider: ManagedAiProvider): Promise<void> {
     if (!await this.isEnabled(userId, workspaceSlug, provider)) {
-      throw new BadRequestException(DISABLED_ERROR_CODES[provider]);
+      throw new AiNotConnectedException(DISABLED_ERROR_CODES[provider]);
     }
   }
 
@@ -73,7 +78,7 @@ export class AiEntitlementService {
   async requireAndConsume(input: AiEntitlementInput) {
     const result = await this.checkAndConsume(input);
     if (!result.enabled) {
-      throw new BadRequestException(DISABLED_ERROR_CODES[input.provider]);
+      throw new AiNotConnectedException(DISABLED_ERROR_CODES[input.provider]);
     }
     if (!result.quota.allowed) {
       throw new QuotaExceededException('ai_credits', result.quota.limit, result.quota.current);

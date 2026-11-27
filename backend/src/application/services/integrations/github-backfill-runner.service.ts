@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import { CredentialRecordStatus, IntegrationProvider, MissingCredentialError } from '../../../contracts/enums.js';
+import { AppErrorCode, CredentialNotFoundException, GithubIntegrationException } from '../../../domain/exceptions/index.js';
 import { decryptConfig } from '../../utils/security/credentials-crypto.utils.js';
 import { ProcessGithubPushService } from './process-github-push.service.js';
 import { GithubRepositoryResolutionService } from './github-repository-resolution.service.js';
@@ -42,13 +42,13 @@ export class GithubBackfillRunnerService {
         IntegrationProvider.GithubApp,
       );
       if (!credential || credential.status !== CredentialRecordStatus.Connected || credential.revokedAt) {
-        throw new NotFoundException('credential_not_found');
+        throw new CredentialNotFoundException();
       }
 
       const config = decryptConfig(credential.encryptedConfig, this.environmentProvider) as { installationId?: string };
       const installationId = String(config.installationId || '').trim();
       if (!environment.githubAppId || !environment.githubAppPrivateKey || !installationId) {
-        throw new BadRequestException('github_app_installation_not_configured');
+        throw new GithubIntegrationException(AppErrorCode.GithubAppInstallationNotConfigured);
       }
 
       const token = await this.githubIntegrationGateway.fetchInstallationToken({
@@ -57,7 +57,7 @@ export class GithubBackfillRunnerService {
         installationId,
       });
       if (!token) {
-        throw new BadRequestException('github_installation_token_unavailable');
+        throw new GithubIntegrationException(AppErrorCode.GithubInstallationTokenUnavailable);
       }
 
       const accessibleRepositories = await this.githubRepositoryResolution.listAccessibleRepositories({

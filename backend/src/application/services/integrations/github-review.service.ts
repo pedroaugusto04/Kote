@@ -1,23 +1,18 @@
 import { GithubReviewMapper } from '../../mappers/github-review.mapper.js';
-import { buildIngestPayload } from '../../mappers/ingest.mapper.js';
-import { CanonicalType, EventType, KnowledgeKind, KnowledgeStatus, SourceChannel } from '../../../contracts/enums.js';
-import { ingestPayloadSchema } from '../../../contracts/ingest.js';
-import { defaultImportance } from '../../../domain/classification.js';
+import { type ingestPayloadSchema } from '../../../contracts/ingest.js';
 import { trimText } from '../../../domain/strings.js';
-import { normalizeOccurredAtToUtc } from '../../../domain/time.js';
-import { GithubIntegrationGateway } from '../../ports/integrations/github-integration.port.js';
-import { ReviewAnalysisGateway } from '../../ports/projects/review-analysis.port.js';
+import { type GithubIntegrationGateway } from '../../ports/integrations/github-integration.port.js';
+import { type ReviewAnalysisGateway } from '../../ports/projects/review-analysis.port.js';
 import type { RuntimeEnvironment } from '../../ports/observability/runtime-environment.port.js';
 import type { AppLogger } from '../../../observability/logger.js';
 import type { GithubPushPayload, GithubPullRequestPayload, ChangedFile } from '../../models/github-webhook.models.js';
 import {
   extractRepositoryInfo,
-  normalizeProjectSlug,
+  normalizeGithubRepoSlug,
   extractBranchName,
   buildAiConfig,
   extractChangedFilesFromCommits,
   isValidCommitSha,
-  formatCorrelationId,
 } from '../../utils/github/github-review.helpers.js';
 
 // ============================================================================
@@ -88,46 +83,15 @@ export async function buildGithubReviewEvent(
     promptPayload.headCommit.sha,
   );
 
-  const projectSlug = normalizeProjectSlug(repoInfo.name, repoInfo.fullName);
+  const projectSlug = normalizeGithubRepoSlug(repoInfo.name, repoInfo.fullName);
 
-  return buildIngestPayload({
-    source: {
-      channel: SourceChannel.Github,
-      system: 'github',
-      source: 'github push',
-      actor: String(body.pusher?.name || ''),
-      conversationId: repoInfo.fullName,
-      correlationId: formatCorrelationId('push', repoInfo.fullName, String(body.after || Date.now())),
-    },
-    event: {
-      type: EventType.CodeReview,
-      occurredAt: normalizeOccurredAtToUtc(body.head_commit?.timestamp),
-      projectSlug,
-    },
-    content: {
-      rawText: trimText(String(body.head_commit?.message || ''), 'Push without detailed message'),
-      title: `[${repoInfo.name || repoInfo.fullName.split('/').pop() || 'inbox'}] ${String(body.head_commit?.message || 'Push without detailed message').split('\n')[0]}`,
-      sections: {
-        summary: analysis.summary,
-        impact: analysis.impact,
-        risks: analysis.risks,
-        nextSteps: analysis.nextSteps,
-        reviewFindings: analysis.reviewFindings,
-      },
-    },
-    classification: {
-      kind: KnowledgeKind.Summary,
-      canonicalType: CanonicalType.Knowledge,
-      importance: defaultImportance(KnowledgeKind.Summary),
-      tags: ['code-review', projectSlug],
-    },
-    metadata: {
-      repoFullName: repoInfo.fullName,
-      branch,
-      compareUrl: String(body.compare || ''),
-      headSha: String(body.after || ''),
-    },
-    links: changedFiles,
+  return GithubReviewMapper.toPushIngestPayload({
+    body,
+    repoInfo,
+    branch,
+    projectSlug,
+    analysis,
+    changedFiles,
   });
 }
 
@@ -234,45 +198,16 @@ export function buildGithubPrContextNoteEvent(
   const body = input.body || {};
   const repoInfo = extractRepositoryInfo(body);
   const prNumber = Number(body.pull_request?.number || 0);
-  const projectSlug = normalizeProjectSlug(repoInfo.name, repoInfo.fullName);
+  const projectSlug = normalizeGithubRepoSlug(repoInfo.name, repoInfo.fullName);
   const rawText = buildPrRawText(prNumber, String(body.pull_request?.title || ''), String(body.pull_request?.body || ''), contextSummary);
 
-  return buildIngestPayload({
-    source: {
-      channel: SourceChannel.Github,
-      system: 'github',
-      source: 'github pull request',
-      actor: String(body.sender?.login || ''),
-      conversationId: repoInfo.fullName,
-      correlationId: formatCorrelationId('pr', repoInfo.fullName, `${prNumber}:${String(body.pull_request?.head?.sha || '')}`),
-    },
-    event: {
-      type: EventType.CodeReview,
-      projectSlug,
-    },
-    content: {
-      rawText: trimText(rawText, 'PR without description'),
-      title: `[PR #${prNumber}] ${String(body.pull_request?.title || '')}`,
-      sections: {
-        summary: commentText,
-      },
-    },
-    classification: {
-      kind: KnowledgeKind.Summary,
-      canonicalType: CanonicalType.Knowledge,
-      importance: defaultImportance(KnowledgeKind.Summary),
-      tags: ['code-review', 'pull-request', projectSlug],
-    },
-    metadata: {
-      repoFullName: repoInfo.fullName,
-      prNumber,
-      prTitle: String(body.pull_request?.title || ''),
-      prUrl: String(body.pull_request?.html_url || ''),
-      baseBranch: String(body.pull_request?.base?.ref || ''),
-      headBranch: String(body.pull_request?.head?.ref || ''),
-      baseSha: String(body.pull_request?.base?.sha || ''),
-      headSha: String(body.pull_request?.head?.sha || ''),
-    },
-    links: changedFiles.map((f) => f.filename),
+  return GithubReviewMapper.toPrContextNoteIngestPayload({
+    body,
+    repoInfo,
+    prNumber,
+    projectSlug,
+    rawText,
+    commentText,
+    changedFiles,
   });
 }

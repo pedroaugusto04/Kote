@@ -1,4 +1,4 @@
-import { ReminderBoardColumnKey, KnowledgeStatus } from '../../contracts/enums.js';
+import { ReminderBoardColumnKey, type KnowledgeStatus } from '../../contracts/enums.js';
 
 export type ReminderBoardInput = {
   workspaceSlug?: string;

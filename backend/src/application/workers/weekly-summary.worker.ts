@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { WeeklySummaryService } from '../services/content/weekly-summary.service.js';
 import { AppLogger } from '../../observability/logger.js';
 import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';

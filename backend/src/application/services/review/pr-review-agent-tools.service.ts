@@ -7,7 +7,7 @@ import { RagRetrievalService, type RagConfig, type RagScope } from '../query/rag
 import { RagContextAssemblerService } from '../query/rag-context-assembler.service.js';
 import { GithubIntegrationGateway } from '../../ports/integrations/github-integration.port.js';
 import { AppLogger } from '../../../observability/logger.js';
-import { AgentContextTracker } from '../query/agent-context-tracker.js';
+import { type AgentContextTracker } from '../query/agent-context-tracker.js';
 import { toAskChunkItems } from '../../mappers/ask.mapper.js';
 
 const MAX_READ_FILE_CHARS = 25_000;

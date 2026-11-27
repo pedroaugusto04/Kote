@@ -84,7 +84,6 @@ export function toListProjectCommitsInput(query: ProjectCommitsQuery, scope: Wor
     ...(projectId ? { projectId } : {}),
     page: query.page,
     pageSize: query.pageSize,
-    onlyLinked: query.onlyLinked,
     linkFilter: query.linkFilter,
     query: query.query,
   };

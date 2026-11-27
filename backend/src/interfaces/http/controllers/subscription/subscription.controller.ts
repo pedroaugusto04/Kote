@@ -1,14 +1,11 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, Sse, MessageEvent, Headers } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards, Sse, type MessageEvent, Headers } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { Observable, from, concat } from 'rxjs';
-import { filter, map, switchMap } from 'rxjs';
+import type { Observable } from 'rxjs';
 
 import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard } from '../../guards/auth.guards.js';
-import { BillingCycle, BillingType } from '../../../../domain/enums/billing.enums.js';
-import { COUNTRY_CODE } from '../../../../domain/constants/billing.constants.js';
-import { BillingEventBus } from '../../../../application/event-buses/billing-event.bus.js';
+import { BillingEventStreamService } from '../../../../application/services/billing/billing-event-stream.service.js';
 import {
   GetPlansUseCase,
   GetStripeConfigUseCase,
@@ -33,23 +30,14 @@ export class SubscriptionController {
     private readonly updateSubscriptionUseCase: UpdateSubscriptionUseCase,
     private readonly cancelPaymentUseCase: CancelPaymentUseCase,
     private readonly cancelScheduledChangeUseCase: CancelScheduledChangeUseCase,
-    private readonly billingEventBus: BillingEventBus,
+    private readonly billingEventStreamService: BillingEventStreamService,
   ) {}
 
   @Sse('status/stream')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Stream user subscription status updates' })
   streamStatus(@CurrentUser() user: AuthenticatedUser): Observable<MessageEvent> {
-    return concat(
-      from(this.getSubscriptionStatusUseCase.execute(user.id)).pipe(
-        map((status) => ({ data: status } as MessageEvent))
-      ),
-      this.billingEventBus.getEvents().pipe(
-        filter((userId) => userId === user.id),
-        switchMap(() => this.getSubscriptionStatusUseCase.execute(user.id)),
-        map((status) => ({ data: status } as MessageEvent))
-      )
-    );
+    return this.billingEventStreamService.streamUserStatus(user.id) as Observable<MessageEvent>;
   }
 
   @Get('plans')

@@ -1,4 +1,4 @@
-import { AiProvider, ConversationConfidence } from '../../contracts/enums.js';
+import { type AiProvider, ConversationConfidence } from '../../contracts/enums.js';
 import { stripMarkdownFences } from '../../domain/strings.js';
 import { truncateForLog } from '../utils/logging.js';
 import type { AgentTool } from '../../contracts/agent-tool.js';

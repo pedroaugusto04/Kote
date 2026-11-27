@@ -1,4 +1,4 @@
-import { BillingCycle, PaymentKind, GatewayNameEnum } from '../../../domain/enums/billing.enums.js';
+import { type BillingCycle, type PaymentKind, type PaymentStatus, GatewayNameEnum } from '../../../domain/enums/billing.enums.js';
 
 export { GatewayNameEnum };
 
@@ -140,3 +140,13 @@ export interface IPaymentGateway {
     };
   }): Promise<{ creditCardToken: string }>;
 }
+
+export interface IGatewayStatusMapper {
+  normalizeSubscriptionStatus(raw?: string | null): string | null;
+  normalizePaymentStatus(rawStatus?: string | null, event?: string | null): `${PaymentStatus}` | null;
+}
+
+export const ASAAS_PAYMENT_GATEWAY = Symbol('ASAAS_PAYMENT_GATEWAY');
+export const STRIPE_PAYMENT_GATEWAY = Symbol('STRIPE_PAYMENT_GATEWAY');
+export const ASAAS_STATUS_MAPPER = Symbol('ASAAS_STATUS_MAPPER');
+export const STRIPE_STATUS_MAPPER = Symbol('STRIPE_STATUS_MAPPER');

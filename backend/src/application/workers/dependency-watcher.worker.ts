@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, type OnModuleInit, type OnModuleDestroy } from '@nestjs/common';
 
 import { DependencyWatcherService } from '../services/dependency-watcher/dependency-watcher.service.js';
 import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';

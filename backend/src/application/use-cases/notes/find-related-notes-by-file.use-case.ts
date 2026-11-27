@@ -1,10 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ContentRepository, ContentQueryRepository } from '../../ports/notes/content.repository.js';
-import { EmbeddingRepresentation, NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
-import { EmbeddingQueuePublisher } from '../../ports/notes/embedding-queue.publisher.js';
+import { EmbeddingRepresentation } from '../../ports/notes/note-embedding.repository.js';
+import { VectorChunkSearchService } from '../../services/query/vector-chunk-search.service.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { AppLogger } from '../../../observability/logger.js';
-import { AiProvider } from '../../../contracts/enums.js';
 import { rankHybridKnowledgeMatches } from '../../utils/query/query.utils.js';
 import { filePathToQuery, isGenericFile } from '../../utils/query/file-query.utils.js';
 import { noteSummary } from '../../mappers/vault-note.mapper.js';
@@ -38,10 +37,9 @@ export class FindRelatedNotesByFileUseCase {
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly contentQueryRepository: ContentQueryRepository,
-    private readonly noteEmbeddingRepository: NoteEmbeddingRepository,
+    private readonly vectorChunkSearch: VectorChunkSearchService,
     private readonly runtimeEnv: RuntimeEnvironmentProvider,
     private readonly logger: AppLogger,
-    private readonly embeddingQueue: EmbeddingQueuePublisher,
   ) {}
 
   async execute(input: FindRelatedNotesByFileInput): Promise<ReturnType<typeof noteSummary>[]> {
@@ -70,12 +68,7 @@ export class FindRelatedNotesByFileUseCase {
       return [];
     }
 
-    const isEmbeddingConfigured = Boolean(
-      env.embeddingAiProvider
-      && env.embeddingAiProvider !== AiProvider.None
-      && env.embeddingAiApiKey
-      && env.embeddingAiModel,
-    );
+    const isEmbeddingConfigured = this.vectorChunkSearch.isEmbeddingConfigured(env);
     const ftsQueryText = searchProfile === 'snippet'
       ? extractCodeTokens(queryText).slice(0, 32).join(' ')
       : queryText;
@@ -104,7 +97,18 @@ export class FindRelatedNotesByFileUseCase {
 
     const [vectorResult, ftsNotes] = await Promise.all([
       isEmbeddingConfigured
-        ? this.searchVectorChunks(userId, queryText, searchConfig.minSimilarity, candidateLimit, projectId)
+        ? this.vectorChunkSearch.search({
+            userId,
+            queryText,
+            limit: candidateLimit,
+            minSimilarity: searchConfig.minSimilarity,
+            projectId,
+            representations: [EmbeddingRepresentation.Raw],
+            rawCandidateMultiplier: 4,
+            maxRawCandidates: 200,
+            deduplicateByNote: true,
+            logPrefix: 'codelens_related',
+          })
         : Promise.resolve({ chunks: [] as Array<{ noteId: string; similarity: number }> }),
       ftsQueryText
         ? this.contentQueryRepository.list(userId, { query: ftsQueryText, ftsLimit: candidateLimit, projectSlug })
@@ -254,44 +258,5 @@ export class FindRelatedNotesByFileUseCase {
       rrfK: env.codeLensSearchRrfK,
       resultLimit: env.codeLensSearchResultLimit,
     };
-  }
-
-  private async searchVectorChunks(
-    userId: string,
-    queryText: string,
-    minSimilarity: number,
-    limit: number,
-    projectId?: string,
-  ) {
-    try {
-      const embeddings = await this.embeddingQueue.publishQueryEmbedding({
-        userId,
-        queryText,
-      });
-      const queryEmbedding = embeddings[0];
-      if (!queryEmbedding?.length) {
-        this.logger.warn('codelens_related.embedding_empty', { queryText });
-        return { chunks: [] as Array<{ noteId: string; similarity: number }> };
-      }
-
-      const rawChunks = await this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, {
-        limit: Math.min(limit * 4, 200),
-        minSimilarity,
-        projectId,
-        representation: EmbeddingRepresentation.Raw,
-      });
-      const chunks = Array.from(rawChunks.reduce((byNote, chunk) => {
-        const current = byNote.get(chunk.noteId);
-        if (!current || chunk.similarity > current.similarity) byNote.set(chunk.noteId, chunk);
-        return byNote;
-      }, new Map<string, typeof rawChunks[number]>()).values()).slice(0, limit);
-
-      return { chunks };
-    } catch (error) {
-      this.logger.warn('codelens_related.vector_search_failed', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return { chunks: [] as Array<{ noteId: string; similarity: number }> };
-    }
   }
 }

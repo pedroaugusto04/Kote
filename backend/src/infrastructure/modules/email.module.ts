@@ -20,13 +20,9 @@ import { UserService } from '../../application/services/auth/user.service.js';
 @Module({
   imports: [LoggerModule, EnvModule, DatabaseModule],
   providers: [
-    AppLogger,
     RabbitMqEmailQueuePublisher,
     EmailQueueConsumer,
     EmailService,
-    ResendEmailProvider,
-    SmtpEmailProvider,
-    FakeEmailProvider,
     WelcomeEmailService,
     NotifyHighSeverityFindingsService,
     UserService,
@@ -38,7 +34,7 @@ import { UserService } from '../../application/services/auth/user.service.js';
       provide: EmailProvider,
       useFactory: (environmentProvider: RuntimeEnvironmentProvider, logger: AppLogger) => {
         const environment = environmentProvider.read();
-        const provider = String(environment.emailProvider || 'resend').trim().toLowerCase();
+        const provider = environment.emailProvider;
 
         if (provider === 'smtp') {
           return new SmtpEmailProvider(environmentProvider, logger);

@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { BadRequestException } from '@nestjs/common';
-
+import { ValidationException } from '../../../dist/domain/exceptions/index.js';
 import { queryRequestSchema } from '../../../dist/interfaces/http/dto/query.dto.js';
 import { ZodValidationPipe } from '../../../dist/interfaces/http/zod-validation.pipe.js';
 
@@ -29,24 +28,22 @@ test('zod validation pipe returns normalized defaults', () => {
   assert.equal(parsed.status, 'open');
 });
 
-test('zod validation pipe throws bad request with stable code', () => {
+test('zod validation pipe throws ValidationException with stable code', () => {
   const pipe = new ZodValidationPipe(queryRequestSchema, 'invalid_query_payload');
 
   assert.throws(() => pipe.transform({ limit: 'abc' }), (error) => {
-    assert.ok(error instanceof BadRequestException);
-    assert.deepEqual(error.getResponse(), {
-      code: 'invalid_query_payload',
-      details: {
-        issues: [
-          {
-            code: 'invalid_type',
-            message: 'Expected number, received nan',
-            path: 'limit',
-          },
-        ],
-        fieldErrors: {
-          limit: 'Expected number, received nan',
+    assert.ok(error instanceof ValidationException);
+    assert.equal(error.code, 'invalid_query_payload');
+    assert.deepEqual(error.details, {
+      issues: [
+        {
+          code: 'invalid_type',
+          message: 'Expected number, received nan',
+          path: 'limit',
         },
+      ],
+      fieldErrors: {
+        limit: 'Expected number, received nan',
       },
     });
     return true;

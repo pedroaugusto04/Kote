@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { GitCommitRepository } from '../../ports/projects/git-commit.repository.js';
 import { QuotaService } from '../quota/quota.service.js';
@@ -24,7 +24,7 @@ export class NoteLifecycleService {
     private readonly noteEventDispatcher: NoteEventDispatcher,
     private readonly logger: AppLogger,
     private readonly synthesisScheduler: AiSessionSynthesisScheduler,
-    @Optional() private readonly gitCommitRepository?: GitCommitRepository,
+    private readonly gitCommitRepository: GitCommitRepository,
   ) {}
 
   async saveNote(
@@ -71,16 +71,14 @@ export class NoteLifecycleService {
     // 3. Reconcile Attachments & Git Commits
     const attachments = await this.reconcileAttachments(userId, note.id, incomingAttachments, options.existingNoteId, tx);
 
-    if (this.gitCommitRepository) {
-      try {
-        note.linkedCommits = await this.gitCommitRepository.reconcileNoteCommits(userId, note, tx);
-      } catch (e) {
-        this.logger.warn('note_lifecycle.commit_reconcile_failed', {
-          userId,
-          noteId: note.id,
-          error: e instanceof Error ? e.message : String(e),
-        });
-      }
+    try {
+      note.linkedCommits = await this.gitCommitRepository.reconcileNoteCommits(userId, note, tx);
+    } catch (e) {
+      this.logger.warn('note_lifecycle.commit_reconcile_failed', {
+        userId,
+        noteId: note.id,
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
 
     await this.synthesisScheduler.scheduleAfterInactivity({ userId, note, previousNote, tx });

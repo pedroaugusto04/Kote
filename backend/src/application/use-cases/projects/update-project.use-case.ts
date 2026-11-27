@@ -22,7 +22,7 @@ export class UpdateProjectUseCase {
       repositoryIds: input.repositoryIds,
     });
 
-    const updateData = toProjectUpdateInput(input, project);
+    const updateData = toProjectUpdateInput(input);
     const updatedProject = await this.contentRepository.upsertProject(userId, {
       ...project,
       ...updateData,

@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { sha256Hex } from '../../../domain/utils/crypto.utils.js';
 
 export function verifyStripeWebhookSignature(payload: string, header: string, secret: string): boolean {
   try {
@@ -40,5 +41,5 @@ export function extractStripeEventIds(
 }
 
 export function buildStripeDedupKey(body: any, gatewayEventId: string | null): string {
-  return gatewayEventId || crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
+  return gatewayEventId || sha256Hex(JSON.stringify(body));
 }

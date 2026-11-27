@@ -5,7 +5,7 @@ import { DependencyWatcherService } from '../../application/services/dependency-
 import { AppLogger } from '../../observability/logger.js';
 import { BaseRabbitMqConsumer } from './base-rabbitmq.consumer.js';
 import { type DependencyCheckJobMessage } from './rabbitmq-dependency-check-queue.publisher.js';
-import { calculateBackoff, isRateLimitError, RateLimitError, type BackoffOptions } from '../../application/utils/retry/backoff.utils.js';
+import { calculateBackoff, isRateLimitError, type RateLimitError, type BackoffOptions } from '../../application/utils/retry/backoff.utils.js';
 
 const QUEUE_NAME = 'kb.dependency_check.jobs';
 const EXCHANGE_NAME = 'kb.dependency_check';

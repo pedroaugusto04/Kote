@@ -1,4 +1,4 @@
-import { CoverageHealthStatus } from '../../domain/enums/knowledge.enums.js';
+import { type CoverageHealthStatus } from '../../domain/enums/knowledge.enums.js';
 
 export interface ProjectCoverageFolderBreakdown {
   folderPath: string;

@@ -1,4 +1,4 @@
-import { detectSensitiveData, redactSensitiveData } from '../utils/security/sensitive-data-redactor.js';
+import { redactWithDetection } from '../utils/security/sensitive-data-redactor.js';
 
 export interface SanitizedNoteContent {
   title: string;
@@ -11,12 +11,9 @@ export function sanitizeManualNoteContent(
   rawText: string,
   originalTitle?: string,
 ): SanitizedNoteContent {
-  const sanitizedTitle = redactSensitiveData(title);
-  const sanitizedRawText = redactSensitiveData(rawText);
-
-  const titlePatterns = detectSensitiveData(title);
-  const contentPatterns = detectSensitiveData(rawText);
-  const detectedPatterns = [...new Set([...titlePatterns, ...contentPatterns])];
+  const titleResult = redactWithDetection(title);
+  const contentResult = redactWithDetection(rawText);
+  const detectedPatterns = [...new Set([...titleResult.detected, ...contentResult.detected])];
 
   if (detectedPatterns.length > 0) {
     console.warn(
@@ -25,8 +22,8 @@ export function sanitizeManualNoteContent(
   }
 
   return {
-    title: sanitizedTitle,
-    rawText: sanitizedRawText,
+    title: titleResult.sanitized,
+    rawText: contentResult.sanitized,
     detectedPatterns,
   };
 }

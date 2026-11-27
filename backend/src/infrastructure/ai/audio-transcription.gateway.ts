@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { AiProvider } from '../../contracts/enums.js';
 import {
-  AudioTranscriptionConfig,
+  type AudioTranscriptionConfig,
   AudioTranscriptionGateway,
-  AudioTranscriptionInput,
+  type AudioTranscriptionInput,
 } from '../../application/ports/audio/audio-transcription.gateway.js';
 import { AppLogger } from '../../observability/logger.js';
 import { truncateForLog } from '../utils/logging.js';

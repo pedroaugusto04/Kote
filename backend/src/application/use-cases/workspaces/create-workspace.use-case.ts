@@ -1,6 +1,10 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
+import {
+  QuotaExceededException,
+  WorkspaceSlugRequiredException,
+} from '../../../domain/exceptions/index.js';
 import { slugifyWorkspaceName } from '../../../domain/strings.js';
 import { encryptConfig } from '../../utils/security/credentials-crypto.utils.js';
 import type { CreateWorkspaceInput } from '../../models/workspace-input.models.js';
@@ -10,7 +14,6 @@ import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-en
 import { getAiProviderConfigStatus } from '../../constants/ai-providers.constants.js';
 import { QuotaService } from '../../services/quota/quota.service.js';
 import { QuotaResourceType } from '../../../domain/enums/plans.enums.js';
-import { QuotaExceededException } from '../../exceptions/quota-exceeded.exception.js';
 import { assertWorkspaceSlugUnique } from '../../helpers/resource-validation.helpers.js';
 
 import crypto from 'node:crypto';
@@ -27,18 +30,18 @@ export class CreateWorkspaceUseCase {
   ) {}
 
   async execute(input: CreateWorkspaceInput, userId: string) {
-    const quotaResult = await (this.quotaService as QuotaService).checkQuota(userId, QuotaResourceType.WORKSPACE, 1);
+    const quotaResult = await this.quotaService.checkQuota(userId, QuotaResourceType.WORKSPACE, 1);
     if (!quotaResult.allowed) {
       throw new QuotaExceededException('workspace', quotaResult.limit, quotaResult.current);
     }
 
     const now = new Date().toISOString();
     const workspaceSlug = slugifyWorkspaceName(input.workspaceSlug);
-    if (!workspaceSlug) throw new ConflictException('workspace_slug_required');
+    if (!workspaceSlug) throw new WorkspaceSlugRequiredException();
     
     await assertWorkspaceSlugUnique(this.contentRepository, userId, workspaceSlug);
     
-    let workspace = await this.contentRepository.upsertWorkspace(userId, {
+    const workspace = await this.contentRepository.upsertWorkspace(userId, {
       id: crypto.randomUUID(),
       userId,
       workspaceSlug,

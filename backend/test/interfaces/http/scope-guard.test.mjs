@@ -128,8 +128,8 @@ test('ScopeGuard falls back to workspace scope when project is optional and proj
   const resolver = {
     async resolve(userId, input) {
       if (input.projectSlug === 'nonexistent') {
-        const { NotFoundException } = await import('@nestjs/common');
-        throw new NotFoundException('project_not_found');
+        const { ProjectNotFoundException } = await import('../../../dist/domain/exceptions/index.js');
+        throw new ProjectNotFoundException();
       }
       return {
         userId,

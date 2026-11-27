@@ -2,7 +2,23 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { normalizeGithubAppCallbackPath } from '../../../dist/adapters/environment.js';
-import { ApplicationAccessController, DashboardController, GithubAppCallbackController, HealthController, NotesController, OperationsController, ProjectsController, WorkspacesController, RemindersController, ReviewsController, AskAiController, QueryKnowledgeController } from '../../../dist/interfaces/http/controllers/index.js';
+import {
+  ApplicationAccessController,
+  DashboardController,
+  GithubAppCallbackController,
+  HealthController,
+  NoteIntelligenceController,
+  NotesController,
+  OperationsController,
+  ProjectsController,
+  ProjectFoldersController,
+  ProjectInsightsController,
+  WorkspacesController,
+  RemindersController,
+  ReviewsController,
+  AskAiController,
+  QueryKnowledgeController,
+} from '../../../dist/interfaces/http/controllers/index.js';
 
 test('health controller exposes service status', () => {
   const controller = new HealthController();
@@ -251,20 +267,22 @@ test('projects and notes controllers delegate create requests to use cases', asy
     execute: async (projectSlug, userId) => ({ ok: true, projectSlug, userId }),
   }, {
     execute: async (userId, projectSlug, favorite) => ({ ok: true, projectSlug, favorite }),
+  });
+  const projectFolders = new ProjectFoldersController({
+    execute: async (projectId, userId) => ({ ok: true, folders: [], projectId, userId }),
   }, {
+    execute: async (body, userId) => ({ ok: true, folder: body, userId }),
+  }, {
+    execute: async (body, userId) => ({ ok: true, folder: body, userId }),
+  }, {
+    execute: async (projectId, folderId, userId) => ({ ok: true, projectId, folderId, userId }),
+  });
+  const projectInsights = new ProjectInsightsController({
     execute: async (userId, projectSlug, workspaceId) => ({ ok: true, fallback: false, brief: { projectSlug, userId, ...(workspaceId !== undefined ? { workspaceId } : {}) } }),
   }, {
     execute: async (userId, projectSlug, workspaceId) => ({ ok: true, source: 'history', brief: { projectSlug, userId, saved: true, ...(workspaceId !== undefined ? { workspaceId } : {}) } }),
   }, {
     execute: async () => ({ items: [], pagination: {} }),
-  }, {
-    execute: async () => ({ ok: true, folders: [] }),
-  }, {
-    execute: async () => ({ ok: true, folder: {} }),
-  }, {
-    execute: async () => ({ ok: true, folder: {} }),
-  }, {
-    execute: async () => ({ ok: true }),
   });
   const notes = new NotesController({
     execute: async (body, userId) => ({ ok: true, noteId: 'note-1', body, userId }),
@@ -274,6 +292,24 @@ test('projects and notes controllers delegate create requests to use cases', asy
     execute: async (id, userId) => ({ ok: true, noteId: id, userId }),
   }, {
     execute: async () => null,
+  });
+  const noteIntelligence = new NoteIntelligenceController({
+    execute: async (userId, id) => ({ ok: true, related: [id], userId }),
+  }, {
+    execute: async (userId, filePath, options) => ({ ok: true, filePath, options, userId }),
+  }, {
+    execute: async (userId, input) => ({ ok: true, input, userId }),
+  }, {
+    execute: async (input) => ({ ok: true, input }),
+  }, {
+    execute: async (userId, input) => ({ ok: true, input, userId }),
+  }, {
+    execute: async (userId, id) => ({ ok: true, queued: id, userId }),
+  }, {
+    execute: async (userId, body) => ({ ok: true, handoff: body, userId }),
+  }, {
+    linkCommitToNote: async (userId, noteId, commitId) => ({ userId, noteId, commitId }),
+    unlinkCommitFromNote: async (userId, noteId, commitId) => ({ userId, noteId, commitId }),
   });
 
   assert.deepEqual(
@@ -296,13 +332,23 @@ test('projects and notes controllers delegate create requests to use cases', asy
     { ok: true, project: { projectId: 'acme-api', displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, userId: 'user-1' },
   );
   assert.deepEqual(await projects.remove(projectScope, user), { ok: true, projectSlug: 'acme-api', userId: 'user-1' });
-  assert.deepEqual(await projects.generateBrief(projectScope, user), { ok: true, fallback: false, brief: { projectSlug: 'acme-api', userId: 'user-1', workspaceId: 'ws-1' } });
-  assert.deepEqual(await projects.getBrief(projectScope, user), { ok: true, source: 'history', brief: { projectSlug: 'acme-api', userId: 'user-1', saved: true, workspaceId: 'ws-1' } });
-  assert.deepEqual( 
+  assert.deepEqual(await projects.setFavorite(projectScope, { favorite: true }, user), { ok: true, projectSlug: 'acme-api', favorite: true });
+  assert.deepEqual(await projectFolders.listFolders(projectScope, user), { ok: true, folders: [], projectId: 'acme-api', userId: 'user-1' });
+  assert.deepEqual(await projectFolders.createFolder(projectScope, { name: 'Docs' }, user), { ok: true, folder: { name: 'Docs', projectId: 'acme-api' }, userId: 'user-1' });
+  assert.deepEqual(await projectFolders.updateFolder(projectScope, 'folder-1', { name: 'Specs' }, user), { ok: true, folder: { name: 'Specs', projectId: 'acme-api', folderId: 'folder-1' }, userId: 'user-1' });
+  assert.deepEqual(await projectFolders.deleteFolder(projectScope, 'folder-1', user), { ok: true, projectId: 'acme-api', folderId: 'folder-1', userId: 'user-1' });
+  assert.deepEqual(await projectInsights.generateBrief(projectScope, user), { ok: true, fallback: false, brief: { projectSlug: 'acme-api', userId: 'user-1', workspaceId: 'ws-1' } });
+  assert.deepEqual(await projectInsights.getBrief(projectScope, user), { ok: true, source: 'history', brief: { projectSlug: 'acme-api', userId: 'user-1', saved: true, workspaceId: 'ws-1' } });
+  assert.deepEqual(
     await notes.update({ id: 'note-1' }, { title: 'Deploy', rawText: 'texto', tags: [], reminderAt: ''}, user, undefined),
     { ok: true, noteId: 'note-1', body: { title: 'Deploy', rawText: 'texto', tags: [], reminderAt: '', id: 'note-1', projectId: undefined }, userId: 'user-1' },
   );
   assert.deepEqual(await notes.remove({ id: 'note-1' }, user), { ok: true, noteId: 'note-1', userId: 'user-1' });
+  assert.deepEqual(await noteIntelligence.related({ id: 'note-1' }, user), { ok: true, related: ['note-1'], userId: 'user-1' });
+  assert.deepEqual(await noteIntelligence.requestSynthesis({ id: 'note-1' }, user), { ok: true, queued: 'note-1', userId: 'user-1' });
+  assert.deepEqual(await noteIntelligence.sessionHandoff({ sessionId: 'sess-1' }, user), { ok: true, handoff: { sessionId: 'sess-1' }, userId: 'user-1' });
+  assert.deepEqual(await noteIntelligence.linkCommit({ id: 'note-1' }, { commitId: 'commit-1' }, user), { ok: true, commit: { userId: 'user-1', noteId: 'note-1', commitId: 'commit-1' } });
+  assert.deepEqual(await noteIntelligence.unlinkCommit({ id: 'note-1', commitId: 'commit-1' }, user), { ok: true, removed: { userId: 'user-1', noteId: 'note-1', commitId: 'commit-1' } });
 });
 
 test('notes controller serves attachment content with inline headers', async () => {
@@ -354,13 +400,13 @@ test('notes controller forces ZIP attachment downloads', async () => {
   assert.match(response.headers['Content-Disposition'], /^attachment; filename="archive\.zip"/);
 });
 
-test('projects controller routes that support the "all" project slug allow all-projects scope', async () => {
+test('project insights controller routes that support the "all" project slug allow all-projects scope', async () => {
   const { Reflector } = await import('@nestjs/core');
   const { SCOPED_METADATA_KEY } = await import('../../../dist/interfaces/http/scope.decorators.js');
   const reflector = new Reflector();
 
-  for (const handler of ['listDecisions', 'exportAdrsZip', 'generateBrief', 'getBrief', 'getBriefHistory']) {
-    const options = reflector.get(SCOPED_METADATA_KEY, ProjectsController.prototype[handler]);
+  for (const handler of ['exportNotesZip', 'listDecisions', 'exportAdrsZip', 'generateBrief', 'getBrief', 'getBriefHistory', 'listCommits']) {
+    const options = reflector.get(SCOPED_METADATA_KEY, ProjectInsightsController.prototype[handler]);
     assert.equal(options?.allowAllProjects, true, `${handler} must allow the "all" project slug`);
   }
 });

@@ -1,5 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+
+import { DependencyNotFoundException } from '../../../domain/exceptions/index.js';
 
 import type { CheckDependencyInput } from '../../models/dependency-watcher.models.js';
 import { DependencyWatcherRepository } from '../../ports/dependency-watcher/dependency-watcher.repository.js';
@@ -29,7 +31,7 @@ export class CheckDependencyUseCase {
 
     const dependency = await this.dependencyWatcherRepository.findById(userId, resolvedWorkspaceId, dependencyId);
     if (!dependency) {
-      throw new NotFoundException('dependency_not_found');
+      throw new DependencyNotFoundException();
     }
 
     const workspaceEnabled = await this.dependencyWatcherRepository.isWorkspaceEnabled(resolvedWorkspaceId);

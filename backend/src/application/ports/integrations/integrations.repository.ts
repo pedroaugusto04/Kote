@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ExternalIdentityNotFoundException } from '../../../domain/exceptions/index.js';
 import type { ExternalIdentityRecord, IntegrationConnectionSessionRecord, IntegrationCredentialRecord } from '../../models/repository-records.models.js';
 
 export abstract class CredentialRepository {
@@ -20,7 +20,7 @@ export async function resolveExternalIdentity(
 ): Promise<ExternalIdentityRecord> {
   const identity = await repository.findExternalIdentity(provider, identityType, externalId);
   if (!identity) {
-    throw new NotFoundException('identity_not_found');
+    throw new ExternalIdentityNotFoundException();
   }
   return identity;
 }

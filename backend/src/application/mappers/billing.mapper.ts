@@ -1,19 +1,66 @@
+import crypto from 'node:crypto';
 import { SubscriptionPlan } from '../../domain/enums/plans.enums.js';
 import { BillingType, BillingCycle } from '../../domain/enums/billing.enums.js';
-import { BillingTypeEnum } from '../ports/billing/payment-gateway.port.js';
+import {
+  BillingTypeEnum,
+  type CreateSubscriptionInput,
+  type GatewayPayment,
+} from '../ports/billing/payment-gateway.port.js';
 import { PAYMENT_GATEWAY } from '../../domain/constants/billing.constants.js';
 import { canCancelPayment } from '../../domain/utils/payment.utils.js';
+import { formatGatewayDueDate } from '../../domain/utils/subscription.utils.js';
 import type {
   PlanRecord,
   BillingPaymentRecord,
   UserSubscriptionRecord,
   SubscriptionChangeRequestRecord,
+  PaymentGateway,
+  PaymentStatus,
+  PaymentKind,
+  BillingType as BillingTypeModel,
 } from '../models/billing.models.js';
+import type { RegisterOrUpdateSubscriptionInput } from '../models/subscription-change.models.js';
 import type { PlanDto, PendingPaymentSummaryDto } from '../dto/billing.dto.js';
 
-/**
- * Maps domain BillingType enum to gateway BillingTypeEnum
- */
+export type UpsertSubscriptionPaymentInput = Omit<BillingPaymentRecord, 'id' | 'createdAt' | 'updatedAt'> & {
+  id?: string;
+};
+
+export interface ToUpsertSubscriptionPaymentParams {
+  id?: string;
+  subscriptionId?: string | null;
+  userId: string;
+  gateway: PaymentGateway | string;
+  gatewayPaymentId?: string;
+  payment: Partial<GatewayPayment> & { id: string };
+  status: PaymentStatus;
+  billingType?: BillingTypeModel | BillingTypeEnum | null;
+  kind: PaymentKind;
+  gatewayStatus?: string | null;
+  value: number;
+  dueDate: Date;
+  fallbackDescription?: string | null;
+  includeStripeClientSecret?: boolean;
+}
+
+export interface ToGatewaySubscriptionPayloadParams {
+  customerId: string;
+  billingType?: BillingType;
+  value: number;
+  billingCycle: BillingCycle;
+  nextDueDate: Date;
+  planDisplayName: string;
+  creditCardToken?: string;
+  userId: string;
+  externalReference?: string;
+}
+
+function normalizePaymentGateway(gateway: PaymentGateway | string): PaymentGateway {
+  return gateway.toLowerCase() === PAYMENT_GATEWAY.STRIPE
+    ? PAYMENT_GATEWAY.STRIPE
+    : PAYMENT_GATEWAY.ASAAS;
+}
+
 export function toGatewayBillingType(billingType: BillingType): BillingTypeEnum {
   switch (billingType) {
     case BillingType.CREDIT_CARD:
@@ -93,6 +140,49 @@ export class UserSubscriptionMapper {
       gatewayName: activeSubRow.gatewayName || fallbackGatewayName,
     };
   }
+
+  static toRegisterOrUpdateInput(params: {
+    userId: string;
+    email: string;
+    displayName: string | null;
+    planId: string;
+    billingCycle?: BillingCycle;
+    billingType?: BillingType;
+    cpfCnpj?: string;
+    countryCode?: string;
+    creditCardToken?: string;
+  }): RegisterOrUpdateSubscriptionInput {
+    return {
+      userId: params.userId,
+      userEmail: params.email,
+      userDisplayName: params.displayName,
+      planId: params.planId,
+      billingCycle: params.billingCycle,
+      billingType: params.billingType,
+      cpfCnpj: params.cpfCnpj,
+      countryCode: params.countryCode,
+      creditCardToken: params.creditCardToken,
+    };
+  }
+}
+
+export class GatewaySubscriptionMapper {
+  static toGatewaySubscriptionPayload(
+    params: ToGatewaySubscriptionPayloadParams,
+  ): CreateSubscriptionInput {
+    return {
+      customerId: params.customerId,
+      billingType: toGatewayBillingType(params.billingType ?? BillingType.CREDIT_CARD),
+      value: params.value,
+      cycle: params.billingCycle === BillingCycle.YEARLY ? 'YEARLY' : 'MONTHLY',
+      nextDueDate: formatGatewayDueDate(params.nextDueDate),
+      description: `Subscription ${params.planDisplayName}`,
+      creditCardToken:
+        params.billingType === BillingType.CREDIT_CARD ? params.creditCardToken : undefined,
+      userId: params.userId,
+      externalReference: params.externalReference || params.userId,
+    };
+  }
 }
 
 export class SubscriptionChangeMapper {
@@ -137,6 +227,35 @@ export class BillingPaymentMapper {
       invoiceUrl: paymentRow.invoiceUrl,
       stripeClientSecret: paymentRow.gateway === PAYMENT_GATEWAY.STRIPE ? paymentRow.stripeClientSecret ?? null : null,
       canCancel: canCancelPayment(paymentRow),
+    };
+  }
+
+  static toUpsertSubscriptionPaymentInput(
+    params: ToUpsertSubscriptionPaymentParams,
+  ): UpsertSubscriptionPaymentInput {
+    const { payment } = params;
+
+    return {
+      id: params.id ?? crypto.randomUUID(),
+      subscriptionId: params.subscriptionId ?? params.userId,
+      userId: params.userId,
+      gateway: normalizePaymentGateway(params.gateway),
+      gatewayPaymentId: params.gatewayPaymentId ?? payment.id,
+      status: params.status,
+      billingType: params.billingType ?? null,
+      kind: params.kind,
+      gatewayStatus: params.gatewayStatus !== undefined ? params.gatewayStatus : (payment.status ?? undefined),
+      value: params.value,
+      dueDate: params.dueDate,
+      paidAt: payment.paidAt ? new Date(payment.paidAt) : null,
+      invoiceUrl: payment.invoiceUrl || null,
+      bankSlipUrl: payment.bankSlipUrl || null,
+      pixQrCode: payment.pixQrCode || null,
+      pixQrCodeUrl: payment.pixQrCodeUrl || null,
+      description: payment.description || params.fallbackDescription || null,
+      ...(params.includeStripeClientSecret
+        ? { stripeClientSecret: payment.stripeClientSecret || null }
+        : {}),
     };
   }
 }

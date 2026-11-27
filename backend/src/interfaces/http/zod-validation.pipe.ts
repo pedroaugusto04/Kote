@@ -1,5 +1,7 @@
-import { BadRequestException, Injectable, type PipeTransform } from '@nestjs/common';
-import type { ZodError, ZodType } from 'zod';
+import { Injectable, type PipeTransform } from '@nestjs/common';
+import { ZodType } from 'zod';
+import type { ZodError, ZodTypeDef } from 'zod';
+import { ValidationException, AppErrorCode } from '../../domain/exceptions/index.js';
 
 function validationDetails(error: ZodError): Record<string, unknown> {
   const fieldErrors: Record<string, string> = {};
@@ -21,13 +23,15 @@ function validationDetails(error: ZodError): Record<string, unknown> {
 @Injectable()
 export class ZodValidationPipe<TOutput> implements PipeTransform<unknown, TOutput> {
   constructor(
-    private readonly schema: ZodType<TOutput, any, any>,
-    private readonly errorCode: string,
+    private readonly schema: ZodType<TOutput, ZodTypeDef, unknown>,
+    private readonly errorCode: AppErrorCode,
   ) {}
 
   transform(value: unknown) {
     const parsed = this.schema.safeParse(value);
-    if (!parsed.success) throw new BadRequestException({ code: this.errorCode, details: validationDetails(parsed.error) });
+    if (!parsed.success) {
+      throw new ValidationException(this.errorCode, validationDetails(parsed.error));
+    }
     return parsed.data;
   }
 }

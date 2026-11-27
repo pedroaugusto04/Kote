@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { ProjectHasNotesException } from '../../../domain/exceptions/index.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 
@@ -14,7 +15,7 @@ export class DeleteProjectUseCase {
 
     const notes = await this.contentRepository.listNotesLite(userId);
     if (notes.some((note) => note.projectId === projectId)) {
-      throw new BadRequestException('project_has_notes');
+      throw new ProjectHasNotesException();
     }
 
     await this.contentRepository.deleteProject(userId, projectId);

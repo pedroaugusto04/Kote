@@ -72,7 +72,7 @@ test('normalizeManualNoteStatus retains sent when reminder is in the past and wa
 
 test('hasReminder and isReminderDispatchEligibleStatus work correctly', () => {
   assert.equal(hasReminder({ reminderAt: '2026-10-30T10:00:00Z' }), true);
-  assert.equal(hasReminder({ reminderDate: '2026-10-30' }), true);
+  assert.equal(hasReminder({ reminderAt: '' }), false);
   assert.equal(hasReminder({}), false);
   assert.equal(hasReminder(null), false);
 

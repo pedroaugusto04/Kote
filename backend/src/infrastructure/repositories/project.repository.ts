@@ -1,8 +1,9 @@
 import crypto from 'node:crypto';
 
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { eq, and, desc, sql, gt, lte, or, count } from 'drizzle-orm';
 
+import { AppErrorCode, ProjectNotFoundException, ValidationException } from '../../domain/exceptions/index.js';
 import { isUuid } from '../../domain/utils/uuid.utils.js';
 
 import type { ListProjectsInput } from '../../application/models/project-list.models.js';
@@ -179,11 +180,11 @@ export class PostgresProjectRepository {
 
   async getByIdOrThrow(userId: string, id: string) {
     if (!isUuid(id)) {
-      throw new NotFoundException('project_not_found');
+      throw new ProjectNotFoundException();
     }
     const project = await this.getById(userId, id);
     if (!project) {
-      throw new NotFoundException('project_not_found');
+      throw new ProjectNotFoundException();
     }
     return project;
   }
@@ -191,7 +192,7 @@ export class PostgresProjectRepository {
   async getBySlugOrThrow(userId: string, projectSlug: string) {
     const project = await this.getBySlug(userId, projectSlug);
     if (!project) {
-      throw new NotFoundException('project_not_found');
+      throw new ProjectNotFoundException();
     }
     return project;
   }
@@ -357,7 +358,7 @@ export class PostgresProjectRepository {
     
     const workspaceId = input.workspaceId;
     if (!workspaceId) {
-      throw new BadRequestException('invalid_workspace_query');
+      throw new ValidationException(AppErrorCode.InvalidWorkspaceQuery);
     }
 
     const result = await dbOrTx

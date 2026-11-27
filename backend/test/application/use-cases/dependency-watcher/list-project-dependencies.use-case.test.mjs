@@ -1,7 +1,7 @@
 import { WorkspaceScopeResolver } from '../../../../dist/application/services/content/workspace-scope-resolver.service.js';
 import test, { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { NotFoundException } from '@nestjs/common';
+import { ProjectNotFoundException } from '../../../../dist/domain/exceptions/index.js';
 
 import { ListProjectDependenciesUseCase } from '../../../../dist/application/use-cases/dependency-watcher/list-project-dependencies.use-case.js';
 import { DependencyEcosystem } from '../../../../dist/domain/enums/dependency.enums.js';
@@ -77,7 +77,7 @@ describe('Backend: List Project Dependencies Use Case', () => {
       async () => {
         await useCase.execute({ userId: 'user-1', projectId: 'missing', projectSlug: 'backend' });
       },
-      (err) => err instanceof NotFoundException,
+      (err) => err instanceof ProjectNotFoundException,
     );
   });
 

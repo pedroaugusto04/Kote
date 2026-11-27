@@ -5,7 +5,7 @@
  * A dedicated worker consumes these jobs asynchronously.
  */
 
-import { EmbeddingPriority } from '../../../domain/enums/knowledge.enums.js';
+import { type EmbeddingPriority } from '../../../domain/enums/knowledge.enums.js';
 
 export enum EmbeddingJobType {
   Index = 'index',

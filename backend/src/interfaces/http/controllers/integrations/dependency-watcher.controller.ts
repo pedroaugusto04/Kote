@@ -23,6 +23,12 @@ import {
   type CheckDependencyBody,
   type ToggleDependencyBody,
 } from '../../dto/dependency-watcher.dto.js';
+import {
+  toCheckDependencyInput,
+  toCheckProjectDependenciesInput,
+  toImportDependenciesOptions,
+  toMonitoredRepositoryIds,
+} from '../../mappers/dependency-watcher.mapper.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
 @ApiTags('Integrations')
@@ -66,7 +72,7 @@ export class DependencyWatcherController {
     const result = await this.saveDependencyMonitoredRepositoriesUseCase.execute(
       user.id,
       scope.workspaceSlug,
-      body.repositoryIds || [],
+      toMonitoredRepositoryIds(body),
     );
     return {
       ok: true,
@@ -87,10 +93,7 @@ export class DependencyWatcherController {
     const result = await this.importDependenciesFromGithubUseCase.execute(
       user.id,
       scope.workspaceSlug,
-      {
-        projectIds: body.projectIds,
-        repositoryIds: body.repositoryIds,
-      },
+      toImportDependenciesOptions(body),
     );
     return {
       ok: true,
@@ -141,12 +144,9 @@ export class DependencyWatcherController {
     @CurrentUser() user: AuthenticatedUser,
     @Scope() scope: WorkspaceScope,
   ) {
-    const result = await this.checkProjectDependenciesUseCase.execute({
-      userId: user.id,
-      projectId: scope.projectId!,
-      projectSlug: scope.projectSlug!,
-      workspaceId: scope.workspaceId,
-    });
+    const result = await this.checkProjectDependenciesUseCase.execute(
+      toCheckProjectDependenciesInput(user.id, scope),
+    );
     return {
       ok: true,
       data: result,
@@ -163,13 +163,9 @@ export class DependencyWatcherController {
     @Scope() scope: WorkspaceScope,
     @Body(new ZodValidationPipe(checkDependencyBodySchema, 'invalid_check_dependency_payload')) body: CheckDependencyBody,
   ) {
-    const result = await this.checkDependencyUseCase.execute({
-      userId: user.id,
-      dependencyId: body.dependencyId,
-      projectId: scope.projectId!,
-      projectSlug: scope.projectSlug!,
-      workspaceId: scope.workspaceId,
-    });
+    const result = await this.checkDependencyUseCase.execute(
+      toCheckDependencyInput(body, user.id, scope),
+    );
     return {
       ok: true,
       data: result,

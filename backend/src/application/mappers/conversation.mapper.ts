@@ -195,7 +195,14 @@ export function toNextAgentConversationState(input: {
   });
 }
 
-export function toFolderTreeNode(folder: any): ConversationAgentFolderContext {
+export interface FolderTreeItemLike {
+  id: string;
+  displayName: string;
+  fullSlugPath: string;
+  children: FolderTreeItemLike[];
+}
+
+export function toFolderTreeNode(folder: FolderTreeItemLike): ConversationAgentFolderContext {
   return {
     id: folder.id,
     displayName: folder.displayName,
@@ -320,13 +327,13 @@ function mediaForAttachment(state: AgentConversationState): boolean {
   return Boolean(state.media.fileName && state.media.dataBase64);
 }
 
-export function toAgentConversationResult(input: {
+export function toAgentConversationResult<TPayload = unknown, TIngest = unknown, TAnswer = unknown>(input: {
   action: AgentConversationAction;
   replyText: string;
   state: AgentConversationState;
-  payload?: any;
-  ingestResult?: any;
-  answerContext?: any;
+  payload?: TPayload;
+  ingestResult?: TIngest;
+  answerContext?: TAnswer;
   overrides?: {
     selectedProjectSlug?: string;
     selectedFolderId?: string;

@@ -1,13 +1,20 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException, OnModuleInit, UnauthorizedException } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 
+import {
+  AppErrorCode,
+  AvatarNotFoundException,
+  EmailAlreadyRegisteredException,
+  GoogleOAuthException,
+  InvalidCredentialsException,
+  InvalidSignupException,
+  MissingAccessTokenException,
+  UserNotFoundException,
+} from '../../../domain/exceptions/index.js';
 import type { KbUser } from '../../models/repository-records.models.js';
-import { GoogleOAuthGateway, type GoogleOAuthProfile } from '../../ports/auth/google-oauth.gateway.js';
+import type { GoogleOAuthProfile } from '../../ports/auth/google-oauth.gateway.js';
 import { WelcomeEmailService } from '../../use-cases/welcome-email.use-case.js';
-import { ObjectStorage } from '../../ports/notes/object-storage.js';
 import { SchemaMigrator, UserRepository } from '../../ports/auth/auth.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
-import { readEnvironment } from '../../../adapters/environment.js';
-import { BILLING_ERROR_MESSAGES } from '../../../domain/constants/billing.constants.js';
 import { JwtService, type TokenPair } from './jwt.service.js';
 import { PasswordService } from './password.service.js';
 import { GoogleOAuthService } from '../integrations/google-oauth.service.js';
@@ -54,34 +61,16 @@ function toAuthenticatedUser(user: KbUser): AuthenticatedUser {
 
 @Injectable()
 export class AuthService implements OnModuleInit {
-  private jwtService: JwtService;
-  private passwordService: PasswordService;
-  private googleOAuthService?: GoogleOAuthService;
-  private avatarService?: AvatarService;
-
   constructor(
     private readonly users: UserRepository,
     private readonly schemaMigrator: SchemaMigrator,
-    private readonly environmentProvider: RuntimeEnvironmentProvider = { read: () => readEnvironment() },
-    private readonly googleOAuth?: GoogleOAuthGateway,
-    private readonly objectStorage?: ObjectStorage,
-    private readonly welcomeEmail?: WelcomeEmailService,
-  ) {
-    const environment = this.environmentProvider.read();
-    this.jwtService = new JwtService(
-      environment.jwtAccessSecret,
-      environment.jwtRefreshSecret,
-      environment.accessTokenTtlSeconds,
-      environment.refreshTokenTtlSeconds,
-    );
-    this.passwordService = new PasswordService();
-    if (this.googleOAuth) {
-      this.googleOAuthService = new GoogleOAuthService(this.googleOAuth, this.environmentProvider);
-    }
-    if (this.objectStorage) {
-      this.avatarService = new AvatarService(this.objectStorage, this.environmentProvider);
-    }
-  }
+    private readonly environmentProvider: RuntimeEnvironmentProvider,
+    private readonly jwtService: JwtService,
+    private readonly passwordService: PasswordService,
+    private readonly googleOAuthService: GoogleOAuthService,
+    private readonly avatarService: AvatarService,
+    private readonly welcomeEmail: WelcomeEmailService,
+  ) {}
 
   async onModuleInit() {
     await this.schemaMigrator.migrate();
@@ -101,15 +90,12 @@ export class AuthService implements OnModuleInit {
     const email = String(input.email || '').trim().toLowerCase();
     const displayName = String(input.name || '').trim();
     const password = String(input.password || '');
-    if (!email || !email.includes('@')) throw new UnauthorizedException('invalid_signup');
-    if (password.length < 8) throw new UnauthorizedException('invalid_signup');
-    if (!displayName) throw new UnauthorizedException('invalid_signup');
+    if (!email || !email.includes('@')) throw new InvalidSignupException();
+    if (password.length < 8) throw new InvalidSignupException();
+    if (!displayName) throw new InvalidSignupException();
     const existing = await this.users.findUserByEmail(email);
     if (existing) {
-      throw new ConflictException({
-        code: 'email_already_registered',
-        details: { fieldErrors: { email: 'This email is already registered.' } },
-      });
+      throw new EmailAlreadyRegisteredException();
     }
     const user = await this.users.createUser({
       email,
@@ -118,64 +104,50 @@ export class AuthService implements OnModuleInit {
       role: 'user',
     });
     // Fire-and-forget welcome email (keeps signup fast and non-blocking)
-    if (this.welcomeEmail) {
-      this.welcomeEmail.sendWelcomeEmail(user).catch(() => undefined);
-    }
+    this.welcomeEmail.sendWelcomeEmail(user).catch(() => undefined);
     return { user: toAuthenticatedUser(user), tokens: this.jwtService.issueTokens(user) };
   }
 
   async login(email: string, password: string): Promise<{ user: AuthenticatedUser; tokens: TokenPair }> {
     const user = await this.users.findUserByEmail(String(email || '').trim().toLowerCase());
     if (!user?.passwordHash || !(await this.passwordService.verifyPassword(password, user.passwordHash))) {
-      throw new UnauthorizedException('invalid_credentials');
+      throw new InvalidCredentialsException();
     }
     return { user: toAuthenticatedUser(user), tokens: this.jwtService.issueTokens(user) };
   }
 
   startGoogleOAuth(input: { returnTo?: string; redirectUri?: string }): { authorizationUrl: string; stateCookie: string; stateCookieMaxAgeSeconds: number } {
-    if (!this.googleOAuthService) {
-      throw new BadRequestException('google_oauth_not_configured');
-    }
     return this.googleOAuthService.startGoogleOAuth(input);
   }
 
   async completeGoogleOAuth(input: { code?: string; state?: string; stateCookie?: string }): Promise<{ user: AuthenticatedUser; tokens: TokenPair; returnTo: string }> {
-    if (!this.googleOAuthService) {
-      throw new BadRequestException('google_oauth_not_configured');
-    }
     const { profile, returnTo } = await this.googleOAuthService.completeGoogleOAuth(input);
     const user = await this.findOrCreateGoogleUser(profile);
     return { user: toAuthenticatedUser(user), tokens: this.jwtService.issueTokens(user), returnTo };
   }
 
   googleOAuthErrorReturnTo(input: { state?: string; stateCookie?: string; errorCode: string; fallback?: string }): string {
-    if (!this.googleOAuthService) {
-      throw new BadRequestException('google_oauth_not_configured');
-    }
     return this.googleOAuthService.googleOAuthErrorReturnTo(input);
   }
 
   async refresh(refreshToken: string): Promise<{ user: AuthenticatedUser; tokens: TokenPair }> {
     const payload = this.jwtService.verifyRefreshToken(refreshToken);
     const user = await this.users.findUserById(payload.sub);
-    if (!user) throw new UnauthorizedException('user_not_found');
+    if (!user) throw new UserNotFoundException();
     return { user: toAuthenticatedUser(user), tokens: this.jwtService.issueTokens(user) };
   }
 
   async authenticateAccessToken(accessToken: string | undefined): Promise<AuthenticatedUser> {
-    if (!accessToken) throw new UnauthorizedException('missing_access_token');
+    if (!accessToken) throw new MissingAccessTokenException();
     const payload = this.jwtService.verifyAccessToken(accessToken);
     const user = await this.users.findUserById(payload.sub);
-    if (!user) throw new UnauthorizedException('user_not_found');
+    if (!user) throw new UserNotFoundException();
     return toAuthenticatedUser(user);
   }
 
   async uploadAvatar(input: { userId: string; buffer: Buffer; mimeType: string; sizeBytes: number }): Promise<AuthenticatedUser> {
     const user = await this.users.findUserById(input.userId);
-    if (!user) throw new UnauthorizedException('user_not_found');
-    if (!this.avatarService) {
-      throw new Error('avatar_storage_not_configured');
-    }
+    if (!user) throw new UserNotFoundException();
     const { storageKey, mimeType, sizeBytes } = await this.avatarService.uploadAvatar({
       userId: input.userId,
       buffer: input.buffer,
@@ -189,24 +161,22 @@ export class AuthService implements OnModuleInit {
       mimeType,
       sizeBytes,
     });
-    if (!updated) throw new UnauthorizedException('user_not_found');
+    if (!updated) throw new UserNotFoundException();
     return toAuthenticatedUser(updated);
   }
 
   async deleteAvatar(userId: string): Promise<AuthenticatedUser> {
     const user = await this.users.findUserById(userId);
-    if (!user) throw new UnauthorizedException('user_not_found');
+    if (!user) throw new UserNotFoundException();
     const updated = await this.users.clearUserAvatar(user.id);
-    if (!updated) throw new UnauthorizedException('user_not_found');
-    if (this.avatarService) {
-      await this.avatarService.deleteAvatar(user.avatar);
-    }
+    if (!updated) throw new UserNotFoundException();
+    await this.avatarService.deleteAvatar(user.avatar);
     return toAuthenticatedUser(updated);
   }
 
   async updateProfile(userId: string, input: { displayName?: string; cpfCnpj?: string }): Promise<AuthenticatedUser> {
     const user = await this.users.findUserById(userId);
-    if (!user) throw new UnauthorizedException(BILLING_ERROR_MESSAGES.USER_NOT_FOUND);
+    if (!user) throw new UserNotFoundException();
     
     const updated = await this.users.updateUser({
       userId,
@@ -214,17 +184,14 @@ export class AuthService implements OnModuleInit {
       cpfCnpj: input.cpfCnpj,
     });
     
-    if (!updated) throw new UnauthorizedException(BILLING_ERROR_MESSAGES.USER_NOT_FOUND);
+    if (!updated) throw new UserNotFoundException();
     return toAuthenticatedUser(updated);
   }
 
   async getAvatarContent(userId: string): Promise<AvatarContent> {
     const user = await this.users.findUserById(userId);
-    if (!user) throw new UnauthorizedException('user_not_found');
-    if (!user.avatar) throw new NotFoundException('avatar_not_found');
-    if (!this.avatarService) {
-      throw new Error('avatar_storage_not_configured');
-    }
+    if (!user) throw new UserNotFoundException();
+    if (!user.avatar) throw new AvatarNotFoundException();
     return this.avatarService.getAvatarContent(user.avatar);
   }
 
@@ -235,27 +202,26 @@ export class AuthService implements OnModuleInit {
   async exchangeConnectionToken(connectionToken: string): Promise<TokenPair> {
     const payload = this.jwtService.verifyConnectionToken(connectionToken);
     const user = await this.users.findUserById(payload.sub);
-    if (!user) throw new UnauthorizedException('user_not_found');
+    if (!user) throw new UserNotFoundException();
     return this.jwtService.issueTokens(user);
   }
 
   private async findOrCreateGoogleUser(profile: GoogleOAuthProfile): Promise<KbUser> {
-    if (!profile.email || !profile.emailVerified) throw new UnauthorizedException('google_email_not_verified');
-    const provider = this.googleOAuthService?.getProvider() || 'google';
+    if (!profile.email || !profile.emailVerified) throw new GoogleOAuthException(AppErrorCode.GoogleEmailNotVerified);
+    const provider = this.googleOAuthService.getProvider();
     const identity = await this.users.findAuthIdentity(provider, profile.providerUserId);
     if (identity) {
       const user = await this.users.findUserById(identity.userId);
-      if (!user) throw new UnauthorizedException('user_not_found');
+      if (!user) throw new UserNotFoundException();
       return user;
     }
     const existing = await this.users.findUserByEmail(profile.email);
     if (existing) {
       const existingGoogleIdentity = await this.users.findUserAuthIdentity(existing.id, provider);
       if (existingGoogleIdentity) return existing;
-      throw new ConflictException({
-        code: 'email_already_registered',
-        details: { fieldErrors: { email: 'This email is already registered. Sign in with your password before linking Google.' } },
-      });
+      throw new EmailAlreadyRegisteredException(
+        'This email is already registered. Sign in with your password before linking Google.',
+      );
     }
     const user = await this.users.createUser({
       email: profile.email,

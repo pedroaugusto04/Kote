@@ -1,7 +1,23 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import crypto from 'node:crypto';
 
 import { CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, ExternalIdentityType, ExternalIdKey, WorkspaceBindingField, ConnectionCallbackStatus, MissingCredentialError } from '../../../contracts/enums.js';
+import {
+  AiNotConfiguredException,
+  AppErrorCode,
+  ConnectionSessionNotFoundException,
+  CredentialNotFoundException,
+  ExternalIdentityAlreadyBoundException,
+  GithubAuthException,
+  GithubIntegrationException,
+  InvalidConnectionStateException,
+  MissingExternalIdentityException,
+  ProviderNotFoundException,
+  TelegramNotConfiguredException,
+  WorkspaceNotFoundException,
+  WorkspaceSlugRequiredException,
+  type AiNotConfiguredCode,
+} from '../../../domain/exceptions/index.js';
 import { slugifyProjectName, slugifyWorkspaceName } from '../../../domain/strings.js';
 import { encryptConfig } from '../../utils/security/credentials-crypto.utils.js';
 import type { IntegrationConnectionSessionRecord, WorkspaceRecord } from '../../models/repository-records.models.js';
@@ -84,9 +100,9 @@ export class IntegrationConnectionService {
     private readonly githubRepositoryResolution: GithubRepositoryResolutionService,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly githubIntegrationGateway: GithubIntegrationGateway,
-    @Optional() private readonly whatsappReplySender?: WhatsappReplySender,
-    @Optional() private readonly telegramMessageSender?: TelegramMessageSender,
-    private readonly logger: AppLogger = AppLogger.create(),
+    private readonly whatsappReplySender: WhatsappReplySender,
+    private readonly telegramMessageSender: TelegramMessageSender,
+    private readonly logger: AppLogger,
   ) {}
 
   private environment() {
@@ -99,12 +115,12 @@ export class IntegrationConnectionService {
     if (input.provider === IntegrationProvider.Whatsapp) return this.startWhatsappConnection(input.userId, workspace.workspaceSlug);
     if (input.provider === IntegrationProvider.Telegram) return this.startTelegramConnection(input.userId, workspace.workspaceSlug);
     if (input.provider in AI_PROVIDERS_REGISTRY) return this.activateAi(input.userId, workspace.workspaceSlug, input.provider as any);
-    throw new NotFoundException('provider_not_found');
+    throw new ProviderNotFoundException();
   }
 
   async session(input: { userId: string; provider: string; sessionId: string }) {
     const session = await this.sessions.findConnectionSession(input.sessionId);
-    if (!session || session.provider !== input.provider || session.userId !== input.userId) throw new NotFoundException('connection_session_not_found');
+    if (!session || session.provider !== input.provider || session.userId !== input.userId) throw new ConnectionSessionNotFoundException();
     return { ok: true as const, session: publicSession(session) };
   }
 
@@ -156,7 +172,7 @@ export class IntegrationConnectionService {
 
   async completeGithub(input: { userId: string; state: string; installationId: string }) {
     const session = await this.sessions.findActiveConnectionSessionByState(IntegrationProvider.GithubApp, sha256(input.state), new Date().toISOString());
-    if (!session || session.userId !== input.userId) throw new UnauthorizedException('invalid_connection_state');
+    if (!session || session.userId !== input.userId) throw new InvalidConnectionStateException();
     return this.completeGithubWithSession(session, input.installationId);
   }
 
@@ -178,7 +194,7 @@ export class IntegrationConnectionService {
     const environment = this.environment();
 
     if (!environment.githubAppId || !environment.githubAppPrivateKey) {
-      throw new BadRequestException('github_app_installation_not_configured');
+      throw new GithubIntegrationException(AppErrorCode.GithubAppInstallationNotConfigured);
     }
 
     // Verify the installation is accessible
@@ -188,7 +204,7 @@ export class IntegrationConnectionService {
     // Find existing GitHub App credential for this user
     const existingCredential = await this.credentials.findCredential(input.userId, '', IntegrationProvider.GithubApp);
     if (!existingCredential) {
-      throw new NotFoundException('github_integration_not_found');
+      throw new CredentialNotFoundException(AppErrorCode.GithubIntegrationNotFound);
     }
 
     // Update the credential and external identity
@@ -318,7 +334,7 @@ export class IntegrationConnectionService {
 
   private async startGithubConnection(userId: string, workspaceSlug: string, returnToPath?: string, browserOrigin?: string) {
     const environment = this.environment();
-    if (!environment.githubAppInstallUrl) throw new BadRequestException('github_app_install_url_not_configured');
+    if (!environment.githubAppInstallUrl) throw new GithubIntegrationException(AppErrorCode.GithubAppInstallUrlNotConfigured);
     const state = randomState();
     const session = await this.createConnectionSession({
       userId,
@@ -357,7 +373,7 @@ export class IntegrationConnectionService {
 
   private async startTelegramConnection(userId: string, workspaceSlug: string) {
     const environment = this.environment();
-    if (!environment.telegramBotToken) throw new BadRequestException('telegram_bot_token_not_configured');
+    if (!environment.telegramBotToken) throw new TelegramNotConfiguredException();
     return this.startCodeBasedConnection({
       userId,
       workspaceSlug,
@@ -371,10 +387,7 @@ export class IntegrationConnectionService {
     const environment = this.environment();
     const { config, configured, missing } = getAiProviderConfigStatus(provider, environment);
     if (!configured) {
-      throw new BadRequestException({
-        code: config.errorCode,
-        details: { missing },
-      });
+      throw new AiNotConfiguredException(config.errorCode as AiNotConfiguredCode, missing);
     }
     const credential = await this.credentials.upsertCredential({
       userId,
@@ -402,13 +415,13 @@ export class IntegrationConnectionService {
 
   private async verifyGithubInstallation(installationId: string): Promise<GithubInstallation> {
     const environment = this.environment();
-    if (!environment.githubAppId || !environment.githubAppPrivateKey) throw new BadRequestException('github_app_installation_not_configured');
+    if (!environment.githubAppId || !environment.githubAppPrivateKey) throw new GithubIntegrationException(AppErrorCode.GithubAppInstallationNotConfigured);
     const token = await this.githubIntegrationGateway.fetchInstallationToken({
       appId: environment.githubAppId,
       privateKey: environment.githubAppPrivateKey,
       installationId,
     });
-    if (!token) throw new UnauthorizedException('github_installation_not_accessible');
+    if (!token) throw new GithubAuthException(AppErrorCode.GithubInstallationNotAccessible);
     const repositories = await this.githubIntegrationGateway.fetchInstallationRepositories({
       appId: environment.githubAppId,
       privateKey: environment.githubAppPrivateKey,
@@ -459,7 +472,7 @@ export class IntegrationConnectionService {
 
   private async completeCodeBasedConnection(input: { code: string; externalId: string; spec: CodeBasedConnectionSpec }) {
     const externalId = input.externalId.trim();
-    if (!externalId) throw new UnauthorizedException('missing_external_identity');
+    if (!externalId) throw new MissingExternalIdentityException();
     const session = await this.requireCodeSession(input.spec.provider, input.code);
     await this.assertExternalIdentityAvailable(input.spec.externalProvider, input.spec.identityType, externalId, session.userId, session.workspaceSlug);
     const credential = await this.upsertConnectedCredential({
@@ -485,19 +498,19 @@ export class IntegrationConnectionService {
     const consumed = await this.consumeSessionAsConnected(session.id, { connectedAccount: externalId });
 
     try {
-      if (input.spec.provider === IntegrationProvider.Whatsapp && this.whatsappReplySender) {
+      if (input.spec.provider === IntegrationProvider.Whatsapp) {
         await this.whatsappReplySender.sendText({
           chatJid: externalId,
           text: WHATSAPP_INTRO_MESSAGE,
         });
-      } else if (input.spec.provider === IntegrationProvider.Telegram && this.telegramMessageSender) {
+      } else if (input.spec.provider === IntegrationProvider.Telegram) {
         await this.telegramMessageSender.sendText({
           chatId: externalId,
           text: TELEGRAM_INTRO_MESSAGE,
         });
       }
     } catch (error) {
-      this.logger?.error('connection.introduction_send_failed', {
+      this.logger.error('connection.introduction_send_failed', {
         provider: input.spec.provider,
         externalId,
         error: error instanceof Error ? error.message : String(error),
@@ -515,16 +528,16 @@ export class IntegrationConnectionService {
 
   private async requireCodeSession(provider: CodeBasedProvider, code: string) {
     const normalizedCode = code.trim().toUpperCase();
-    if (!normalizedCode) throw new NotFoundException('connection_session_not_found');
+    if (!normalizedCode) throw new ConnectionSessionNotFoundException();
     const session = await this.sessions.findActiveConnectionSessionByCode(provider, sha256(normalizedCode), new Date().toISOString());
-    if (!session) throw new NotFoundException('connection_session_not_found');
+    if (!session) throw new ConnectionSessionNotFoundException();
     return session;
   }
 
   private async assertExternalIdentityAvailable(provider: string, identityType: string, externalId: string, userId: string, workspaceSlug?: string) {
     const existing = await this.externalIdentities.findExternalIdentity(provider, identityType, externalId);
     if (existing && (existing.userId !== userId || (workspaceSlug && existing.workspaceSlug !== workspaceSlug))) {
-      throw new ConflictException('external_identity_already_bound');
+      throw new ExternalIdentityAlreadyBoundException();
     }
   }
 
@@ -587,9 +600,9 @@ export class IntegrationConnectionService {
 
   private async requireWorkspace(userId: string, workspaceSlug: string) {
     const normalized = slugifyWorkspaceName(workspaceSlug);
-    if (!normalized) throw new BadRequestException('workspace_slug_required');
+    if (!normalized) throw new WorkspaceSlugRequiredException();
     const workspace = (await this.content.listWorkspaces(userId)).find((item) => item.workspaceSlug === normalized);
-    if (!workspace) throw new NotFoundException('workspace_not_found');
+    if (!workspace) throw new WorkspaceNotFoundException();
     return workspace;
   }
 

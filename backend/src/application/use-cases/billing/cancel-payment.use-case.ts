@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { SubscriptionCancellationService } from '../../services/billing/SubscriptionCancellationService.js';
+import { SubscriptionCancellationService } from '../../services/billing/subscription-cancellation.service.js';
 import { BillingEventBus } from '../../event-buses/billing-event.bus.js';
 
 @Injectable()

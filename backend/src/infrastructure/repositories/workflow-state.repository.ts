@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { eq, and, sql, inArray } from 'drizzle-orm';
 
-import { ConversationStateRepository, ReminderDispatchRepository } from '../../application/ports/reminders/workflow-state.repository.js';
-import { ReminderDispatchMode } from '../../contracts/enums.js';
+import { ConversationStateRepository, type ReminderDispatchRepository } from '../../application/ports/reminders/workflow-state.repository.js';
+import { type ReminderDispatchMode } from '../../contracts/enums.js';
 import type { RecordReminderDispatchFailureInput, ReminderDispatchRetryKey } from '../../application/models/reminder-dispatch.models.js';
 import { conversationStateFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';

@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { AiProvider, CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
 import { buildWhatsappHighSeverityCodeReviewMessage } from '../../../domain/notifications.js';
@@ -10,7 +10,7 @@ import { GithubIntegrationGateway } from '../../ports/integrations/github-integr
 import { WhatsappReplySender } from '../../ports/integrations/whatsapp-reply.sender.js';
 import { ReviewAnalysisGateway } from '../../ports/projects/review-analysis.port.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
-import { absoluteUrl } from '../../utils/integration/integration-status.utils.js';
+import { absoluteUrl } from '../../../domain/utils/url.utils.js';
 import { WorkspaceScopeResolver } from '../content/workspace-scope-resolver.service.js';
 import { IngestEntryUseCase } from '../../use-cases/ingest/ingest-entry.use-case.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
@@ -44,15 +44,15 @@ export class ProcessGithubPushService {
     private readonly contentRepository: ContentRepository,
     private readonly logger: AppLogger,
     private readonly scopeResolver: WorkspaceScopeResolver,
-    @Optional() private readonly syncProjectFilesService?: SyncProjectFilesService,
-    @Optional() private readonly credentials?: CredentialRepository,
-    @Optional() private readonly whatsappReplySender?: WhatsappReplySender,
-    @Optional() private readonly notifyHighSeverity?: NotifyHighSeverityFindingsService,
-    @Optional() private readonly gitCommitRepository?: GitCommitRepository,
+    private readonly syncProjectFilesService: SyncProjectFilesService,
+    private readonly credentials: CredentialRepository,
+    private readonly whatsappReplySender: WhatsappReplySender,
+    private readonly notifyHighSeverity: NotifyHighSeverityFindingsService,
+    private readonly gitCommitRepository: GitCommitRepository,
   ) {}
 
   async execute(input: ProcessGithubPushInput) {
-    if (input.projectSlug && this.syncProjectFilesService) {
+    if (input.projectSlug) {
       this.syncProjectFilesService.syncProjectBySlug(input.userId, input.projectSlug).catch((err) => {
         this.logger.warn('Failed to sync project files on push:', err);
       });
@@ -86,12 +86,10 @@ export class ProcessGithubPushService {
       };
     }
 
-    const aiEnabled = true;
-
     this.logger.info('github_push_review_start', {
       repository: repoFullName,
       projectSlug: input.projectSlug,
-      aiEnabled,
+      aiEnabled: true,
       quotaOk,
       userId: input.userId,
       source: input.quotaSource || 'github_push',
@@ -105,7 +103,7 @@ export class ProcessGithubPushService {
 
     const payload = await buildGithubReviewEvent(
       webhookInput,
-      aiEnabled ? environment : { ...environment, reviewAiProvider: AiProvider.None, reviewAiApiKey: '' },
+      environment,
       {
         githubIntegrationGateway: this.githubIntegrationGateway,
         reviewAnalysisGateway: this.reviewAnalysisGateway,
@@ -124,9 +122,7 @@ export class ProcessGithubPushService {
 
     const ingestResult = await this.ingestEntryUseCase.execute(resolvedPayload, input.userId, input.workspaceSlug);
 
-    if (this.gitCommitRepository) {
-      await this.syncPushCommitsToRepository(input, body, ingestResult.noteId);
-    }
+    await this.syncPushCommitsToRepository(input, body, ingestResult.noteId);
 
     this.logger.info('github_push_review_ingested', {
       repository: repoFullName,
@@ -143,14 +139,12 @@ export class ProcessGithubPushService {
       environment.publicBaseUrl,
     );
 
-    if (this.notifyHighSeverity) {
-      const hasHighSeverityFinding = hasHighSeverityReviewFindings(resolvedPayload.content.sections.reviewFindings);
-      if (hasHighSeverityFinding) {
-        const noteLink = ingestResult.noteId && environment.publicBaseUrl
-          ? absoluteUrl(environment.publicBaseUrl, `/vault/${encodeURIComponent(ingestResult.noteId)}`)
-          : '';
-        void this.notifyHighSeverity.sendEmailForHighFindings(resolvedPayload, input.userId, noteLink);
-      }
+    const hasHighSeverityFinding = hasHighSeverityReviewFindings(resolvedPayload.content.sections.reviewFindings);
+    if (hasHighSeverityFinding) {
+      const noteLink = ingestResult.noteId && environment.publicBaseUrl
+        ? absoluteUrl(environment.publicBaseUrl, `/vault/${encodeURIComponent(ingestResult.noteId)}`)
+        : '';
+      void this.notifyHighSeverity.sendEmailForHighFindings(resolvedPayload, input.userId, noteLink);
     }
 
     return {
@@ -199,7 +193,7 @@ export class ProcessGithubPushService {
     body: GithubPushPayload,
     noteId?: string,
   ): Promise<void> {
-    if (!this.gitCommitRepository || !input.projectSlug) return;
+    if (!input.projectSlug) return;
     try {
       const project = await this.contentRepository.getProjectBySlug(input.userId, input.projectSlug);
       if (!project || !project.workspaceId) return;
@@ -282,7 +276,6 @@ export class ProcessGithubPushService {
   ): Promise<{ sent: boolean; skipped?: string; error?: string }> {
     const hasHighSeverityFinding = hasHighSeverityReviewFindings(payload.content.sections.reviewFindings);
     if (!hasHighSeverityFinding) return { sent: false, skipped: 'no_high_severity_findings' };
-    if (!this.credentials || !this.whatsappReplySender) return { sent: false, skipped: 'whatsapp_not_configured' };
 
     const credential = await this.credentials.findCredential(userId, workspaceSlug, IntegrationProvider.Whatsapp);
     const connected = Boolean(credential && credential.status === CredentialRecordStatus.Connected && !credential.revokedAt);

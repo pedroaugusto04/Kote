@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { type Channel } from 'amqplib';
 
-import { BackfillQueuePublisher } from '../../application/ports/integrations/backfill-queue.publisher.js';
+import { type BackfillQueuePublisher } from '../../application/ports/integrations/backfill-queue.publisher.js';
 import { AppLogger } from '../../observability/logger.js';
 import { BaseRabbitMqPublisher } from './base-rabbitmq.publisher.js';
 

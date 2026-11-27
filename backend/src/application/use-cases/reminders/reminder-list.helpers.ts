@@ -2,15 +2,12 @@ import { KnowledgeStatus, ReminderBoardColumnKey } from '../../../contracts/enum
 import { reminderBoardColumnKeys } from '../../models/reminder-board.models.js';
 import type { ReminderBoardCard, ReminderBoardResponse } from '../../models/reminder.models.js';
 
-export function reminderTimestamp(reminder: { reminderAt?: string; reminderDate?: string; reminderTime?: string }) {
+export function reminderTimestamp(reminder: { reminderAt?: string }) {
   const direct = Date.parse(reminder.reminderAt || '');
-  if (!Number.isNaN(direct)) return direct;
-  const fallback = Date.parse(`${reminder.reminderDate || ''}T${reminder.reminderTime || '00:00'}:00.000Z`);
-  if (!Number.isNaN(fallback)) return fallback;
-  return Number.MAX_SAFE_INTEGER;
+  return Number.isNaN(direct) ? Number.MAX_SAFE_INTEGER : direct;
 }
 
-function reminderIsFuture(reminder: { reminderAt?: string; reminderDate?: string; reminderTime?: string }, now = Date.now()): boolean {
+function reminderIsFuture(reminder: { reminderAt?: string }, now = Date.now()): boolean {
   return reminderTimestamp(reminder) > now;
 }
 
@@ -21,7 +18,7 @@ function reminderStatusRank(status: string) {
   return 3; // archived or other
 }
 
-export function sortRemindersBySchedule<T extends { id: string; title: string; status: string; reminderAt?: string; reminderDate?: string; reminderTime?: string }>(
+export function sortRemindersBySchedule<T extends { id: string; title: string; status: string; reminderAt?: string }>(
   reminders: T[],
 ) {
   return [...reminders].sort((left, right) => reminderStatusRank(left.status) - reminderStatusRank(right.status)

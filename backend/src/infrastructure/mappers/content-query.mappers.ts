@@ -5,8 +5,8 @@ import type { VaultNoteDetail } from '../../application/models/vault-note.models
 import { resolveCanonicalTypeFromCategories } from '../../domain/note-classification.js';
 import { EventType, SourceChannel } from '../../contracts/enums.js';
 import type { NoteSynthesisRecord } from '../../application/models/note-synthesis.models.js';
-import crypto from 'node:crypto';
 import { NoteSynthesisStatus } from '../../application/constants/ai-session-synthesis.constants.js';
+import { isSynthesisFresh } from '../../application/services/content/ai-session-synthesis-transcript.service.js';
 import { noteSummary } from '../../application/mappers/vault-note.mapper.js';
 
 function attachmentContentPath(noteId: string, attachmentId: string): string {
@@ -59,15 +59,18 @@ export function noteDetail(
     editor: null,
     navigation: navigation || { previous: null, next: null },
     // Never expose a completed synthesis for a different transcript version.
-    synthesis: synthesis ? {
-      status: synthesis.status === NoteSynthesisStatus.Completed && synthesis.sourceHash !== crypto.createHash('sha256').update(record.markdown || '').digest('hex') ? NoteSynthesisStatus.Pending : synthesis.status,
-      mode: synthesis.mode,
-      overview: synthesis.status === NoteSynthesisStatus.Completed && synthesis.sourceHash !== crypto.createHash('sha256').update(record.markdown || '').digest('hex') ? '' : synthesis.overview,
-      memory: synthesis.status === NoteSynthesisStatus.Completed && synthesis.sourceHash !== crypto.createHash('sha256').update(record.markdown || '').digest('hex') ? [] : synthesis.memory,
-      availableAt: synthesis.availableAt || null,
-      generatedAt: synthesis.generatedAt,
-      sourceHash: synthesis.sourceHash,
-    } : null,
+    synthesis: synthesis ? (() => {
+      const isStaleCompleted = synthesis.status === NoteSynthesisStatus.Completed && !isSynthesisFresh(synthesis, record.markdown);
+      return {
+        status: isStaleCompleted ? NoteSynthesisStatus.Pending : synthesis.status,
+        mode: synthesis.mode,
+        overview: isStaleCompleted ? '' : synthesis.overview,
+        memory: isStaleCompleted ? [] : synthesis.memory,
+        availableAt: synthesis.availableAt || null,
+        generatedAt: synthesis.generatedAt,
+        sourceHash: synthesis.sourceHash,
+      };
+    })() : null,
   };
 }
 

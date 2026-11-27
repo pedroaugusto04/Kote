@@ -1,4 +1,9 @@
-import { BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  AppErrorCode,
+  AppException,
+  GatewayCustomerNotFoundException,
+  PaymentGatewayException,
+} from '../../../../domain/exceptions/index.js';
 import { toMoneyNumber, PLAN_PRICE_SCALE } from '../../../../domain/utils/money.utils.js';
 
 export const ASAAS_SANDBOX_BASE_URL = 'https://api-sandbox.asaas.com/v3';
@@ -20,21 +25,30 @@ export function getErrorMessage(err: unknown): string {
   return String(err);
 }
 
-export function asaasToAppError(err: any): HttpException {
-  if (err instanceof HttpException) return err;
+export function asaasToAppError(err: any): AppException {
+  if (err instanceof AppException) return err;
 
   const gatewayError = err || {};
   const code = gatewayError.code;
+  const cause = err instanceof Error ? err : undefined;
 
   if (code === 'ECONNABORTED') {
-    return new HttpException({ code: 'payment_gateway_timeout' }, HttpStatus.GATEWAY_TIMEOUT);
+    return new PaymentGatewayException(AppErrorCode.PaymentGatewayTimeout, {
+      provider: 'asaas',
+      cause,
+    });
   }
 
   if (code === 'ENOTFOUND' || code === 'ECONNREFUSED' || code === 'ECONNRESET' || code === 'ETIMEDOUT') {
-    return new HttpException({ code: 'payment_gateway_unavailable' }, HttpStatus.BAD_GATEWAY);
+    return new PaymentGatewayException(AppErrorCode.PaymentGatewayUnavailable, {
+      provider: 'asaas',
+      cause,
+    });
   }
 
-  const status = gatewayError.response?.status;
+  const status = typeof gatewayError.response?.status === 'number'
+    ? gatewayError.response.status
+    : undefined;
   const data = gatewayError.response?.data;
 
   const message =
@@ -43,7 +57,23 @@ export function asaasToAppError(err: any): HttpException {
     data?.error ||
     'Payment gateway failure. Please try again.';
 
-  return new HttpException({ code: 'asaas_payment_failed', details: { originalMessage: message } }, status || HttpStatus.BAD_REQUEST);
+  const responseBody = typeof data === 'string'
+    ? data
+    : data !== undefined && data !== null
+      ? JSON.stringify(data)
+      : undefined;
+
+  if (status === 404 && typeof message === 'string' && /customer|cliente/i.test(message)) {
+    return new GatewayCustomerNotFoundException(message);
+  }
+
+  return new PaymentGatewayException(AppErrorCode.AsaasPaymentFailed, {
+    provider: 'asaas',
+    status,
+    responseBody,
+    clientMessage: typeof message === 'string' ? message : undefined,
+    cause,
+  });
 }
 
 

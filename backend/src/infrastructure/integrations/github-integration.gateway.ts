@@ -20,7 +20,7 @@ import {
   type GithubCommitDiff,
   type GithubInstallationRepository,
   type GithubCreatedIssue,
-  GithubManifestFile,
+  type GithubManifestFile,
 } from '../../application/ports/integrations/github-integration.port.js';
 
 

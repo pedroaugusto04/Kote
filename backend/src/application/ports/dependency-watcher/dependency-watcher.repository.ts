@@ -1,4 +1,4 @@
-import { DependencyEcosystem } from '../../../contracts/enums.js';
+import { type DependencyEcosystem } from '../../../contracts/enums.js';
 
 export type DependencyWatchRecord = {
   id: string;

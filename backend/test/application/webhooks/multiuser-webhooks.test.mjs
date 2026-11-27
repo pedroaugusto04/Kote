@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import { ProcessGithubPushService } from '../../../dist/application/services/integrations/process-github-push.service.js';
 import { GithubRepositoryResolutionService } from '../../../dist/application/services/integrations/github-repository-resolution.service.js';
 import { AiEntitlementService } from '../../../dist/application/services/ai/ai-entitlement.service.js';
+import { GithubPrCommentSyncService } from '../../../dist/application/use-cases/webhooks/github/github-pr-comment-sync.service.js';
 import { BuildDashboardUseCase, CreateWorkspaceUseCase, HandleGithubPushUseCase, HandleGithubPullRequestUseCase, IngestEntryUseCase, RefreshReminderStatusesUseCase } from '../../../dist/application/use-cases/index.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
@@ -192,6 +193,11 @@ test('github app webhook resolves user by installation id and rejects unknown id
     repositories.contentRepository,
     loggerMock,
     repositories.scopeResolver,
+    { syncProjectBySlug: async () => undefined },
+    repositories.credentialRepository,
+    { sendText: async () => undefined },
+    { notify: async () => undefined },
+    repositories.gitCommitRepository,
   );
   const unusedGithubGateway = {
     verifyWebhookSignature() { },
@@ -325,6 +331,11 @@ test('github push resolves project by explicit repository mapping', async (t) =>
     repositories.contentRepository,
     loggerMock,
     repositories.scopeResolver,
+    { syncProjectBySlug: async () => undefined },
+    repositories.credentialRepository,
+    { sendText: async () => undefined },
+    { notify: async () => undefined },
+    repositories.gitCommitRepository,
   );
   const githubRepositoryResolution = new GithubRepositoryResolutionService(
     repositories.contentRepository,
@@ -556,6 +567,7 @@ test('github pull request webhook processes event, searches context, and posts c
     repositories.scopeResolver,);
 
   const prLoggerMock = { info() {}, warn() {}, error() {}, debug() {} };
+  const prCommentSync = new GithubPrCommentSyncService(githubPrGatewayMock, ingestMock, prLoggerMock);
   const handler = new HandleGithubPullRequestUseCase(
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
@@ -564,7 +576,7 @@ test('github pull request webhook processes event, searches context, and posts c
     prReviewAgentGatewayMock,
     prReviewAgentToolsServiceMock,
     new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
-    ingestMock,
+    prCommentSync,
     githubRepositoryResolution,
     repositories.contentRepository,
     prLoggerMock,
@@ -709,6 +721,7 @@ test('github pull request webhook processes diff and posts comment even when sem
   );
   const prLoggerMock = { info() {}, warn() {}, error() {}, debug() {} };
 
+  const prCommentSync = new GithubPrCommentSyncService(githubPrGatewayMock, ingestMock, prLoggerMock);
   const handler = new HandleGithubPullRequestUseCase(
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
@@ -717,7 +730,7 @@ test('github pull request webhook processes diff and posts comment even when sem
     prReviewAgentGatewayMock,
     prReviewAgentToolsServiceMock,
     new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
-    ingestMock,
+    prCommentSync,
     githubRepositoryResolution,
     repositories.contentRepository,
     prLoggerMock,
@@ -796,6 +809,7 @@ test('github pull request webhook skips processing when title contains skip-kote
     githubPrGatewayMock,
   );
   const prLoggerMock = { info() {}, warn() {}, error() {}, debug() {} };
+  const prCommentSync = new GithubPrCommentSyncService(githubPrGatewayMock, null, prLoggerMock);
   const handler = new HandleGithubPullRequestUseCase(
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
@@ -804,7 +818,7 @@ test('github pull request webhook skips processing when title contains skip-kote
     {},
     {},
     new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
-    null,
+    prCommentSync,
     githubRepositoryResolution,
     repositories.contentRepository,
     prLoggerMock,
@@ -883,6 +897,7 @@ test('github pull request webhook skips posting comments when a comment already 
     githubPrGatewayMock,
   );
   const prLoggerMock = { info() {}, warn() {}, error() {}, debug() {} };
+  const prCommentSync = new GithubPrCommentSyncService(githubPrGatewayMock, null, prLoggerMock);
   const handler = new HandleGithubPullRequestUseCase(
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
@@ -891,7 +906,7 @@ test('github pull request webhook skips posting comments when a comment already 
     {},
     {},
     new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
-    null,
+    prCommentSync,
     githubRepositoryResolution,
     repositories.contentRepository,
     prLoggerMock,

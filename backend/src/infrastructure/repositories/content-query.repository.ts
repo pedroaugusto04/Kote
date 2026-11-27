@@ -22,6 +22,12 @@ import { PostgresNoteRepository } from './note.repository.js';
 import { PostgresAttachmentRepository } from './attachment.repository.js';
 import { SPECIAL_PROJECT_SLUGS, isSpecialProjectSlug } from '../../domain/projects.js';
 import { PostgresNoteSynthesisRepository } from './note-synthesis.repository.js';
+import {
+  NOTE_ATTACHMENT_COUNT_SELECT_COLUMN,
+  NOTE_CATEGORIES_SELECT_COLUMN,
+  NOTE_LINKED_COMMITS_SELECT_COLUMN,
+  NOTE_SELECT_COLUMNS,
+} from './projections/note.projections.js';
 import { isUuid } from '../../domain/utils/uuid.utils.js';
 import { buildPaginationMeta } from '../../contracts/pagination.js';
 
@@ -45,7 +51,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     private readonly contentObjectStorage: ContentObjectStorageService,
     private readonly noteRepository: PostgresNoteRepository,
     private readonly attachmentRepository: PostgresAttachmentRepository,
-    private readonly synthesisRepository?: PostgresNoteSynthesisRepository,
+    private readonly synthesisRepository: PostgresNoteSynthesisRepository,
   ) {
     super();
   }
@@ -135,69 +141,11 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
 
     const baseQuery = db
       .select({
-        id: notes.id,
-        userId: notes.userId,
-        path: notes.path,
-        title: notes.title,
-        projectId: notes.projectId,
-        workspaceId: notes.workspaceId,
-        projectSlug: projects.projectSlug,
-        workspaceSlug: workspaces.workspaceSlug,
-        folderId: notes.folderId,
-        status: notes.status,
-        tags: notes.tags,
-        occurredAt: notes.occurredAt,
-        sourceChannel: notes.sourceChannel,
-        source: notes.source,
-        summary: notes.summary,
-        markdownStorageKey: notes.markdownStorageKey,
-        metadata: notes.metadata,
-        sessionId: notes.sessionId,
-        reminderAt: notes.reminderAt,
-        isPinned: notes.isPinned,
-        createdAt: notes.createdAt,
-        updatedAt: notes.updatedAt,
+        ...NOTE_SELECT_COLUMNS,
         tsRank: tsRankField,
-        attachmentCount: count(attachments.id).as('attachment_count'),
-        categories: sql<any[]>`COALESCE(
-          json_agg(
-            json_build_object(
-              'id', ${categories.id},
-              'user_id', ${categories.userId},
-              'workspace_id', ${categories.workspaceId},
-              'name', ${categories.name},
-              'color', ${categories.color},
-              'icon', ${categories.icon},
-              'is_system', ${categories.isSystem},
-              'created_at', ${categories.createdAt},
-              'updated_at', ${categories.updatedAt}
-            )
-          ) FILTER (WHERE ${categories.id} IS NOT NULL),
-          '[]'::json
-        )`.as('categories'),
-        linkedCommits: sql<any[]>`COALESCE(
-          (
-            SELECT json_agg(
-              json_build_object(
-                'id', gc.id,
-                'commit_sha', gc.commit_sha,
-                'short_sha', left(gc.commit_sha, 7),
-                'message', gc.message,
-                'author_name', gc.author_name,
-                'committed_at', gc.committed_at,
-                'branch', nullif(gc.branch, ''),
-                'html_url', nullif(gc.commit_url, ''),
-                'link_source', ncl.link_source,
-                'matched_files', ncl.matched_files
-              )
-              ORDER BY gc.committed_at DESC
-            )
-            FROM kb_note_commit_links ncl
-            JOIN kb_git_commits gc ON gc.id = ncl.commit_id
-            WHERE ncl.note_id = ${notes.id} AND ncl.user_id = ${notes.userId}
-          ),
-          '[]'::json
-        )`.as('linked_commits'),
+        attachmentCount: NOTE_ATTACHMENT_COUNT_SELECT_COLUMN,
+        categories: NOTE_CATEGORIES_SELECT_COLUMN,
+        linkedCommits: NOTE_LINKED_COMMITS_SELECT_COLUMN,
       })
       .from(notes)
       .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
@@ -239,68 +187,10 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     const db = this.database.getDb();
     const result = await db
       .select({
-        id: notes.id,
-        userId: notes.userId,
-        path: notes.path,
-        title: notes.title,
-        projectId: notes.projectId,
-        workspaceId: notes.workspaceId,
-        projectSlug: projects.projectSlug,
-        workspaceSlug: workspaces.workspaceSlug,
-        folderId: notes.folderId,
-        status: notes.status,
-        tags: notes.tags,
-        occurredAt: notes.occurredAt,
-        sourceChannel: notes.sourceChannel,
-        source: notes.source,
-        summary: notes.summary,
-        markdownStorageKey: notes.markdownStorageKey,
-        metadata: notes.metadata,
-        sessionId: notes.sessionId,
-        reminderAt: notes.reminderAt,
-        isPinned: notes.isPinned,
-        createdAt: notes.createdAt,
-        updatedAt: notes.updatedAt,
-        attachmentCount: count(attachments.id).as('attachment_count'),
-        categories: sql<any[]>`COALESCE(
-          json_agg(
-            json_build_object(
-              'id', ${categories.id},
-              'user_id', ${categories.userId},
-              'workspace_id', ${categories.workspaceId},
-              'name', ${categories.name},
-              'color', ${categories.color},
-              'icon', ${categories.icon},
-              'is_system', ${categories.isSystem},
-              'created_at', ${categories.createdAt},
-              'updated_at', ${categories.updatedAt}
-            )
-          ) FILTER (WHERE ${categories.id} IS NOT NULL),
-          '[]'::json
-        )`.as('categories'),
-        linkedCommits: sql<any[]>`COALESCE(
-          (
-            SELECT json_agg(
-              json_build_object(
-                'id', gc.id,
-                'commit_sha', gc.commit_sha,
-                'short_sha', left(gc.commit_sha, 7),
-                'message', gc.message,
-                'author_name', gc.author_name,
-                'committed_at', gc.committed_at,
-                'branch', nullif(gc.branch, ''),
-                'html_url', nullif(gc.commit_url, ''),
-                'link_source', ncl.link_source,
-                'matched_files', ncl.matched_files
-              )
-              ORDER BY gc.committed_at DESC
-            )
-            FROM kb_note_commit_links ncl
-            JOIN kb_git_commits gc ON gc.id = ncl.commit_id
-            WHERE ncl.note_id = ${notes.id} AND ncl.user_id = ${notes.userId}
-          ),
-          '[]'::json
-        )`.as('linked_commits'),
+        ...NOTE_SELECT_COLUMNS,
+        attachmentCount: NOTE_ATTACHMENT_COUNT_SELECT_COLUMN,
+        categories: NOTE_CATEGORIES_SELECT_COLUMN,
+        linkedCommits: NOTE_LINKED_COMMITS_SELECT_COLUMN,
       })
       .from(notes)
       .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
@@ -341,67 +231,9 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     const db = this.database.getDb();
     const result = await db
       .select({
-        id: notes.id,
-        userId: notes.userId,
-        path: notes.path,
-        title: notes.title,
-        projectId: notes.projectId,
-        workspaceId: notes.workspaceId,
-        projectSlug: projects.projectSlug,
-        workspaceSlug: workspaces.workspaceSlug,
-        folderId: notes.folderId,
-        status: notes.status,
-        tags: notes.tags,
-        occurredAt: notes.occurredAt,
-        sourceChannel: notes.sourceChannel,
-        source: notes.source,
-        summary: notes.summary,
-        markdownStorageKey: notes.markdownStorageKey,
-        metadata: notes.metadata,
-        sessionId: notes.sessionId,
-        reminderAt: notes.reminderAt,
-        isPinned: notes.isPinned,
-        createdAt: notes.createdAt,
-        updatedAt: notes.updatedAt,
-        categories: sql<any[]>`COALESCE(
-          json_agg(
-            json_build_object(
-              'id', ${categories.id},
-              'user_id', ${categories.userId},
-              'workspace_id', ${categories.workspaceId},
-              'name', ${categories.name},
-              'color', ${categories.color},
-              'icon', ${categories.icon},
-              'is_system', ${categories.isSystem},
-              'created_at', ${categories.createdAt},
-              'updated_at', ${categories.updatedAt}
-            )
-          ) FILTER (WHERE ${categories.id} IS NOT NULL),
-          '[]'::json
-        )`.as('categories'),
-        linkedCommits: sql<any[]>`COALESCE(
-          (
-            SELECT json_agg(
-              json_build_object(
-                'id', gc.id,
-                'commit_sha', gc.commit_sha,
-                'short_sha', left(gc.commit_sha, 7),
-                'message', gc.message,
-                'author_name', gc.author_name,
-                'committed_at', gc.committed_at,
-                'branch', nullif(gc.branch, ''),
-                'html_url', nullif(gc.commit_url, ''),
-                'link_source', ncl.link_source,
-                'matched_files', ncl.matched_files
-              )
-              ORDER BY gc.committed_at DESC
-            )
-            FROM kb_note_commit_links ncl
-            JOIN kb_git_commits gc ON gc.id = ncl.commit_id
-            WHERE ncl.note_id = ${notes.id} AND ncl.user_id = ${notes.userId}
-          ),
-          '[]'::json
-        )`.as('linked_commits'),
+        ...NOTE_SELECT_COLUMNS,
+        categories: NOTE_CATEGORIES_SELECT_COLUMN,
+        linkedCommits: NOTE_LINKED_COMMITS_SELECT_COLUMN,
       })
       .from(notes)
       .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
@@ -464,30 +296,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
 
     const pagination = buildPaginationMeta({ page: input.page, pageSize: input.pageSize }, Number(total));
     const rowsQuery = db
-      .select({
-        id: notes.id,
-        userId: notes.userId,
-        path: notes.path,
-        title: notes.title,
-        projectId: notes.projectId,
-        workspaceId: notes.workspaceId,
-        projectSlug: projects.projectSlug,
-        workspaceSlug: workspaces.workspaceSlug,
-        folderId: notes.folderId,
-        status: notes.status,
-        tags: notes.tags,
-        occurredAt: notes.occurredAt,
-        sourceChannel: notes.sourceChannel,
-        source: notes.source,
-        summary: notes.summary,
-        markdownStorageKey: notes.markdownStorageKey,
-        metadata: notes.metadata,
-        sessionId: notes.sessionId,
-        reminderAt: notes.reminderAt,
-        isPinned: notes.isPinned,
-        createdAt: notes.createdAt,
-        updatedAt: notes.updatedAt,
-      })
+      .select(NOTE_SELECT_COLUMNS)
       .from(notes)
       .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
       .leftJoin(projects, eq(projects.id, notes.projectId))
@@ -515,30 +324,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     const db = this.database.getDb();
     const [noteRows, attachmentCountRows, categoryRows] = await Promise.all([
       db
-        .select({
-          id: notes.id,
-          userId: notes.userId,
-          path: notes.path,
-          title: notes.title,
-          projectId: notes.projectId,
-          workspaceId: notes.workspaceId,
-          projectSlug: projects.projectSlug,
-          workspaceSlug: workspaces.workspaceSlug,
-          folderId: notes.folderId,
-          status: notes.status,
-          tags: notes.tags,
-          occurredAt: notes.occurredAt,
-          sourceChannel: notes.sourceChannel,
-          source: notes.source,
-          summary: notes.summary,
-          markdownStorageKey: notes.markdownStorageKey,
-          metadata: notes.metadata,
-          sessionId: notes.sessionId,
-          reminderAt: notes.reminderAt,
-          isPinned: notes.isPinned,
-          createdAt: notes.createdAt,
-          updatedAt: notes.updatedAt,
-        })
+        .select(NOTE_SELECT_COLUMNS)
         .from(notes)
         .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
         .leftJoin(projects, eq(projects.id, notes.projectId))

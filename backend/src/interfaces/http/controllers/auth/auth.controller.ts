@@ -1,10 +1,16 @@
-import { BadRequestException, Body, ConflictException, Controller, Delete, Get, Post, Put, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Put, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiConsumes, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
 
 import { AuthService, type AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
 import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../../../application/ports/observability/runtime-environment.port.js';
+import {
+  AppErrorCode,
+  AvatarValidationException,
+  EmailAlreadyRegisteredException,
+  InvalidHostHeaderException,
+} from '../../../../domain/exceptions/index.js';
 import { readEnvironment } from '../../../../adapters/environment.js';
 
 const AVATAR_MAX_SIZE_BYTES = readEnvironment().avatarMaxSizeBytes ?? 3 * 1024 * 1024;
@@ -28,7 +34,7 @@ export class AuthController {
 
   constructor(
     private readonly auth: AuthService,
-    private readonly environmentProvider: RuntimeEnvironmentProvider = { read: () => readEnvironment() },
+    private readonly environmentProvider: RuntimeEnvironmentProvider,
   ) {
     this.environment = this.environmentProvider.read();
   }
@@ -171,7 +177,7 @@ export class AuthController {
   @ApiResponse({ status: 400, description: 'Invalid file' })
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: AVATAR_MAX_SIZE_BYTES } }))
   async uploadAvatar(@CurrentUser() user: AuthenticatedUser, @UploadedFile() file: UploadedAvatarFile | undefined) {
-    if (!file) throw new BadRequestException('avatar_file_required');
+    if (!file) throw new AvatarValidationException(AppErrorCode.AvatarFileRequired);
     return {
       ok: true,
       user: await this.auth.uploadAvatar({
@@ -231,7 +237,7 @@ export class AuthController {
     // Validate host against allowed hosts to prevent header injection
     const hostWithoutPort = host.split(':')[0];
     if (this.environment.allowedHosts.length > 0 && !this.environment.allowedHosts.includes(hostWithoutPort)) {
-      throw new BadRequestException('invalid_host_header');
+      throw new InvalidHostHeaderException();
     }
     
     // Extract base path from KB_API_PUBLIC_BASE_URL (e.g., /kote/api)
@@ -268,7 +274,7 @@ export class AuthController {
       response.redirect(result.returnTo);
     } catch (error) {
       clearGoogleOAuthStateCookie(response);
-      const codeParam = error instanceof ConflictException ? 'email_already_registered' : 'google_auth_failed';
+      const codeParam = error instanceof EmailAlreadyRegisteredException ? 'email_already_registered' : 'google_auth_failed';
       response.redirect(this.auth.googleOAuthErrorReturnTo({
         state,
         stateCookie: googleOAuthStateFromRequest(request),

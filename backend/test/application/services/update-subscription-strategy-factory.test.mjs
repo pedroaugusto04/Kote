@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { UpdateSubscriptionStrategyFactory } from '../../../dist/application/services/billing/subscriptionStrategy/UpdateSubscriptionStrategyFactory.js';
+import { UpdateSubscriptionStrategyFactory } from '../../../dist/application/services/billing/strategies/update-subscription-strategy.factory.js';
 import { SubscriptionChangeKind } from '../../../dist/domain/enums/billing.enums.js';
 import { FREE_PLAN_ID, SubscriptionPlan } from '../../../dist/domain/enums/plans.enums.js';
 import { BillingCycle } from '../../../dist/domain/enums/billing.enums.js';

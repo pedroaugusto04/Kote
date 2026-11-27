@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody } from '@nestjs/swagger';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 
 import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
 import { CreateWorkspaceUseCase, ListWorkspaceRepositoriesUseCase, ListWorkspaceCategoriesUseCase } from '../../../../application/use-cases/index.js';

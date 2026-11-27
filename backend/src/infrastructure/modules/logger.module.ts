@@ -1,7 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { AppLogger } from '../../observability/logger.js';
 import { GlobalExceptionFilter } from '../../observability/global-exception.filter.js';
 
+@Global()
 @Module({
   providers: [AppLogger, GlobalExceptionFilter],
   exports: [AppLogger, GlobalExceptionFilter],

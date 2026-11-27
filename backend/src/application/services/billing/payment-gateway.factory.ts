@@ -1,18 +1,21 @@
-import { Injectable } from '@nestjs/common';
-import { IPaymentGateway, GatewayNameEnum } from '../../ports/billing/payment-gateway.port.js';
-import { AsaasPaymentGateway } from '../../../infrastructure/billing/gateways/asaas/AsaasPaymentGateway.js';
-import { StripePaymentGateway } from '../../../infrastructure/billing/gateways/stripe/StripePaymentGateway.js';
-import { AsaasGatewayStatusMapper } from '../../../infrastructure/billing/gateways/asaas/AsaasGatewayStatusMapper.js';
-import { StripeGatewayStatusMapper } from '../../../infrastructure/billing/gateways/stripe/StripeGatewayStatusMapper.js';
-import { IGatewayStatusMapper } from '../../../infrastructure/billing/gateways/IGatewayStatusMapper.js';
+import { Inject, Injectable } from '@nestjs/common';
+import {
+  ASAAS_PAYMENT_GATEWAY,
+  ASAAS_STATUS_MAPPER,
+  GatewayNameEnum,
+  STRIPE_PAYMENT_GATEWAY,
+  STRIPE_STATUS_MAPPER,
+  IGatewayStatusMapper,
+  IPaymentGateway,
+} from '../../ports/billing/payment-gateway.port.js';
 
 @Injectable()
 export class PaymentGatewayFactory {
   constructor(
-    private readonly asaasGateway: AsaasPaymentGateway,
-    private readonly stripeGateway: StripePaymentGateway,
-    private readonly asaasStatusMapper: AsaasGatewayStatusMapper,
-    private readonly stripeStatusMapper: StripeGatewayStatusMapper,
+    @Inject(ASAAS_PAYMENT_GATEWAY) private readonly asaasGateway: IPaymentGateway,
+    @Inject(STRIPE_PAYMENT_GATEWAY) private readonly stripeGateway: IPaymentGateway,
+    @Inject(ASAAS_STATUS_MAPPER) private readonly asaasStatusMapper: IGatewayStatusMapper,
+    @Inject(STRIPE_STATUS_MAPPER) private readonly stripeStatusMapper: IGatewayStatusMapper,
   ) {}
 
   getGateway(gatewayName?: GatewayNameEnum | string | null): IPaymentGateway {

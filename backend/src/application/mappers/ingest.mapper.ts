@@ -1,7 +1,7 @@
 import { slugify } from '../../domain/strings.js';
 import type { Project } from '../../domain/projects.js';
 import { ingestPayloadSchema, type IngestPayload } from '../../contracts/ingest.js';
-import { CanonicalType, EventType, Importance, KnowledgeKind, KnowledgeStatus, type SourceChannel } from '../../contracts/enums.js';
+import { CanonicalType, type EventType, Importance, KnowledgeKind, KnowledgeStatus, type SourceChannel } from '../../contracts/enums.js';
 import type { SaveProjectInput } from '../models/repository-records.models.js';
 import type { SaveNoteInput } from '../models/repository-records.models.js';
 import type { SaveNoteResult } from '../models/note-save-result.models.js';
@@ -42,7 +42,7 @@ export interface BuildIngestPayloadInput {
       impact?: string;
       risks?: string | string[];
       nextSteps?: string | string[];
-      reviewFindings?: any[];
+      reviewFindings?: Record<string, unknown>[];
     };
   };
   classification?: {
@@ -143,7 +143,7 @@ export function toProjectFromIngest(payload: IngestPayload, workspaceSlug: strin
   };
 }
 
-export function toProjectFromRecord(existingProject: import('../models/repository-records.models.js').SaveProjectInput, fallbackWorkspaceSlug: string): Project {
+export function toProjectFromRecord(existingProject: SaveProjectInput, fallbackWorkspaceSlug: string): Project {
   const workspaceSlug = existingProject.workspaceSlug || fallbackWorkspaceSlug;
   return {
     projectSlug: existingProject.projectSlug,

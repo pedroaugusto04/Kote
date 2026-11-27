@@ -248,6 +248,74 @@ test('global exception filter hides unexpected errors behind internal_server_err
   assert.equal(logger.calls.at(-1).level, 'error');
 });
 
+test('global exception filter maps typed domain AppExceptions using exhaustive catalog', async () => {
+  const {
+    NoteNotFoundException,
+    QuotaExceededException,
+    BillingRuleException,
+    AiNotConfiguredException,
+    AppErrorCode,
+  } = await import('../../../dist/domain/exceptions/index.js');
+
+  const logger = loggerMock();
+  const filter = new GlobalExceptionFilter(logger);
+
+  const cases = [
+    {
+      error: new NoteNotFoundException(),
+      statusCode: 404,
+      code: 'note_not_found',
+      message: 'Note not found.',
+      details: {},
+    },
+    {
+      error: new QuotaExceededException('storage', 100, 105),
+      statusCode: 403,
+      code: 'quota_exceeded',
+      message: 'You have reached the limit of 100 for storage. Current usage: 105.',
+      details: { resourceType: 'storage', limit: 100, current: 105 },
+    },
+    {
+      error: new BillingRuleException('A plan change is already scheduled.'),
+      statusCode: 400,
+      code: 'bad_request',
+      message: 'A plan change is already scheduled.',
+      details: {},
+    },
+    {
+      error: new AiNotConfiguredException(AppErrorCode.ReviewAiNotConfigured, ['KB_REVIEW_AI_API_KEY']),
+      statusCode: 400,
+      code: 'review_ai_not_configured',
+      message: 'Review AI is not configured.',
+      details: { missing: ['KB_REVIEW_AI_API_KEY'] },
+    },
+  ];
+
+  for (const item of cases) {
+    const request = requestMock({ headers: { 'x-request-id': `req-${item.code}` } });
+    const response = responseMock();
+    runWithRequestContext({
+      requestId: `req-${item.code}`,
+      startTime: Date.now() - 5,
+      method: 'POST',
+      path: '/api/test',
+      ip: '127.0.0.1',
+    }, () => {
+      filter.catch(item.error, hostMock(request, response));
+    });
+    assert.equal(response.statusCode, item.statusCode);
+    assert.deepEqual(response.body, {
+      ok: false,
+      error: {
+        code: item.code,
+        message: item.message,
+        details: item.details,
+      },
+      requestId: `req-${item.code}`,
+    });
+  }
+});
+
 test('logger redaction removes nested secrets recursively', () => {
   assert.deepEqual(redactSensitiveValue({
     authorization: 'Bearer secret',

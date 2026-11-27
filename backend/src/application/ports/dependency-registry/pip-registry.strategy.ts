@@ -33,7 +33,7 @@ export class PipRegistryStrategy extends RegistryStrategy {
       let data;
       try {
         data = await response.json();
-      } catch (error) {
+      } catch {
         throw new Error(`Failed to parse PyPI response for ${packageName}`);
       }
 

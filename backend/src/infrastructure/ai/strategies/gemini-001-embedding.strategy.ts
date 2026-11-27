@@ -5,23 +5,13 @@ import type { EmbeddingStrategy } from './embedding.strategy.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { truncateForLog } from '../../utils/logging.js';
 import { EmbeddingTaskType } from '../../../contracts/enums.js';
+import { chunkArray } from '../../../domain/utils/array.utils.js';
 import { RuntimeEnvironmentProvider } from '../../../application/ports/observability/runtime-environment.port.js';
 
 /**
  * Max texts per Gemini batchEmbedContents request (API limit is 100).
  */
 const GEMINI_BATCH_SIZE = 100;
-
-/**
- * Split an array into chunks of at most `size` elements.
- */
-function chunk<T>(arr: T[], size: number): T[][] {
-  const result: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    result.push(arr.slice(i, i + size));
-  }
-  return result;
-}
 
 @Injectable()
 export class Gemini001EmbeddingStrategy implements EmbeddingStrategy {
@@ -41,7 +31,7 @@ export class Gemini001EmbeddingStrategy implements EmbeddingStrategy {
   ): Promise<number[][]> {
     if (!texts.length) return [];
 
-    const batches = chunk(texts, GEMINI_BATCH_SIZE);
+    const batches = chunkArray(texts, GEMINI_BATCH_SIZE);
     const allEmbeddings: number[][] = [];
 
     for (const batch of batches) {

@@ -1,5 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { AiProvider, IntegrationProvider } from '../../../contracts/enums.js';
+import {
+  AiNotConfiguredException,
+  AppErrorCode,
+  ProjectBriefGenerationFailedException,
+} from '../../../domain/exceptions/index.js';
 import { ProjectBriefFallbackReason} from '../../models/project-brief.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { ProjectBriefAiGateway } from '../../ports/projects/project-brief-ai.gateway.js';
@@ -8,13 +13,20 @@ import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-en
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { isDependencyNote } from '../../../domain/utils/note-embedding.utils.js';
 import { AiEntitlementService } from '../../services/ai/ai-entitlement.service.js';
-import { toProjectBriefContextItem, toEmptyProjectBrief, toNormalizedBrief, toSha256 } from '../../mappers/project-brief.mapper.js';
+import {
+  toEmptyProjectBrief,
+  toNormalizedBrief,
+  toProjectBriefContextItem,
+  toProjectBriefHistorySaveInput,
+  toSha256,
+} from '../../mappers/project-brief.mapper.js';
 import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 import { NoteSynthesisRepository } from '../../ports/notes/note-synthesis.repository.js';
-import crypto from 'node:crypto';
 import { SourceChannel } from '../../../domain/enums/knowledge.enums.js';
-import { NoteSynthesisStatus } from '../../constants/ai-session-synthesis.constants.js';
-import { formatSynthesisForRetrieval } from '../../services/content/ai-session-synthesis-transcript.service.js';
+import {
+  formatSynthesisForRetrieval,
+  isSynthesisFresh,
+} from '../../services/content/ai-session-synthesis-transcript.service.js';
 
 
 const CONTEXT_WINDOW = 30;
@@ -28,7 +40,7 @@ export class GenerateProjectBriefUseCase {
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly aiEntitlement: AiEntitlementService,
     private readonly scopeResolver: WorkspaceScopeResolver,
-    private readonly synthesisRepository?: NoteSynthesisRepository,
+    private readonly synthesisRepository: NoteSynthesisRepository,
   ) {}
 
   async execute(userId: string, projectId: string, workspaceIdInput?: string) {
@@ -60,36 +72,30 @@ export class GenerateProjectBriefUseCase {
       (note) => note.sourceChannel === SourceChannel.AiChat || note.source === SourceChannel.AiChat,
     );
 
-    let synthesisMap = new Map<string, any>();
-    if (this.synthesisRepository?.getByNoteIds && aiChatNotes.length > 0) {
-      synthesisMap = await this.synthesisRepository.getByNoteIds(userId, aiChatNotes.map((n) => n.id));
-    }
+    const synthesisMap = aiChatNotes.length > 0
+      ? await this.synthesisRepository.getByNoteIds(userId, aiChatNotes.map((n) => n.id))
+      : new Map();
 
-    const enrichedNotes = await Promise.all(candidateNotes.map(async (note) => {
+    const enrichedNotes = candidateNotes.map((note) => {
       if (note.sourceChannel !== SourceChannel.AiChat && note.source !== SourceChannel.AiChat) return note;
-      if (!this.synthesisRepository) return note;
-      const synthesis = synthesisMap.has(note.id)
-        ? synthesisMap.get(note.id)
-        : await this.synthesisRepository.getByNoteId(userId, note.id);
-      if (!synthesis || synthesis.status !== NoteSynthesisStatus.Completed || synthesis.sourceHash !== crypto.createHash('sha256').update(note.markdown || '').digest('hex')) return note;
+      const synthesis = synthesisMap.get(note.id);
+      if (!isSynthesisFresh(synthesis, note.markdown)) return note;
       return { ...note, summary: synthesis.overview, metadata: { ...note.metadata, rawText: formatSynthesisForRetrieval(synthesis.overview, synthesis.memory) } };
-    }));
+    });
     const items = enrichedNotes.map(toProjectBriefContextItem);
     const contextHash = toSha256(JSON.stringify(items));
+    const historyContext = {
+      userId,
+      projectId: isAll ? undefined : projectId,
+      workspaceId,
+      contextHash,
+      contextWindow: CONTEXT_WINDOW,
+      config,
+    };
 
     if (items.length === 0) {
       const brief = toEmptyProjectBrief(projectSlug, generatedAt);
-      await this.historyRepository.save({
-        userId,
-        projectId: isAll ? undefined : projectId,
-        workspaceId,
-        brief,
-        sourceRefs: brief.sources,
-        contextHash,
-        contextWindow: CONTEXT_WINDOW,
-        provider: config.provider,
-        model: config.model,
-      });
+      await this.historyRepository.save(toProjectBriefHistorySaveInput(brief, historyContext));
       return { ok: true as const, fallback: false, brief };
     }
 
@@ -102,17 +108,7 @@ export class GenerateProjectBriefUseCase {
       });
       if (!brief) throw new Error('project_brief_generation_empty');
       const normalized = toNormalizedBrief(brief, projectSlug, generatedAt, items);
-      await this.historyRepository.save({
-        userId,
-        projectId: isAll ? undefined : projectId,
-        workspaceId,
-        brief: normalized,
-        sourceRefs: normalized.sources,
-        contextHash,
-        contextWindow: CONTEXT_WINDOW,
-        provider: config.provider,
-        model: config.model,
-      });
+      await this.historyRepository.save(toProjectBriefHistorySaveInput(normalized, historyContext));
       return { ok: true as const, fallback: false, brief: normalized };
     } catch (error) {
       console.error('Project brief generation failed:', error);
@@ -129,7 +125,7 @@ export class GenerateProjectBriefUseCase {
           brief: latest.brief,
         };
       }
-      throw new ServiceUnavailableException('project_brief_generation_failed');
+      throw new ProjectBriefGenerationFailedException(error);
     }
   }
 
@@ -142,7 +138,7 @@ export class GenerateProjectBriefUseCase {
       apiKey: environment.projectBriefAiApiKey,
     };
     if (config.provider === AiProvider.None || !config.baseUrl || !config.model || !config.apiKey) {
-      throw new BadRequestException('project_brief_ai_not_configured');
+      throw new AiNotConfiguredException(AppErrorCode.ProjectBriefAiNotConfigured);
     }
     return config;
   }

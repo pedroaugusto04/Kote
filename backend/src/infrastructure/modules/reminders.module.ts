@@ -7,7 +7,6 @@ import { EmailModule } from './email.module.js';
 import {
   BuildReminderDispatchUseCase,
   DispatchDueRemindersUseCase,
-  DispatchDueTelegramRemindersUseCase,
   MarkReminderAsSentUseCase,
   RefreshReminderStatusesUseCase,
   UpdateReminderStatusUseCase,
@@ -27,7 +26,7 @@ import { WhatsappMediaDownloader } from '../../application/ports/integrations/wh
 import { TelegramMessageSender } from '../../application/ports/integrations/telegram-message.sender.js';
 import { ReminderDeliveryGateway } from '../../application/ports/reminders/reminder-delivery.gateway.js';
 import { EvolutionWhatsappReplySender, EvolutionReminderDeliveryGateway, EvolutionWhatsappMediaDownloader } from '../../adapters/evolution.js';
-import { TelegramHttpMessageSender, TelegramReminderDeliveryGateway } from '../../adapters/telegram.js';
+import { TelegramHttpMessageSender } from '../../adapters/telegram.js';
 import { RemindersController } from '../../interfaces/http/controllers/reminders/reminders.controller.js';
 
 import { AuthModule } from './auth.module.js';
@@ -46,7 +45,6 @@ import { AuthModule } from './auth.module.js';
   providers: [
     BuildReminderDispatchUseCase,
     DispatchDueRemindersUseCase,
-    DispatchDueTelegramRemindersUseCase,
     MarkReminderAsSentUseCase,
     RefreshReminderStatusesUseCase,
     UpdateReminderStatusUseCase,
@@ -63,7 +61,6 @@ import { AuthModule } from './auth.module.js';
     EvolutionReminderDeliveryGateway,
     EvolutionWhatsappMediaDownloader,
     TelegramHttpMessageSender,
-    TelegramReminderDeliveryGateway,
     { provide: WhatsappReplySender, useExisting: EvolutionWhatsappReplySender },
     { provide: WhatsappMediaDownloader, useExisting: EvolutionWhatsappMediaDownloader },
     { provide: TelegramMessageSender, useExisting: TelegramHttpMessageSender },

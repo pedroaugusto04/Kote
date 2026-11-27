@@ -45,6 +45,11 @@ function createAskKnowledgeUseCase({
   const entitlement = customAiEntitlement ?? dummyAiEntitlement;
   const embeddingPublisher = mockEmbeddingQueue ?? queryEmbeddingPublisher ?? { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] };
 
+  const synthesisRepo = synthesisService ?? {
+    getByNoteId: async () => null,
+    getByNoteIds: async () => new Map(),
+  };
+
   const ragRetrievalService = new RagRetrievalService(
     mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
@@ -52,7 +57,7 @@ function createAskKnowledgeUseCase({
     contentQueryRepo,
     embeddingPublisher,
     logger,
-    synthesisService,
+    synthesisRepo,
   );
   const ragContextAssemblerService = new RagContextAssemblerService(
     mockContentRepository,
@@ -1287,7 +1292,11 @@ test('AskKnowledgeUseCase prefers session memory and expands linked raw evidence
     ragCandidateLimit: 16, ragMinSimilarity: 0.3, ragHybridVectorWeight: 0.7, ragHybridKeywordWeight: 0.3,
     ragTopChunksLimit: 10, ragRrfK: 20, ragRecencyBonusEnabled: false,
   }) };
-  const synthesis = { getByNoteId: async () => ({ status: 'completed', sourceHash, overview: 'Deployment decision.', memory: [{ kind: 'decision', text: 'Use blue-green deployment.', status: 'current', turnRefs: [2] }] }) };
+  const synthesisRecord = { status: 'completed', sourceHash, overview: 'Deployment decision.', memory: [{ kind: 'decision', text: 'Use blue-green deployment.', status: 'current', turnRefs: [2] }] };
+  const synthesis = {
+    getByNoteId: async () => synthesisRecord,
+    getByNoteIds: async (_userId, noteIds) => new Map(noteIds.map((id) => [id, synthesisRecord])),
+  };
   const useCase = createAskKnowledgeUseCase({
     mockNoteEmbeddingRepository: repository,
     mockContentRepository: content,

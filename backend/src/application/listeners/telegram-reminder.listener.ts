@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, type OnModuleInit, type OnModuleDestroy } from '@nestjs/common';
 import { ReminderEventBus } from '../event-buses/reminder-event.bus.js';
 import { TelegramMessageSender } from '../ports/integrations/telegram-message.sender.js';
 import { ReminderDeliveryChannel, IntegrationProvider, CredentialRecordStatus } from '../../contracts/enums.js';
@@ -90,7 +90,6 @@ export class TelegramReminderListener implements OnModuleInit, OnModuleDestroy {
       : `/workspaces/${payload.workspaceSlug}/reminders`;
     const url = `${cleanBase}${path}`;
 
-    const projectLabel = payload.project ? `[${payload.project}] ` : '';
     const textMsg = [
       `🔔 Lembrete: ${payload.noteTitle}`,
       payload.project ? `Projeto: ${payload.project}` : '',

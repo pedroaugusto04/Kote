@@ -1,7 +1,7 @@
 import { WorkspaceScopeResolver } from '../../../../dist/application/services/content/workspace-scope-resolver.service.js';
 import test, { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { NotFoundException } from '@nestjs/common';
+import { WorkspaceNotFoundException } from '../../../../dist/domain/exceptions/index.js';
 
 import { ListDependencyMonitoredRepositoriesUseCase } from '../../../../dist/application/use-cases/dependency-watcher/list-dependency-monitored-repositories.use-case.js';
 
@@ -62,7 +62,7 @@ describe('Backend: List Dependency Monitored Repositories Use Case', () => {
       async () => {
         await useCase.execute('user-1', 'missing');
       },
-      (err) => err instanceof NotFoundException,
+      (err) => err instanceof WorkspaceNotFoundException,
     );
   });
 

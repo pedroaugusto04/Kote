@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
+import { NoteNotFoundException } from '../../../domain/exceptions/index.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../ports/observability/runtime-environment.port.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
@@ -48,7 +49,7 @@ export class GenerateSessionHandoffUseCase {
       if (input.noteId) {
         const note = await this.contentRepository.getNoteById(userId, input.noteId);
         if (!note) {
-          throw new NotFoundException('note_not_found');
+          throw new NoteNotFoundException();
         }
         transcript = String(note.markdown || note.summary || '').trim();
         sourceProvider = note.source || 'ai-session';

@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Post, Query, Res, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';

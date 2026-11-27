@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 
 import { AuthService } from '../../../dist/application/services/auth/auth.service.js';
+import { JwtService } from '../../../dist/application/services/auth/jwt.service.js';
+import { PasswordService } from '../../../dist/application/services/auth/password.service.js';
+import { GoogleOAuthService } from '../../../dist/application/services/integrations/google-oauth.service.js';
+import { AvatarService } from '../../../dist/application/services/content/avatar.service.js';
 import { IntegrationConnectionService } from '../../../dist/application/services/integrations/integration-connection.service.js';
 import { IntegrationCredentialService } from '../../../dist/application/services/integrations/integration-credentials.service.js';
 import { GithubRepositoryResolutionService } from '../../../dist/application/services/integrations/github-repository-resolution.service.js';
@@ -10,17 +14,11 @@ import { TrustedOriginGuard } from '../../../dist/interfaces/http/guards/auth.gu
 import { AuthController, InternalIntegrationsController, UserIntegrationsController } from '../../../dist/interfaces/http/controllers/index.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
+import { readEnvironment } from '../../../dist/adapters/environment.js';
+
 function runtimeEnvironmentProvider() {
   return {
-    read: () => ({
-      credentialsEncryptionKey: process.env.KB_CREDENTIALS_ENCRYPTION_KEY || '',
-      publicBaseUrl: process.env.KB_PUBLIC_BASE_URL || '',
-      apiPublicBaseUrl: process.env.KB_API_PUBLIC_BASE_URL || '',
-      githubAppInstallUrl: process.env.KB_GITHUB_APP_INSTALL_URL || '',
-      githubAppId: process.env.KB_GITHUB_APP_ID || '',
-      githubAppPrivateKey: process.env.KB_GITHUB_APP_PRIVATE_KEY || '',
-      telegramBotToken: process.env.KB_TELEGRAM_BOT_TOKEN || '',
-    }),
+    read: () => readEnvironment(),
   };
 }
 
@@ -96,10 +94,29 @@ function responseMock() {
   };
 }
 
+function buildAuthService(repositories, environmentProvider, googleGatewayOverride) {
+  const jwtService = new JwtService(environmentProvider);
+  const passwordService = new PasswordService();
+  const googleOAuthService = new GoogleOAuthService(googleGatewayOverride ?? googleGateway(), environmentProvider);
+  const avatarService = new AvatarService(repositories.objectStorage, environmentProvider);
+  const welcomeEmail = { sendWelcomeEmail: async () => undefined };
+  return new AuthService(
+    repositories.userRepository,
+    repositories.schemaMigrator,
+    environmentProvider,
+    jwtService,
+    passwordService,
+    googleOAuthService,
+    avatarService,
+    welcomeEmail,
+  );
+}
+
 async function fixture(t, options = {}) {
   configureEnv();
   const repositories = await createPostgresTestRepositories(t);
-  const auth = new AuthService(repositories.userRepository, repositories.schemaMigrator, undefined, options.googleGateway, repositories.objectStorage);
+  const environmentProvider = runtimeEnvironmentProvider();
+  const auth = buildAuthService(repositories, environmentProvider, options.googleGateway);
   await auth.onModuleInit();
   const admin = await repositories.userRepository.findUserByEmail('admin@example.com');
   if (admin) {
@@ -114,7 +131,6 @@ async function fixture(t, options = {}) {
       updatedAt: '2026-04-27T00:00:00.000Z',
     });
   }
-  const environmentProvider = runtimeEnvironmentProvider();
   const githubGateway = githubIntegrationGateway();
   const githubRepositoryResolution = new GithubRepositoryResolutionService(
     repositories.contentRepository,
@@ -122,14 +138,18 @@ async function fixture(t, options = {}) {
     environmentProvider,
     githubGateway,
   );
+  const noopSender = { sendText: async () => ({ ok: true }) };
+  const noopLogger = { info() {}, warn() {}, error() {}, debug() {} };
   return {
     repositories,
+    environmentProvider,
     auth,
     credentials: new IntegrationCredentialService(
       repositories.credentialRepository,
       repositories.externalIdentityRepository,
       environmentProvider,
       repositories.contentRepository,
+      repositories.pushSubscriptionRepository,
     ),
     connections: new IntegrationConnectionService(
       repositories.credentialRepository,
@@ -139,6 +159,9 @@ async function fixture(t, options = {}) {
       githubRepositoryResolution,
       environmentProvider,
       githubGateway,
+      noopSender,
+      noopSender,
+      noopLogger,
     ),
   };
 }
@@ -162,7 +185,7 @@ function googleGateway(profile = {}) {
 
 test('login creates HttpOnly cookies and does not return tokens in JSON', async (t) => {
   const { auth } = await fixture(t);
-  const controller = new AuthController(auth);
+  const controller = new AuthController(auth, runtimeEnvironmentProvider());
   const response = responseMock();
 
   const result = await controller.login(
@@ -183,7 +206,7 @@ test('login creates HttpOnly cookies and does not return tokens in JSON', async 
 
 test('current authenticated user shape includes avatarUrl', async (t) => {
   const { auth } = await fixture(t);
-  const controller = new AuthController(auth);
+  const controller = new AuthController(auth, runtimeEnvironmentProvider());
   const response = responseMock();
   const login = await controller.login(
     { email: 'admin@example.com', password: 'admin-password' },
@@ -196,7 +219,7 @@ test('current authenticated user shape includes avatarUrl', async (t) => {
 
 test('avatar upload rejects unsupported MIME types', async (t) => {
   const { auth } = await fixture(t);
-  const controller = new AuthController(auth);
+  const controller = new AuthController(auth, runtimeEnvironmentProvider());
   const login = await controller.login(
     { email: 'admin@example.com', password: 'admin-password' },
     { headers: { origin: 'https://kb.example.com', host: 'kb.example.com' }, protocol: 'https' },
@@ -216,7 +239,7 @@ test('avatar upload rejects unsupported MIME types', async (t) => {
 
 test('avatar upload rejects files over 3MB', async (t) => {
   const { auth } = await fixture(t);
-  const controller = new AuthController(auth);
+  const controller = new AuthController(auth, runtimeEnvironmentProvider());
   const login = await controller.login(
     { email: 'admin@example.com', password: 'admin-password' },
     { headers: { origin: 'https://kb.example.com', host: 'kb.example.com' }, protocol: 'https' },
@@ -236,7 +259,7 @@ test('avatar upload rejects files over 3MB', async (t) => {
 
 test('avatar upload stores bytes and returns the updated user', async (t) => {
   const { auth, repositories } = await fixture(t);
-  const controller = new AuthController(auth);
+  const controller = new AuthController(auth, runtimeEnvironmentProvider());
   const login = await controller.login(
     { email: 'admin@example.com', password: 'admin-password' },
     { headers: { origin: 'https://kb.example.com', host: 'kb.example.com' }, protocol: 'https' },
@@ -260,7 +283,7 @@ test('avatar upload stores bytes and returns the updated user', async (t) => {
 
 test('avatar remove clears fields and deletes the previous storage key best-effort', async (t) => {
   const { auth, repositories } = await fixture(t);
-  const controller = new AuthController(auth);
+  const controller = new AuthController(auth, runtimeEnvironmentProvider());
   const login = await controller.login(
     { email: 'admin@example.com', password: 'admin-password' },
     { headers: { origin: 'https://kb.example.com', host: 'kb.example.com' }, protocol: 'https' },
@@ -285,7 +308,7 @@ test('avatar remove clears fields and deletes the previous storage key best-effo
 
 test('avatar content endpoint returns bytes and blocks missing avatars', async (t) => {
   const { auth } = await fixture(t);
-  const controller = new AuthController(auth);
+  const controller = new AuthController(auth, runtimeEnvironmentProvider());
   const login = await controller.login(
     { email: 'admin@example.com', password: 'admin-password' },
     { headers: { origin: 'https://kb.example.com', host: 'kb.example.com' }, protocol: 'https' },
@@ -312,7 +335,7 @@ test('avatar content endpoint returns bytes and blocks missing avatars', async (
 
 test('signup creates a user and HttpOnly cookies', async (t) => {
   const { auth, repositories } = await fixture(t);
-  const controller = new AuthController(auth);
+  const controller = new AuthController(auth, runtimeEnvironmentProvider());
   const response = responseMock();
 
   const result = await controller.signup(
@@ -330,7 +353,7 @@ test('signup creates a user and HttpOnly cookies', async (t) => {
 
 test('signup duplicate email returns a field error', async (t) => {
   const { auth } = await fixture(t);
-  const controller = new AuthController(auth);
+  const controller = new AuthController(auth, runtimeEnvironmentProvider());
 
   await assert.rejects(
     () => controller.signup(
@@ -339,8 +362,9 @@ test('signup duplicate email returns a field error', async (t) => {
       responseMock(),
     ),
     (error) => {
-      assert.equal(error.getResponse().code, 'email_already_registered');
-      assert.deepEqual(error.getResponse().details.fieldErrors, { email: 'This email is already registered.' });
+      const payload = typeof error.getResponse === 'function' ? error.getResponse() : error;
+      assert.equal(payload.code, 'email_already_registered');
+      assert.deepEqual(payload.details.fieldErrors, { email: 'This email is already registered.' });
       return true;
     },
   );
@@ -348,7 +372,7 @@ test('signup duplicate email returns a field error', async (t) => {
 
 test('refresh issues a new access cookie and logout clears browser cookies', async (t) => {
   const { auth } = await fixture(t);
-  const controller = new AuthController(auth);
+  const controller = new AuthController(auth, runtimeEnvironmentProvider());
   const loginResponse = responseMock();
   await controller.login(
     { email: 'admin@example.com', password: 'admin-password' },
@@ -373,7 +397,7 @@ test('refresh issues a new access cookie and logout clears browser cookies', asy
 
 test('google callback creates a user, identity, and HttpOnly auth cookies', async (t) => {
   const { auth, repositories } = await fixture(t, { googleGateway: googleGateway() });
-  const controller = new AuthController(auth);
+  const controller = new AuthController(auth, runtimeEnvironmentProvider());
   const startResponse = responseMock();
   controller.startGoogle('/auth?mode=signup', { headers: { host: 'kb.example.com' }, protocol: 'https' }, startResponse);
 
@@ -399,7 +423,7 @@ test('google callback creates a user, identity, and HttpOnly auth cookies', asyn
 
 test('google callback reuses an existing identity', async (t) => {
   const { auth, repositories } = await fixture(t, { googleGateway: googleGateway({ email: 'repeat@example.com' }) });
-  const controller = new AuthController(auth);
+  const controller = new AuthController(auth, runtimeEnvironmentProvider());
   const firstStart = responseMock();
   controller.startGoogle('/auth', { headers: { host: 'kb.example.com' }, protocol: 'https' }, firstStart);
   await controller.googleCallback(
@@ -427,7 +451,7 @@ test('google callback reuses an existing identity', async (t) => {
 test('google callback redirects with conflict when email has no google identity', async (t) => {
   const { auth, repositories } = await fixture(t, { googleGateway: googleGateway({ email: 'password-user@example.com' }) });
   await repositories.createTestUser({ email: 'password-user@example.com', passwordHash: 'scrypt$salt$hash' });
-  const controller = new AuthController(auth);
+  const controller = new AuthController(auth, runtimeEnvironmentProvider());
   const startResponse = responseMock();
   controller.startGoogle('/auth', { headers: { host: 'kb.example.com' }, protocol: 'https' }, startResponse);
   const callbackResponse = responseMock();
@@ -445,7 +469,7 @@ test('google callback redirects with conflict when email has no google identity'
 
 test('google callback with invalid state redirects without creating a session', async (t) => {
   const { auth, repositories } = await fixture(t, { googleGateway: googleGateway() });
-  const controller = new AuthController(auth);
+  const controller = new AuthController(auth, runtimeEnvironmentProvider());
   const callbackResponse = responseMock();
 
   await controller.googleCallback('google-code', 'wrong-state', { headers: {} }, callbackResponse);
@@ -460,7 +484,7 @@ test('google callback with invalid state redirects prepending base path from env
   const originalBaseUrl = process.env.KB_PUBLIC_BASE_URL;
   try {
     process.env.KB_PUBLIC_BASE_URL = 'https://kb.example.com/kote';
-    const controller = new AuthController(auth);
+    const controller = new AuthController(auth, runtimeEnvironmentProvider());
     const callbackResponse = responseMock();
 
     await controller.googleCallback('google-code', 'wrong-state', { headers: {} }, callbackResponse);
@@ -475,7 +499,7 @@ test('google callback with invalid state redirects prepending base path from env
 
 test('google-created user cannot login with password', async (t) => {
   const { auth } = await fixture(t, { googleGateway: googleGateway({ email: 'no-password@example.com' }) });
-  const controller = new AuthController(auth);
+  const controller = new AuthController(auth, runtimeEnvironmentProvider());
   const startResponse = responseMock();
   controller.startGoogle('/auth', { headers: { host: 'kb.example.com' }, protocol: 'https' }, startResponse);
   await controller.googleCallback(
@@ -506,7 +530,7 @@ test('trusted origin guard rejects invalid Origin for mutable browser endpoints'
 
 test('guided credentials are encrypted, never returned, and resolved internally by userId or external identity', async (t) => {
   const { auth, repositories, credentials, connections } = await fixture(t);
-  const authController = new AuthController(auth);
+  const authController = new AuthController(auth, runtimeEnvironmentProvider());
   const userController = new UserIntegrationsController(credentials, connections);
   const internalController = new InternalIntegrationsController(credentials);
 
@@ -560,7 +584,7 @@ test('guided credentials are encrypted, never returned, and resolved internally 
 
 test('telegram can reconnect after revoke because revoke clears the previous binding state', async (t) => {
   const { auth, repositories, credentials, connections } = await fixture(t);
-  const authController = new AuthController(auth);
+  const authController = new AuthController(auth, runtimeEnvironmentProvider());
   const userController = new UserIntegrationsController(credentials, connections);
 
   const loginResponse = responseMock();
@@ -602,7 +626,7 @@ test('telegram can reconnect after revoke because revoke clears the previous bin
 
 test('guided connection rejects identity hijacking', async (t) => {
   const first = await fixture(t);
-  const firstAuthController = new AuthController(first.auth);
+  const firstAuthController = new AuthController(first.auth, runtimeEnvironmentProvider());
   const firstUserController = new UserIntegrationsController(first.credentials, first.connections);
   const firstLoginResponse = responseMock();
   const firstLogin = await firstAuthController.login(
@@ -622,7 +646,7 @@ test('guided connection rejects identity hijacking', async (t) => {
   await first.connections.completeWhatsappFromWebhook({ code: firstSetup.verificationCode, chatJid: '120363@g.us' });
 
   const secondRepositories = first.repositories;
-  const secondAuth = new AuthService(secondRepositories.userRepository, secondRepositories.schemaMigrator);
+  const secondAuth = buildAuthService(secondRepositories, runtimeEnvironmentProvider());
   const secondEnvironmentProvider = runtimeEnvironmentProvider();
   const secondCredentials = new IntegrationCredentialService(
     secondRepositories.credentialRepository,
@@ -675,7 +699,7 @@ test('guided connection rejects identity hijacking', async (t) => {
 
 test('guarded user integrations controller depends on current user instead of reauthenticating request cookies', async (t) => {
   const { auth, credentials, connections } = await fixture(t);
-  const authController = new AuthController(auth);
+  const authController = new AuthController(auth, runtimeEnvironmentProvider());
   const userController = new UserIntegrationsController(credentials, connections);
   const loginResponse = responseMock();
   await authController.login(
@@ -697,7 +721,7 @@ test('guarded user integrations controller depends on current user instead of re
 
 test('connection token generation and exchange flow', async (t) => {
   const { auth } = await fixture(t);
-  const controller = new AuthController(auth);
+  const controller = new AuthController(auth, runtimeEnvironmentProvider());
 
   const loginResponse = responseMock();
   const login = await controller.login(

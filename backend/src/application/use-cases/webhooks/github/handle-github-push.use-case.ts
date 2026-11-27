@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
+import { AppErrorCode, ExternalIdentityNotFoundException, GithubAuthException } from '../../../../domain/exceptions/index.js';
 import { buildTelegramCodeReviewMessage } from '../../../../domain/notifications.js';
 import type { GithubPushWebhookRequest } from '../../../models/webhook-request.models.js';
 import { GithubIntegrationGateway } from '../../../ports/integrations/github-integration.port.js';
-import { ExternalIdentityRepository, resolveExternalIdentity } from '../../../ports/integrations/integrations.repository.js';
+import { ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
 import { ProcessGithubPushService } from '../../../services/integrations/process-github-push.service.js';
@@ -12,6 +13,13 @@ import { GithubRepositoryResolutionService } from '../../../services/integration
 import { normalizeHeaders } from '../../../utils/webhook/webhook.utils.js';
 import { AppLogger } from '../../../../observability/logger.js';
 import { githubAuditPayload, type GithubPushPayload } from '../../../utils/github/github-audit.utils.js';
+
+type GithubPushAuditContext = {
+  userId: string;
+  headers: Record<string, string>;
+  rawPayload: Record<string, unknown>;
+  externalIdentity: { provider: ExternalIdentityProvider; identityType: string; externalId: string };
+};
 
 @Injectable()
 export class HandleGithubPushUseCase {
@@ -40,9 +48,9 @@ export class HandleGithubPushUseCase {
       ref: rawPayload.ref,
     });
 
-    if (!environment.githubWebhookSecret) { 
+    if (!environment.githubWebhookSecret) {
       this.logger.warn('github_push_webhook_secret_not_configured');
-      throw new UnauthorizedException('github_webhook_secret_not_configured');
+      throw new GithubAuthException(AppErrorCode.GithubWebhookSecretNotConfigured);
     }
     try {
       this.githubIntegrationGateway.verifyWebhookSignature(
@@ -54,31 +62,31 @@ export class HandleGithubPushUseCase {
       this.logger.warn('github_push_webhook_signature_invalid', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new UnauthorizedException('invalid_github_signature');
+      throw new GithubAuthException(AppErrorCode.InvalidGithubSignature);
     }
     if (!installationId) {
       this.logger.warn('github_push_webhook_missing_installation_id');
-      throw new UnauthorizedException('missing_installation_id');
+      throw new GithubAuthException(AppErrorCode.MissingInstallationId);
     }
     const identity = await this.externalIdentities.findExternalIdentity(ExternalIdentityProvider.GithubApp, 'installation_id', installationId);
     if (!identity) {
       this.logger.warn('github_push_webhook_identity_not_found', { installationId });
-      throw new NotFoundException('identity_not_found');
+      throw new ExternalIdentityNotFoundException();
     }
 
     this.logger.info('github_push_webhook_identity_resolved', {
       userId: identity.userId,
       workspaceSlug: identity.workspaceSlug,
     });
-    await this.webhookEvents.recordWebhookEvent({
-      provider: IntegrationProvider.GithubApp,
-      eventType: String(headers['x-github-event'] || 'push'),
-      status: WebhookEventStatus.Resolved,
-      resolvedUserId: identity.userId,
-      externalIdentity,
-      rawHeaders: headers,
+
+    const auditContext: GithubPushAuditContext = {
+      userId: identity.userId,
+      headers,
       rawPayload,
-    });
+      externalIdentity,
+    };
+
+    await this.recordPushEvent(auditContext, WebhookEventStatus.Resolved);
     try {
       const repoFullName = String(body.repository?.full_name || '').trim();
       this.logger.info('github_push_webhook_resolving_project', {
@@ -98,16 +106,7 @@ export class HandleGithubPushUseCase {
           repoFullName,
           userId: identity.userId,
         });
-        await this.webhookEvents.recordWebhookEvent({
-          provider: IntegrationProvider.GithubApp,
-          eventType: String(headers['x-github-event'] || 'push'),
-          status: WebhookEventStatus.Ignored,
-          resolvedUserId: identity.userId,
-          externalIdentity,
-          rawHeaders: headers,
-          rawPayload,
-          error: 'github_repository_not_selected',
-        });
+        await this.recordPushEvent(auditContext, WebhookEventStatus.Ignored, 'github_repository_not_selected');
         return {
           ok: true,
           processed: false,
@@ -120,13 +119,13 @@ export class HandleGithubPushUseCase {
         repoFullName,
       });
 
-      if (options?.synchronous) { 
+      if (options?.synchronous) {
         this.logger.info('github_push_webhook_processing_synchronous', { projectSlug });
-        return this.processPush(input, identity, headers, rawPayload, externalIdentity, projectSlug);
+        return this.processPush(input, identity, auditContext, projectSlug);
       }
 
       this.logger.info('github_push_webhook_queued', { projectSlug });
-      void this.processPush(input, identity, headers, rawPayload, externalIdentity, projectSlug);
+      void this.processPush(input, identity, auditContext, projectSlug);
 
       return {
         ok: true,
@@ -134,16 +133,11 @@ export class HandleGithubPushUseCase {
         status: 'queued',
       };
     } catch (error) {
-      await this.webhookEvents.recordWebhookEvent({
-        provider: IntegrationProvider.GithubApp,
-        eventType: String(headers['x-github-event'] || 'push'),
-        status: WebhookEventStatus.Failed,
-        resolvedUserId: identity.userId,
-        externalIdentity,
-        rawHeaders: headers,
-        rawPayload,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      await this.recordPushEvent(
+        auditContext,
+        WebhookEventStatus.Failed,
+        error instanceof Error ? error.message : String(error),
+      );
       throw error;
     }
   }
@@ -151,9 +145,7 @@ export class HandleGithubPushUseCase {
   private async processPush(
     input: GithubPushWebhookRequest,
     identity: { userId: string; workspaceSlug?: string | null; credentialId?: string | null },
-    headers: Record<string, string>,
-    rawPayload: Record<string, unknown>,
-    externalIdentity: { provider: ExternalIdentityProvider; identityType: string; externalId: string },
+    auditContext: GithubPushAuditContext,
     projectSlug: string,
   ) {
     const body = (input.body || {}) as GithubPushPayload;
@@ -168,7 +160,7 @@ export class HandleGithubPushUseCase {
     try {
       const result = await this.processGithubPushService.execute({
         body,
-        headers,
+        headers: auditContext.headers,
         rawBody: input.rawBody,
         userId: identity.userId,
         workspaceSlug: identity.workspaceSlug || '',
@@ -181,16 +173,7 @@ export class HandleGithubPushUseCase {
           projectSlug,
           reason: result.skipped,
         });
-        await this.webhookEvents.recordWebhookEvent({
-          provider: IntegrationProvider.GithubApp,
-          eventType: String(headers['x-github-event'] || 'push'),
-          status: WebhookEventStatus.Ignored,
-          resolvedUserId: identity.userId,
-          externalIdentity,
-          rawHeaders: headers,
-          rawPayload,
-          error: result.skipped,
-        });
+        await this.recordPushEvent(auditContext, WebhookEventStatus.Ignored, result.skipped);
         return {
           ok: true,
           processed: false,
@@ -203,15 +186,7 @@ export class HandleGithubPushUseCase {
         noteId: result.noteId,
       });
 
-      await this.webhookEvents.recordWebhookEvent({
-        provider: IntegrationProvider.GithubApp,
-        eventType: String(headers['x-github-event'] || 'push'),
-        status: WebhookEventStatus.Processed,
-        resolvedUserId: identity.userId,
-        externalIdentity,
-        rawHeaders: headers,
-        rawPayload,
-      });
+      await this.recordPushEvent(auditContext, WebhookEventStatus.Processed);
       return {
         ok: true,
         payload: result.payload,
@@ -224,17 +199,29 @@ export class HandleGithubPushUseCase {
         projectSlug,
         error: error instanceof Error ? error.message : String(error),
       });
-      await this.webhookEvents.recordWebhookEvent({
-        provider: IntegrationProvider.GithubApp,
-        eventType: String(headers['x-github-event'] || 'push'),
-        status: WebhookEventStatus.Failed,
-        resolvedUserId: identity.userId,
-        externalIdentity,
-        rawHeaders: headers,
-        rawPayload,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      await this.recordPushEvent(
+        auditContext,
+        WebhookEventStatus.Failed,
+        error instanceof Error ? error.message : String(error),
+      );
       throw error;
     }
+  }
+
+  private recordPushEvent(
+    context: GithubPushAuditContext,
+    status: WebhookEventStatus,
+    error?: string,
+  ) {
+    return this.webhookEvents.recordWebhookEvent({
+      provider: IntegrationProvider.GithubApp,
+      eventType: String(context.headers['x-github-event'] || 'push'),
+      status,
+      resolvedUserId: context.userId,
+      externalIdentity: context.externalIdentity,
+      rawHeaders: context.headers,
+      rawPayload: context.rawPayload,
+      ...(error !== undefined ? { error } : {}),
+    });
   }
 }

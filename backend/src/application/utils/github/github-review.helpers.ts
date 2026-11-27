@@ -1,7 +1,7 @@
 import { slugify } from '../../../domain/strings.js';
 import type { AiProvider } from '../../../contracts/enums.js';
 import type { GithubPushPayload, GithubPullRequestPayload, GithubRepositoryInfo } from '../../models/github-webhook.models.js';
-import { ReviewAnalysisConfig } from '../../ports/projects/review-analysis.port.js';
+import { type ReviewAnalysisConfig } from '../../ports/projects/review-analysis.port.js';
 import { EmbeddingRepresentation } from '../../ports/notes/note-embedding.repository.js';
 import { resolveContentScopeFromSlugs } from '../content/content-scope.utils.js';
 
@@ -20,7 +20,7 @@ export function extractRepositoryInfo(payload: GithubPushPayload | GithubPullReq
 /**
  * Normalizes project slug from repository name
  */
-export function normalizeProjectSlug(repositoryName: string, repositoryFullName: string): string {
+export function normalizeGithubRepoSlug(repositoryName: string, repositoryFullName: string): string {
   return slugify(repositoryName || repositoryFullName.split('/').pop() || 'inbox') || 'inbox';
 }
 

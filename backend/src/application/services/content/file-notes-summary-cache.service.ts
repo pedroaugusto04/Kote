@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { createHash } from 'node:crypto';
+import { sha256Base64Url } from '../../../domain/utils/crypto.utils.js';
 
 type FileNotesSummaryCacheEntry = {
   summary: string;
@@ -33,7 +33,7 @@ export class FileNotesSummaryCacheService {
   private generateNotesHash(notes: Array<{ id: string; date: string; revision?: string }>): string {
     const sorted = [...notes].sort((left, right) => left.id.localeCompare(right.id));
     const hashInput = sorted.map((note) => `${note.id}:${note.date}:${note.revision || ''}`).join('|');
-    return createHash('sha256').update(hashInput).digest('base64url');
+    return sha256Base64Url(hashInput);
   }
 
   private generateKey(

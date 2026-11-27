@@ -1,9 +1,10 @@
 import crypto from 'node:crypto';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
 
 import { BillingCustomerRepository } from '../../../application/ports/billing/billing-repositories.js';
 import type { BillingCustomerRecord } from '../../../application/models/billing.models.js';
+import { GatewayCustomerNotFoundException } from '../../../domain/exceptions/index.js';
 import { PostgresDatabase } from '../../persistence/database.js';
 import { billingCustomers, type PaymentGateway } from '../../persistence/schema/index.js';
 
@@ -72,7 +73,7 @@ export class PostgresBillingCustomerRepository extends BillingCustomerRepository
   async getGatewayCustomerId(userId: string, gateway: PaymentGateway): Promise<string> {
     const customer = await this.getCustomerByUserId(userId, gateway);
     if (!customer?.gatewayCustomerId) {
-      throw new NotFoundException('gateway_customer_not_found');
+      throw new GatewayCustomerNotFoundException();
     }
     return customer.gatewayCustomerId;
   }

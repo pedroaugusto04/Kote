@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, type OnModuleInit, type OnModuleDestroy } from '@nestjs/common';
 import { schedule } from 'node-cron';
 import { PostgresDatabase } from '../../infrastructure/persistence/database.js';
 import { AppLogger } from '../../observability/logger.js';

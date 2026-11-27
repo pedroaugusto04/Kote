@@ -1,57 +1,43 @@
-import { z } from 'zod';
+import type { KnowledgeStatus } from '../../contracts/enums.js';
+import type { NoteStatus } from '../../domain/note-status.js';
 
-import { noteStatusValues } from '../../domain/note-status.js';
-import { KnowledgeStatus } from '../../contracts/enums.js';
-import { readEnvironment } from '../../adapters/environment.js';
+export type EditableNoteStatus =
+  | KnowledgeStatus.Active
+  | KnowledgeStatus.Resolved
+  | KnowledgeStatus.Archived;
 
-const noteStatusSchema = z.enum(noteStatusValues).optional();
-const editableNoteStatusSchema = z.enum([KnowledgeStatus.Active, KnowledgeStatus.Resolved, KnowledgeStatus.Archived]).optional();
-
-const environment = readEnvironment();
-const attachmentMaxSize = environment.attachmentMaxSizeBytes;
-
-const noteAttachmentSchema = z.object({
-  fileName: z.string().min(1),
-  mimeType: z.string().default('application/octet-stream'),
-  sizeBytes: z.number().int().nonnegative().max(attachmentMaxSize, `Attachment must be ${attachmentMaxSize / (1024 * 1024)} MB or smaller.`).default(0),
-  dataBase64: z.string().default(''),
-});
-
-const commonNoteDtoFields = {
-  folderId: z.string().optional(),
-  title: z.string().min(1, 'title is required').max(160, 'title must be at most 160 characters'),
-  rawText: z.string().max(500000, 'rawText must be at most 500000 characters').optional().default(''),
-  tags: z.array(z.string()).default([]),
-  reminderAt: z.string().optional().default(''),
+export type NoteAttachmentDto = {
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  dataBase64: string;
 };
 
-export const createManualNoteSchema = z
-  .object({
-    ...commonNoteDtoFields,
-    projectId: z.string().min(1, 'projectId is required'),
-    status: noteStatusSchema,
-    categoryIds: z.array(z.string()).optional().default([]),
-    sourceChannel: z.string().optional(),
-    source: z.string().optional(),
-    sessionId: z.string().optional().default(''),
-    occurredAt: z.string().optional(),
-    path: z.string().optional(),
-    metadata: z.record(z.string(), z.unknown()).optional().default({}),
-    attachments: z.array(noteAttachmentSchema).optional().default([]),
-  })
-  .strict();
+type CommonNoteDtoFields = {
+  folderId?: string;
+  title: string;
+  rawText: string;
+  tags: string[];
+  reminderAt: string;
+};
 
-export type CreateManualNoteDto = z.infer<typeof createManualNoteSchema>;
+export type CreateManualNoteDto = CommonNoteDtoFields & {
+  projectId: string;
+  status?: NoteStatus;
+  categoryIds: string[];
+  sourceChannel?: string;
+  source?: string;
+  sessionId: string;
+  occurredAt?: string;
+  path?: string;
+  metadata: Record<string, unknown>;
+  attachments: NoteAttachmentDto[];
+};
 
-export const updateNoteSchema = z
-  .object({
-    ...commonNoteDtoFields,
-    id: z.string().min(1, 'id is required'),
-    projectId: z.string().optional(),
-    status: editableNoteStatusSchema,
-    categoryIds: z.array(z.string()).optional(),
-    attachments: z.array(noteAttachmentSchema).optional(),
-  })
-  .strict();
-
-export type UpdateNoteDto = z.infer<typeof updateNoteSchema>;
+export type UpdateNoteDto = CommonNoteDtoFields & {
+  id: string;
+  projectId?: string;
+  status?: EditableNoteStatus;
+  categoryIds?: string[];
+  attachments?: NoteAttachmentDto[];
+};

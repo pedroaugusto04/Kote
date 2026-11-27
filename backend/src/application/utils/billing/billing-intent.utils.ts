@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { AppErrorCode, BillingRuleException } from '../../../domain/exceptions/index.js';
 
 export type BillingIntentExternalReferenceType = 'new' | 'upgrade' | 'change_cycle';
 
@@ -21,13 +21,17 @@ export function buildExternalReference(
 }
 
 export function parseExternalReference(ref?: string | null): ParsedBillingIntentExternalReference {
-  if (!ref) throw new BadRequestException('external_reference_missing');
+  if (!ref) {
+    throw new BillingRuleException('External reference is missing.', AppErrorCode.ExternalReferenceMissing);
+  }
 
   const params = new URLSearchParams(ref);
   const type = params.get('t') as BillingIntentExternalReferenceType | null;
   const billingIntentId = params.get('id');
 
-  if (!type || !billingIntentId) throw new BadRequestException('external_reference_invalid');
+  if (!type || !billingIntentId) {
+    throw new BillingRuleException('External reference is invalid.', AppErrorCode.ExternalReferenceInvalid);
+  }
 
   return { type, billingIntentId };
 }

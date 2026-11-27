@@ -161,6 +161,18 @@ export type RuntimeEnvironment = {
   codeLensSnippetSearchKeywordWeight: number;
   codeLensSnippetSearchRrfK: number;
   codeLensSnippetSearchResultLimit: number;
+  // Messaging & Billing & Branding
+  rabbitmqUrl: string;
+  onlyStripe: boolean;
+  stripePublishableKey: string;
+  stripeSecretKey: string;
+  stripeWebhookSecret: string;
+  asaasAccessToken: string;
+  asaasBaseUrl: string;
+  asaasWebhookToken: string;
+  appName: string;
+  appLogoUrl: string;
+  isProduction: boolean;
 };
 
 export abstract class RuntimeEnvironmentProvider {

@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-import { EventType, Importance, KnowledgeKind, SourceChannel } from '../../contracts/enums.js';
+import { EventType, Importance, KnowledgeKind } from '../../contracts/enums.js';
 import type { IngestPayload } from '../../contracts/ingest.js';
 import { buildIngestPayload } from './ingest.mapper.js';
 import { hasReminder, normalizeManualNoteStatus } from '../../domain/note-status.js';

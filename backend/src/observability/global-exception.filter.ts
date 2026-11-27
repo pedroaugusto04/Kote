@@ -1,14 +1,17 @@
 import { randomUUID } from 'node:crypto';
 
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 import type { ApiErrorDetails, ApiErrorResponse } from '../contracts/http-error.js';
+import { AppException } from '../domain/exceptions/app.exception.js';
+import { isRecord } from '../domain/utils/type-guards.utils.js';
+import { serializeErrorForLog } from './error-serializer.js';
 import { resolveHttpErrorCode, httpErrorCatalog, isKnownHttpErrorCode, type HttpErrorCode } from './http-error-catalog.js';
 import { AppLogger } from './logger.js';
-import { getRequestMetadata } from './request-metadata.js';
+import { HttpErrorLogLevel } from './observability.enums.js';
 import { getRequestContext, updateRequestContext } from './request-context.js';
-import { HttpErrorLogLevel } from '../observability/observability.enums.js';
+import { getRequestMetadata } from './request-metadata.js';
 
 type HttpExceptionResponse = string | {
   code?: string;
@@ -18,13 +21,16 @@ type HttpExceptionResponse = string | {
   statusCode?: number;
 };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
+type NormalizedException = {
+  code: HttpErrorCode;
+  statusCode: number;
+  details: ApiErrorDetails;
+  safeMessage: string;
+  logLevel: HttpErrorLogLevel;
+};
 
 function normalizeDetails(details: unknown): ApiErrorDetails {
-  if (!isRecord(details)) return {};
-  return details;
+  return isRecord(details) ? details : {};
 }
 
 function extractHttpExceptionPayload(error: HttpException): { code?: string; statusCode: number; details: ApiErrorDetails } {
@@ -62,7 +68,18 @@ function resolveClientSafeMessage(
   return catalogEntry.safeMessage;
 }
 
-export function normalizeException(error: unknown): { code: string; statusCode: number; details: ApiErrorDetails; safeMessage: string; logLevel: HttpErrorLogLevel } {
+export function normalizeException(error: unknown): NormalizedException {
+  if (error instanceof AppException) {
+    const entry = httpErrorCatalog[error.code];
+    return {
+      code: error.code,
+      statusCode: entry.statusCode,
+      details: error.details,
+      safeMessage: error.clientMessage ?? entry.safeMessage,
+      logLevel: entry.logLevel,
+    };
+  }
+
   if (error instanceof HttpException) {
     const payload = extractHttpExceptionPayload(error);
     const code = resolveHttpErrorCode(payload);
@@ -74,38 +91,43 @@ export function normalizeException(error: unknown): { code: string; statusCode: 
       logLevel: httpErrorCatalog[code].logLevel,
     };
   }
+
   if (error instanceof Error) {
     const maybeMulterError = error as Error & { code?: unknown; status?: unknown; statusCode?: unknown };
     if (maybeMulterError.name === 'MulterError' && maybeMulterError.code === 'LIMIT_FILE_SIZE') {
+      const entry = httpErrorCatalog.avatar_file_too_large;
       return {
         code: 'avatar_file_too_large',
         statusCode: HttpStatus.PAYLOAD_TOO_LARGE,
         details: {},
-        safeMessage: httpErrorCatalog.avatar_file_too_large.safeMessage,
-        logLevel: httpErrorCatalog.avatar_file_too_large.logLevel,
+        safeMessage: entry.safeMessage,
+        logLevel: entry.logLevel,
       };
     }
+
     const explicitStatusCode = typeof maybeMulterError.statusCode === 'number'
       ? maybeMulterError.statusCode
       : typeof maybeMulterError.status === 'number'
         ? maybeMulterError.status
         : HttpStatus.INTERNAL_SERVER_ERROR;
     const code = resolveHttpErrorCode({ code: error.message, statusCode: explicitStatusCode });
+    const entry = httpErrorCatalog[code];
     return {
       code,
-      statusCode: httpErrorCatalog[code].statusCode,
+      statusCode: entry.statusCode,
       details: {},
-      safeMessage: httpErrorCatalog[code].safeMessage,
-      logLevel: httpErrorCatalog[code].logLevel,
+      safeMessage: entry.safeMessage,
+      logLevel: entry.logLevel,
     };
   }
-  const code = 'internal_server_error';
+
+  const entry = httpErrorCatalog.internal_server_error;
   return {
-    code,
-    statusCode: httpErrorCatalog[code].statusCode,
+    code: 'internal_server_error',
+    statusCode: entry.statusCode,
     details: {},
-    safeMessage: httpErrorCatalog[code].safeMessage,
-    logLevel: httpErrorCatalog[code].logLevel,
+    safeMessage: entry.safeMessage,
+    logLevel: entry.logLevel,
   };
 }
 
@@ -141,32 +163,34 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     response.status(normalized.statusCode).json(payload);
   }
 
-  private logException(exception: unknown, normalized: ReturnType<typeof normalizeException>) {
+  private logException(exception: unknown, normalized: NormalizedException) {
     const context = getRequestContext();
     const durationMs = context ? Date.now() - context.startTime : undefined;
-    const error = exception instanceof Error ? exception : undefined;
+    const serialized = serializeErrorForLog(exception);
     const fields: Record<string, unknown> = {
       statusCode: normalized.statusCode,
       errorCode: normalized.code,
       durationMs,
-      stack: error?.stack,
-      cause: error?.cause instanceof Error ? error.cause.message : error?.cause,
+      stack: serialized.stack,
+      cause: serialized.cause,
+      ...(serialized.responseBody !== undefined ? { responseBody: serialized.responseBody } : {}),
+      ...(typeof serialized.status === 'number' ? { upstreamStatus: serialized.status } : {}),
+      ...(serialized.provider !== undefined ? { provider: serialized.provider } : {}),
+      ...(serialized.model !== undefined ? { model: serialized.model } : {}),
+      ...(serialized.endpoint !== undefined ? { endpoint: serialized.endpoint } : {}),
     };
-    if (error && 'responseBody' in error && (error as { responseBody?: unknown }).responseBody) {
-      fields.responseBody = (error as { responseBody?: unknown }).responseBody;
+
+    switch (normalized.logLevel) {
+      case HttpErrorLogLevel.Info:
+        this.logger.info('http.request.error', fields);
+        break;
+      case HttpErrorLogLevel.Warn:
+        this.logger.warn('http.request.error', fields);
+        break;
+      case HttpErrorLogLevel.Error:
+      default:
+        this.logger.error('http.request.error', fields);
+        break;
     }
-    if (error && 'status' in error && typeof (error as { status?: unknown }).status === 'number') {
-      fields.upstreamStatus = (error as { status?: unknown }).status;
-    }
-    if (error && 'provider' in error && (error as { provider?: unknown }).provider) {
-      fields.provider = (error as { provider?: unknown }).provider;
-    }
-    if (error && 'model' in error && (error as { model?: unknown }).model) {
-      fields.model = (error as { model?: unknown }).model;
-    }
-    if (error && 'endpoint' in error && (error as { endpoint?: unknown }).endpoint) {
-      fields.endpoint = (error as { endpoint?: unknown }).endpoint;
-    }
-    this.logger[normalized.logLevel as keyof AppLogger]('http.request.error', fields);
   }
 }

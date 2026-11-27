@@ -2,6 +2,7 @@ import test, { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { DependencyWatcherService } from '../../../../dist/application/services/dependency-watcher/dependency-watcher.service.js';
+import { DependencyAlertNotificationService } from '../../../../dist/application/services/dependency-watcher/dependency-alert-notification.service.js';
 import { DependencyEcosystem } from '../../../../dist/domain/enums/dependency.enums.js';
 import { AiProvider } from '../../../../dist/contracts/enums.js';
 import { encryptConfig } from '../../../../dist/application/utils/security/credentials-crypto.utils.js';
@@ -146,21 +147,31 @@ describe('Backend: Dependency Watcher Service', () => {
       createIssue: async () => null,
     };
 
-    service = new DependencyWatcherService(
-      mockDependencyWatcherRepository,
-      mockDependencyAlertGateway,
-      mockRegistryStrategyProvider,
-      mockIngestEntryUseCase,
-      mockEmailService,
-      mockEnvironmentProvider,
-      mockUserRepository,
-      mockContentRepository,
-      mockDependencyCheckQueuePublisher,
-      mockDependencyImportQueuePublisher,
-      mockLogger,
-      mockCredentialRepository,
-      mockGithubGateway,
-    );
+    const buildService = (credentialRepo = mockCredentialRepository, githubGw = mockGithubGateway) => {
+      const alertNotificationService = new DependencyAlertNotificationService(
+        mockIngestEntryUseCase,
+        mockEmailService,
+        mockEnvironmentProvider,
+        mockUserRepository,
+        mockContentRepository,
+        credentialRepo,
+        githubGw,
+        mockLogger,
+      );
+      return new DependencyWatcherService(
+        mockDependencyWatcherRepository,
+        mockDependencyAlertGateway,
+        mockRegistryStrategyProvider,
+        alertNotificationService,
+        mockEnvironmentProvider,
+        mockContentRepository,
+        mockDependencyCheckQueuePublisher,
+        mockDependencyImportQueuePublisher,
+        mockLogger,
+      );
+    };
+
+    service = buildService();
   });
 
   describe('Business Rules', () => {
@@ -276,20 +287,26 @@ describe('Backend: Dependency Watcher Service', () => {
         },
       };
 
-      const serviceWithGithub = new DependencyWatcherService(
-        mockDependencyWatcherRepository,
-        mockDependencyAlertGateway,
-        mockRegistryStrategyProvider,
+      const alertNotificationService = new DependencyAlertNotificationService(
         mockIngestEntryUseCase,
         mockEmailService,
         mockEnvironmentProvider,
         mockUserRepository,
         mockContentRepository,
+        mockCredentialRepository,
+        mockGithubGateway,
+        mockLogger,
+      );
+      const serviceWithGithub = new DependencyWatcherService(
+        mockDependencyWatcherRepository,
+        mockDependencyAlertGateway,
+        mockRegistryStrategyProvider,
+        alertNotificationService,
+        mockEnvironmentProvider,
+        mockContentRepository,
         mockDependencyCheckQueuePublisher,
         mockDependencyImportQueuePublisher,
         mockLogger,
-        mockCredentialRepository,
-        mockGithubGateway,
       );
 
       const updated = await serviceWithGithub.checkPackage(mockRecord);
@@ -332,20 +349,26 @@ describe('Backend: Dependency Watcher Service', () => {
         dependencyWatcherGithubIssueLabel: 'heal-agent',
       });
 
-      const serviceWithDedicatedToken = new DependencyWatcherService(
-        mockDependencyWatcherRepository,
-        mockDependencyAlertGateway,
-        mockRegistryStrategyProvider,
+      const alertNotificationService = new DependencyAlertNotificationService(
         mockIngestEntryUseCase,
         mockEmailService,
         mockEnvironmentProvider,
         mockUserRepository,
         mockContentRepository,
+        mockCredentialRepository,
+        mockGithubGateway,
+        mockLogger,
+      );
+      const serviceWithDedicatedToken = new DependencyWatcherService(
+        mockDependencyWatcherRepository,
+        mockDependencyAlertGateway,
+        mockRegistryStrategyProvider,
+        alertNotificationService,
+        mockEnvironmentProvider,
+        mockContentRepository,
         mockDependencyCheckQueuePublisher,
         mockDependencyImportQueuePublisher,
         mockLogger,
-        mockCredentialRepository,
-        mockGithubGateway,
       );
 
       const updated = await serviceWithDedicatedToken.checkPackage(mockRecord);
@@ -391,20 +414,26 @@ describe('Backend: Dependency Watcher Service', () => {
         dependencyWatcherGithubIssueLabel: 'heal-agent',
       });
 
-      const serviceWithGithub = new DependencyWatcherService(
-        mockDependencyWatcherRepository,
-        mockDependencyAlertGateway,
-        mockRegistryStrategyProvider,
+      const alertNotificationService = new DependencyAlertNotificationService(
         mockIngestEntryUseCase,
         mockEmailService,
         mockEnvironmentProvider,
         mockUserRepository,
         mockContentRepository,
+        mockCredentialRepository,
+        mockGithubGateway,
+        mockLogger,
+      );
+      const serviceWithGithub = new DependencyWatcherService(
+        mockDependencyWatcherRepository,
+        mockDependencyAlertGateway,
+        mockRegistryStrategyProvider,
+        alertNotificationService,
+        mockEnvironmentProvider,
+        mockContentRepository,
         mockDependencyCheckQueuePublisher,
         mockDependencyImportQueuePublisher,
         mockLogger,
-        mockCredentialRepository,
-        mockGithubGateway,
       );
 
       const updated = await serviceWithGithub.checkPackage(mockRecord);

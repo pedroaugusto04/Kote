@@ -21,7 +21,7 @@ import {
   type AiAnalyticsQuery,
 } from '../../dto/dashboard.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
-import { paginatedResponse, normalizeScopeId } from '../../http-helpers.js';
+import { paginatedResponse } from '../../http-helpers.js';
 import { toAiTokenAnalyticsFilter } from '../../mappers/dashboard.mapper.js';
 
 @ApiTags('Dashboard')

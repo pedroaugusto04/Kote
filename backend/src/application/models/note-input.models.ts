@@ -1,5 +1,3 @@
-import type { SourceChannel } from '../../contracts/enums.js';
-
 export type CreateManualNoteInput = {
   folderId?: string;
   title: string;
@@ -13,7 +11,7 @@ export type CreateManualNoteInput = {
   sessionId?: string;
   occurredAt?: string;
   path?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 };
 
 export type UpdateNoteInput = {

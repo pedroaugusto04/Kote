@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
+import { WebhookSubscriptionNotFoundException } from '../../../domain/exceptions/index.js';
 import { WebhookSubscriptionRepository } from '../../ports/webhooks/webhook-subscription.repository.js';
 import type { WebhookSubscriptionRecord } from '../../models/webhook-subscription.models.js';
 import type { WebhookTrigger } from '../../../contracts/enums.js';
@@ -52,7 +53,7 @@ export class UpdateWebhookSubscriptionUseCase {
 
   async execute(userId: string, id: string, input: UpdateWebhookSubscriptionInput) {
     const updated = await this.repo.update(userId, id, input);
-    if (!updated) throw new NotFoundException('webhook_subscription_not_found');
+    if (!updated) throw new WebhookSubscriptionNotFoundException();
     return updated;
   }
 }
@@ -63,7 +64,7 @@ export class DeleteWebhookSubscriptionUseCase {
 
   async execute(userId: string, id: string) {
     const deleted = await this.repo.delete(userId, id);
-    if (!deleted) throw new NotFoundException('webhook_subscription_not_found');
+    if (!deleted) throw new WebhookSubscriptionNotFoundException();
     return { ok: true as const };
   }
 }

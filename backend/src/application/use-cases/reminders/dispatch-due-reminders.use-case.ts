@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { ReminderDeliveryChannel, ReminderDispatchMode } from '../../../contracts/enums.js';
+import { type ReminderDeliveryChannel, ReminderDispatchMode } from '../../../contracts/enums.js';
 import { nowIso } from '../../../domain/time.js';
 import { AppLogger } from '../../../observability/logger.js';
 import type { DueReminderView } from '../../models/reminder.models.js';

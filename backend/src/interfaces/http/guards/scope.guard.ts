@@ -1,8 +1,13 @@
-import { CanActivate, ExecutionContext, Injectable, NotFoundException } from '@nestjs/common';
+import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { WorkspaceScopeResolver } from '../../../application/services/content/workspace-scope-resolver.service.js';
+import {
+  ProjectNotFoundException,
+  ProjectSlugMissingException,
+  WorkspaceSlugMissingException,
+} from '../../../domain/exceptions/index.js';
 import { SCOPED_METADATA_KEY, type ScopedOptions, type ScopedRequest } from '../scope.decorators.js';
-import { RESOLUTION_ERROR_MESSAGES, SCOPE_HEADERS } from './resolution-guards.constants.js';
+import { SCOPE_HEADERS } from './resolution-guards.constants.js';
 import { updateRequestContext } from '../../../observability/request-context.js';
 import type { WorkspaceScope } from '../../../application/models/workspace-scope.models.js';
 
@@ -48,11 +53,11 @@ export class ScopeGuard implements CanActivate {
     const { projectSlug, workspaceSlug } = extractScopeSlugs(request);
 
     if (options.project === 'required' && !projectSlug) {
-      throw new NotFoundException(RESOLUTION_ERROR_MESSAGES.PROJECT_SLUG_MISSING);
+      throw new ProjectSlugMissingException();
     }
 
     if (options.project === 'none' && !workspaceSlug) {
-      throw new NotFoundException(RESOLUTION_ERROR_MESSAGES.WORKSPACE_SLUG_MISSING);
+      throw new WorkspaceSlugMissingException();
     }
 
     if (options.project === 'optional' && !projectSlug && !workspaceSlug) {
@@ -69,8 +74,7 @@ export class ScopeGuard implements CanActivate {
     } catch (err) {
       if (
         options.project === 'optional' &&
-        err instanceof NotFoundException &&
-        err.message === RESOLUTION_ERROR_MESSAGES.PROJECT_NOT_FOUND
+        err instanceof ProjectNotFoundException
       ) {
         scope = await this.scopeResolver.resolve(user.id, {
           workspaceSlug,

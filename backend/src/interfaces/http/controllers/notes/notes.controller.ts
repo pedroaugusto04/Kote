@@ -1,9 +1,9 @@
-import { Body, Controller, Delete, Get, NotFoundException, Optional, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
-import { GitCommitRepository } from '../../../../application/ports/projects/git-commit.repository.js';
+import { AttachmentNotFoundException, NoteNotFoundException } from '../../../../domain/exceptions/index.js';
 import {
   CreateManualNoteUseCase,
   DeleteNoteUseCase,
@@ -11,21 +11,13 @@ import {
   UpdateNoteUseCase,
   BulkUpdateNoteStatusUseCase,
   SetNotePinnedUseCase,
-  FindRelatedNotesUseCase,
   GetAutoActionGlobalUseCase,
   SetAutoActionGlobalUseCase,
   GetNoteDetailUseCase,
   ListPaginatedNotesUseCase,
-  FindNotesByFileUseCase,
-  FindNotesBySnippetUseCase,
-  FindRelatedNotesByFileUseCase,
-  GenerateFileNotesSummaryByFileUseCase,
-  RequestAiSessionSynthesisUseCase,
-  GenerateSessionHandoffUseCase,
 } from '../../../../application/use-cases/index.js';
-import { BrowserExtensionGuard } from '../../guards/auth.guards.js';
+import { AccessTokenAuthGuard, BrowserExtensionGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
 import { CurrentUser } from '../../auth.decorators.js';
-import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
 import {
   createNoteBodySchema,
   noteAttachmentContentParamSchema,
@@ -34,33 +26,16 @@ import {
   autoActionGlobalSchema,
   pinNoteBodySchema,
   bulkUpdateNoteStatusBodySchema,
-  notesByFileQuerySchema,
   notesListQuerySchema,
-  fileNotesSummaryQuerySchema,
-  relatedNotesByFileQuerySchema,
-  notesBySnippetQuerySchema,
-  notesBySnippetBodySchema,
-  linkNoteCommitBodySchema,
-  noteCommitParamSchema,
   type CreateNoteBody,
+  type AutoActionGlobal,
   type NoteAttachmentContentParam,
   type NoteIdParam,
   type UpdateNoteBody,
   type PinNoteBody,
   type BulkUpdateNoteStatusBody,
-  type NotesByFileQuery,
   type NotesListQuery,
-  type FileNotesSummaryQuery,
-  type RelatedNotesByFileQuery,
-  type NotesBySnippetQuery,
-  type NotesBySnippetBody,
-  type LinkNoteCommitBody,
-  type NoteCommitParam,
 } from '../../dto/note.dto.js';
-import {
-  sessionHandoffBodySchema,
-  type SessionHandoffBody,
-} from '../../dto/session-handoff.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { attachmentContentDisposition, inlineContentDisposition, paginatedResponse } from '../../http-helpers.js';
 import { isZipAttachmentMimeType } from '../../../../domain/constants/attachment.constants.js';
@@ -70,10 +45,6 @@ import type { WorkspaceScope } from '../../../../application/models/workspace-sc
 import {
   toCreateManualNoteDto,
   toUpdateNoteDto,
-  toFindNotesBySnippetInput,
-  toFindRelatedNotesByFileInput,
-  toGenerateFileNotesSummaryInput,
-  toFindNotesByFileOptions,
   toSetAutoActionGlobalInput,
 } from '../../mappers/note.mapper.js';
 
@@ -87,19 +58,11 @@ export class NotesController {
     private readonly deleteNote: DeleteNoteUseCase,
     private readonly getAttachmentContent: GetNoteAttachmentContentUseCase,
     private readonly setNotePinnedUseCase: SetNotePinnedUseCase,
-    private readonly findRelatedNotesUseCase: FindRelatedNotesUseCase,
     private readonly getAutoActionGlobalUseCase: GetAutoActionGlobalUseCase,
     private readonly setAutoActionGlobalUseCase: SetAutoActionGlobalUseCase,
     private readonly bulkUpdateNoteStatus: BulkUpdateNoteStatusUseCase,
     private readonly getNoteDetail: GetNoteDetailUseCase,
     private readonly listNotesUseCase: ListPaginatedNotesUseCase,
-    private readonly findNotesByFileUseCase: FindNotesByFileUseCase,
-    private readonly findNotesBySnippetUseCase: FindNotesBySnippetUseCase,
-    private readonly findRelatedNotesByFileUseCase: FindRelatedNotesByFileUseCase,
-    private readonly generateFileNotesSummaryByFileUseCase: GenerateFileNotesSummaryByFileUseCase,
-    private readonly requestAiSessionSynthesis: RequestAiSessionSynthesisUseCase,
-    private readonly generateSessionHandoffUseCase: GenerateSessionHandoffUseCase,
-    @Optional() private readonly gitCommitRepository?: GitCommitRepository,
   ) { }
 
   @Post()
@@ -152,32 +115,6 @@ export class NotesController {
     return this.updateNote.execute(dto, user.id);
   }
 
-  @Post(':id/synthesis')
-  @UseGuards(TrustedOriginGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Request immediate AI session synthesis' })
-  @ApiParam({ name: 'id', description: 'AI session note ID' })
-  @ApiResponse({ status: 200, description: 'Synthesis queued for immediate processing' })
-  requestSynthesis(
-    @Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: NoteIdParam,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    return this.requestAiSessionSynthesis.execute(user.id, params.id);
-  }
-
-  @Post('session-handoff')
-  @UseGuards(TrustedOriginGuard, ScopeGuard)
-  @Scoped({ project: 'optional' })
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Generate or retrieve on-demand session handoff' })
-  @ApiResponse({ status: 200, description: 'Session handoff generated successfully' })
-  async sessionHandoff(
-    @Body(new ZodValidationPipe(sessionHandoffBodySchema, 'invalid_session_handoff_payload')) body: SessionHandoffBody,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    return this.generateSessionHandoffUseCase.execute(user.id, body);
-  }
-
   @Delete(':id')
   @UseGuards(TrustedOriginGuard)
   @ApiBearerAuth()
@@ -205,7 +142,7 @@ export class NotesController {
     @Res() response: Response,
   ) {
     const content = await this.getAttachmentContent.execute(user.id, params.noteId, params.attachmentId);
-    if (!content) throw new NotFoundException('attachment_not_found');
+    if (!content) throw new AttachmentNotFoundException();
 
     response.setHeader('Content-Type', content.mimeType);
     response.setHeader('Content-Length', String(content.body.byteLength || content.sizeBytes));
@@ -229,87 +166,6 @@ export class NotesController {
     return this.setNotePinnedUseCase.execute(user.id, params.id, body.pinned);
   }
 
-  @Get('by-file')
-  @UseGuards(ScopeGuard)
-  @Scoped({ project: 'optional' })
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Find notes by file path' })
-  @ApiQuery({ name: 'filePath', description: 'Relative file path to search notes for' })
-  @ApiResponse({ status: 200, description: 'Notes matching the file path retrieved successfully' })
-  async findByFile(
-    @Query(new ZodValidationPipe(notesByFileQuerySchema, 'invalid_notes_by_file_query')) query: NotesByFileQuery,
-    @CurrentUser() user: AuthenticatedUser,
-    @Scope() scope?: WorkspaceScope,
-  ) {
-    const options = toFindNotesByFileOptions(query, scope);
-    return this.findNotesByFileUseCase.execute(user.id, query.filePath, options);
-  }
-
-  @Get('by-file/related')
-  @UseGuards(ScopeGuard)
-  @Scoped({ project: 'optional' })
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Find related notes by file path' })
-  @ApiQuery({ name: 'filePath', description: 'Relative file path to search related notes for' })
-  @ApiQuery({ name: 'excludeIds', description: 'IDs of notes to exclude (comma separated)', required: false })
-  @ApiQuery({ name: 'limit', description: 'Maximum number of notes to return', required: false })
-  @ApiQuery({ name: 'searchProfile', enum: ['file', 'snippet'], required: false })
-  @ApiResponse({ status: 200, description: 'Related notes retrieved successfully' })
-  async findRelatedByFile(
-    @Query(new ZodValidationPipe(relatedNotesByFileQuerySchema, 'invalid_related_notes_by_file_query')) query: RelatedNotesByFileQuery,
-    @CurrentUser() user: AuthenticatedUser,
-    @Scope() scope?: WorkspaceScope,
-  ) {
-    const input = toFindRelatedNotesByFileInput(query, user.id, scope);
-    return this.findRelatedNotesByFileUseCase.execute(input);
-  }
-
-  @Get('by-file/summary')
-  @UseGuards(ScopeGuard)
-  @Scoped({ project: 'optional' })
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Generate AI summary of notes for a file' })
-  @ApiQuery({ name: 'filePath', description: 'Relative file path to generate summary for' })
-  @ApiResponse({ status: 200, description: 'AI summary generated successfully' })
-  async getFileNotesSummary(
-    @Query(new ZodValidationPipe(fileNotesSummaryQuerySchema, 'invalid_file_notes_summary_query')) query: FileNotesSummaryQuery,
-    @CurrentUser() user: AuthenticatedUser,
-    @Scope() scope?: WorkspaceScope,
-  ) {
-    const input = toGenerateFileNotesSummaryInput(query, scope);
-    return this.generateFileNotesSummaryByFileUseCase.execute(user.id, input);
-  }
-
-  @Get('by-snippet')
-  @UseGuards(ScopeGuard)
-  @Scoped({ project: 'optional' })
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Find notes and AI sessions related to a code snippet and commit' })
-  @ApiResponse({ status: 200, description: 'Notes for snippet retrieved successfully' })
-  async getBySnippet(
-    @Query(new ZodValidationPipe(notesBySnippetQuerySchema, 'invalid_notes_by_snippet_query')) query: NotesBySnippetQuery,
-    @CurrentUser() user: AuthenticatedUser,
-    @Scope() scope?: WorkspaceScope,
-  ) {
-    const input = toFindNotesBySnippetInput(query, scope?.projectSlug, scope?.workspaceSlug);
-    return this.findNotesBySnippetUseCase.execute(user.id, input);
-  }
-
-  @Post('by-snippet')
-  @UseGuards(ScopeGuard)
-  @Scoped({ project: 'optional' })
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Find notes and AI sessions related to a code snippet and commit (POST)' })
-  @ApiResponse({ status: 200, description: 'Notes for snippet retrieved successfully' })
-  async postBySnippet(
-    @Body(new ZodValidationPipe(notesBySnippetBodySchema, 'invalid_notes_by_snippet_payload')) body: NotesBySnippetBody,
-    @CurrentUser() user: AuthenticatedUser,
-    @Scope() scope?: WorkspaceScope,
-  ) {
-    const input = toFindNotesBySnippetInput(body, scope?.projectSlug, scope?.workspaceSlug);
-    return this.findNotesBySnippetUseCase.execute(user.id, input);
-  }
-
   @Get('auto/global')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get global auto-action config' })
@@ -322,7 +178,7 @@ export class NotesController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Set global auto-action config' })
   async setAutoActionGlobal(
-    @Body(new ZodValidationPipe(autoActionGlobalSchema, 'invalid_auto_action_global_payload')) body: import('../../dto/note.dto.js').AutoActionGlobal,
+    @Body(new ZodValidationPipe(autoActionGlobalSchema, 'invalid_auto_action_global_payload')) body: AutoActionGlobal,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     const input = toSetAutoActionGlobalInput(body);
@@ -350,18 +206,6 @@ export class NotesController {
     };
   }
 
-  @Get(':id/related')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Find related notes' })
-  @ApiParam({ name: 'id', description: 'Note ID' })
-  @ApiResponse({ status: 200, description: 'Related notes retrieved' })
-  related(
-    @Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: NoteIdParam,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    return this.findRelatedNotesUseCase.execute(user.id, params.id);
-  }
-
   @Get(':id')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get note detail' })
@@ -373,39 +217,7 @@ export class NotesController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     const note = await this.getNoteDetail.execute(user.id, params.id);
-    if (!note) throw new NotFoundException('note_not_found');
+    if (!note) throw new NoteNotFoundException();
     return { ok: true, note };
-  }
-
-  @Post(':id/commits')
-  @UseGuards(TrustedOriginGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Manually link a Git commit to a note' })
-  @ApiParam({ name: 'id', description: 'Note ID' })
-  @ApiResponse({ status: 200, description: 'Commit linked to note successfully' })
-  async linkCommit(
-    @Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: NoteIdParam,
-    @Body(new ZodValidationPipe(linkNoteCommitBodySchema, 'invalid_link_note_commit_payload')) body: LinkNoteCommitBody,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    if (!this.gitCommitRepository) throw new NotFoundException('commit_or_note_not_found');
-    const commit = await this.gitCommitRepository.linkNoteCommitManually(user.id, params.id, body.commitId);
-    return { ok: true, commit };
-  }
-
-  @Delete(':id/commits/:commitId')
-  @UseGuards(TrustedOriginGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Unlink a Git commit from a note' })
-  @ApiParam({ name: 'id', description: 'Note ID' })
-  @ApiParam({ name: 'commitId', description: 'Commit ID' })
-  @ApiResponse({ status: 200, description: 'Commit unlinked from note successfully' })
-  async unlinkCommit(
-    @Param(new ZodValidationPipe(noteCommitParamSchema, 'invalid_note_commit_id')) params: NoteCommitParam,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    if (!this.gitCommitRepository) return { ok: true, removed: false };
-    const removed = await this.gitCommitRepository.unlinkNoteCommit(user.id, params.id, params.commitId);
-    return { ok: true, removed };
   }
 }

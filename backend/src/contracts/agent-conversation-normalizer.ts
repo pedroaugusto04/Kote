@@ -1,14 +1,11 @@
 import { CanonicalType, ConversationConfidence, Importance, KnowledgeKind } from './enums.js';
+import { isRecord } from '../domain/utils/type-guards.utils.js';
 
 const actionValues = new Set(['capture', 'reply', 'clarify', 'cancel']);
 const canonicalTypeValues = new Set(Object.values(CanonicalType));
 const confidenceValues = new Set(Object.values(ConversationConfidence));
 const importanceValues = new Set(Object.values(Importance));
 const knowledgeKindValues = new Set(Object.values(KnowledgeKind));
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
-}
 
 function enumValueOrUndefined<T extends string>(value: unknown, allowedValues: ReadonlySet<T>): T | undefined {
   if (typeof value !== 'string') return undefined;

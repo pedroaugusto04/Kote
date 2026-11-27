@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { isRecord } from '../../domain/utils/type-guards.utils.js';
 import { readEnvironment } from '../environment.js';
 
 export interface EvolutionConfig {
@@ -86,7 +86,7 @@ export function evolutionMessagePayload(body: EvolutionMessageBody): EvolutionMe
 }
 
 function objectValue(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+  return isRecord(value) ? value : undefined;
 }
 
 function base64Value(value: unknown): string {

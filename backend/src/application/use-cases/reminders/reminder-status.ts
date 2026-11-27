@@ -3,8 +3,6 @@ import { isReminderOverdue } from '../../../domain/note-status.js';
 
 export function enrichReminderStatus<T extends {
   status?: string;
-  reminderDate?: string;
-  reminderTime?: string;
   reminderAt?: string;
 }>(reminder: T, now?: Date) {
   const status = String(reminder.status || '').trim().toLowerCase();

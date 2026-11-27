@@ -1,5 +1,5 @@
 import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { Request } from 'express';
 
 import { LogApplicationAccessUseCase } from '../../../../application/use-cases/observability/log-application-access.use-case.js';

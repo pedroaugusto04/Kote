@@ -16,9 +16,6 @@ import type {
   PushSubscriptionRecord,
   CategoryRecord,
   PlanRecord,
-  UserSubscriptionRecord,
-  UserSubscriptionWithPlan,
-  QuotaUsageEventRecord,
   QuotaAdjustmentRecord,
 } from '../../application/models/repository-records.models.js';
 import type { WebhookSubscriptionRecord } from '../../application/models/webhook-subscription.models.js';
@@ -410,42 +407,6 @@ export function planFromRow(row: Row): PlanRecord {
     isActive: field(row, 'is_active', 'isActive') !== false,
     createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
     updatedAt: toIsoTimestamp(field(row, 'updated_at', 'updatedAt')),
-  };
-}
-
-export function userSubscriptionFromRow(row: Row): UserSubscriptionRecord {
-  return {
-    userId: fieldString(row, 'user_id', 'userId'),
-    planId: fieldString(row, 'plan_id', 'planId'),
-    status: fieldString(row, 'status', 'status', 'active'),
-    currentPeriodStart: toIsoTimestamp(field(row, 'current_period_start', 'currentPeriodStart')),
-    currentPeriodEnd: toIsoTimestamp(field(row, 'current_period_end', 'currentPeriodEnd')),
-    gatewayName: fieldString(row, 'gateway_name', 'gatewayName', 'asaas'),
-    gatewaySubscriptionId: fieldNullableString(row, 'gateway_subscription_id', 'gatewaySubscriptionId'),
-    billingCycle: fieldString(row, 'billing_cycle', 'billingCycle', 'monthly'),
-    createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
-    updatedAt: toIsoTimestamp(field(row, 'updated_at', 'updatedAt')),
-  };
-}
-
-export function userSubscriptionWithPlanFromRow(row: Row): UserSubscriptionWithPlan {
-  const sub = userSubscriptionFromRow(row);
-  const plan = planFromRow(row);
-  return {
-    ...sub,
-    plan,
-  };
-}
-
-export function quotaUsageEventFromRow(row: Row): QuotaUsageEventRecord {
-  return {
-    id: String(row.id),
-    userId: fieldString(row, 'user_id', 'userId'),
-    type: String(row.type),
-    amount: fieldNumber(row, 'amount', 'amount', 1),
-    description: row.description ? String(row.description) : null,
-    metadata: (row.metadata || {}) as Record<string, unknown>,
-    createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
   };
 }
 

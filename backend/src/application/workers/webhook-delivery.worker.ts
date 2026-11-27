@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, type OnModuleInit, type OnModuleDestroy } from '@nestjs/common';
 
 import type { NoteEventPayload } from '../../domain/note-event.js';
 import { WebhookSubscriptionRepository } from '../ports/webhooks/webhook-subscription.repository.js';

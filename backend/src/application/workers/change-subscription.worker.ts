@@ -1,7 +1,7 @@
 import { schedule } from 'node-cron';
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { SubscriptionChangeService } from '../services/billing/SubscriptionChangeService.js';
-import { SubscriptionService } from '../services/billing/SubscriptionService.js';
+import { Injectable, type OnModuleInit, type OnModuleDestroy } from '@nestjs/common';
+import { SubscriptionChangeService } from '../services/billing/subscription-change.service.js';
+import { SubscriptionService } from '../services/billing/subscription.service.js';
 import { SubscriptionRepository } from '../ports/billing/billing-repositories.js';
 import { AppLogger } from '../../observability/logger.js';
 import { SubscriptionChangeType } from '../../domain/enums/billing.enums.js';

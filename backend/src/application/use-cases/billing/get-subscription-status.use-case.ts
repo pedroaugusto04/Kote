@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { QuotaService } from '../../services/quota/quota.service.js';
-import { SubscriptionService } from '../../services/billing/SubscriptionService.js';
+import { SubscriptionService } from '../../services/billing/subscription.service.js';
 
 @Injectable()
 export class GetSubscriptionStatusUseCase {

@@ -1,5 +1,5 @@
 import { BillingIntentType } from '../../domain/enums/billing.enums.js';
-import type { PaymentGateway, PaymentStatus, PaymentKind } from '../models/billing.models.js';
+import type { PaymentGateway, PaymentStatus, PaymentKind, BillingType } from '../models/billing.models.js';
 
 export interface BuildPaymentDataInput {
   subscriptionId: string | null;
@@ -7,9 +7,19 @@ export interface BuildPaymentDataInput {
   gateway: PaymentGateway;
   gatewayPaymentId: string;
   payStatus: PaymentStatus;
-  payment: any;
-  existingPayment?: any;
-  intent?: any;
+  payment: {
+    billingType?: BillingType | null;
+    status?: string | null;
+    description?: string | null;
+    stripeClientSecret?: string | null;
+  };
+  existingPayment?: {
+    kind?: PaymentKind;
+    billingType?: BillingType | null;
+    description?: string | null;
+    stripeClientSecret?: string | null;
+  } | null;
+  intent?: { type?: BillingIntentType | string } | null;
   value: number;
   dueDate: Date | null;
   paidAt: Date | null;

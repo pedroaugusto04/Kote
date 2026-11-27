@@ -1,5 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
+import {
+  FolderHasNotesException,
+  FolderNotEmptyException,
+} from '../../../domain/exceptions/index.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 import { collectFolderDescendantIds } from '../../utils/content/project-folder.utils.js';
@@ -20,8 +24,8 @@ export class DeleteProjectFolderUseCase {
     const notes = await this.contentRepository.listNotesLite(userId);
     const hasNestedFolders = descendantIds.length > 1;
     const hasNotes = notes.some((note) => note.projectId === projectId && note.folderId && descendantIds.includes(note.folderId));
-    if (hasNotes) throw new BadRequestException('folder_has_notes');
-    if (hasNestedFolders) throw new BadRequestException('folder_not_empty');
+    if (hasNotes) throw new FolderHasNotesException();
+    if (hasNestedFolders) throw new FolderNotEmptyException();
 
     await this.contentRepository.deleteProjectFolder(userId, projectId, folderId);
     return { ok: true as const, folderId, projectSlug: project.projectSlug };

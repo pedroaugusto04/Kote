@@ -1,38 +1,64 @@
-import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
-  CreateCustomerInput,
-  CreatePaymentInput,
-  CreateSubscriptionInput,
+  AppErrorCode,
+  AppException,
+  GatewayCustomerNotFoundException,
+  PaymentGatewayException,
+} from '../../../../domain/exceptions/index.js';
+import {
+  type CreateCustomerInput,
+  type CreatePaymentInput,
+  type CreateSubscriptionInput,
   GatewayNameEnum,
-  GatewayCustomer,
-  GatewayPayment,
-  GatewaySubscription,
-  GatewayWebhookEvent,
-  IPaymentGateway,
-  UpdateSubscriptionInput,
-  UpdatePaymentInput,
+  type GatewayCustomer,
+  type GatewayPayment,
+  type GatewaySubscription,
+  type GatewayWebhookEvent,
+  type IPaymentGateway,
+  type UpdateSubscriptionInput,
+  type UpdatePaymentInput,
   BillingTypeEnum,
 } from '../IPaymentGateway.js';
 import { StripePaymentMapper } from './StripePaymentMapper.js';
+import { executeGatewayHttpRequest } from '../http-gateway.helpers.js';
 
-function stripeToAppError(err: any): HttpException {
-  if (err instanceof HttpException) return err;
+function stripeToAppError(err: any): AppException {
+  if (err instanceof AppException) return err;
 
   const gatewayError = err || {};
   const code = gatewayError.code;
+  const cause = err instanceof Error ? err : undefined;
 
-  if (code === 'ECONNABORTED') {
-    return new HttpException({ code: 'payment_gateway_timeout' }, HttpStatus.GATEWAY_TIMEOUT);
+  if (code === 'ECONNABORTED' || err?.name === 'TimeoutError') {
+    return new PaymentGatewayException(AppErrorCode.PaymentGatewayTimeout, {
+      provider: 'stripe',
+      cause,
+    });
   }
 
   if (code === 'ENOTFOUND' || code === 'ECONNREFUSED' || code === 'ECONNRESET' || code === 'ETIMEDOUT') {
-    return new HttpException({ code: 'payment_gateway_unavailable' }, HttpStatus.BAD_GATEWAY);
+    return new PaymentGatewayException(AppErrorCode.PaymentGatewayUnavailable, {
+      provider: 'stripe',
+      cause,
+    });
   }
 
+  const status = typeof gatewayError.status === 'number' ? gatewayError.status : undefined;
+  const responseBody = typeof gatewayError.responseBody === 'string' ? gatewayError.responseBody : undefined;
   const message = gatewayError.message || 'Stripe error';
   const stripeErrorMessage = message.includes('Stripe error') ? message : `Stripe error: ${message}`;
 
-  return new HttpException({ code: 'stripe_payment_failed', details: { originalMessage: stripeErrorMessage } }, HttpStatus.BAD_REQUEST);
+  if (status === 404 && typeof message === 'string' && /no such customer/i.test(message)) {
+    return new GatewayCustomerNotFoundException(stripeErrorMessage);
+  }
+
+  return new PaymentGatewayException(AppErrorCode.StripePaymentFailed, {
+    provider: 'stripe',
+    status,
+    responseBody,
+    clientMessage: stripeErrorMessage,
+    cause,
+  });
 }
 
 function serializeToForm(obj: any, prefix?: string): string {
@@ -69,41 +95,30 @@ export class StripePaymentGateway implements IPaymentGateway {
     }
     const cleanPath = path.replace(/^\/+/, '');
     const url = new URL(cleanPath, 'https://api.stripe.com/v1/').toString();
-    const headers = {
-      'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      ...(options.headers || {}),
-    };
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-        signal: AbortSignal.timeout(30000), // 30 second timeout
-      });
-
-      const text = await response.text();
-      let data: any = null;
-      if (text) {
-        try {
-          data = JSON.parse(text);
-        } catch {
-          data = text;
-        }
-      }
-
-      if (!response.ok) {
-        const errorMessage = data?.error?.message || `Stripe error: ${response.statusText}`;
-        const errorDetails = data?.error ? JSON.stringify(data.error) : response.statusText;
+    return executeGatewayHttpRequest<T>({
+      url,
+      init: options,
+      headers: {
+        'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      timeoutMs: 30_000,
+      mapHttpError: (status, data) => {
+        const stripeErr = (data as { error?: { message?: string } } | null)?.error;
+        const errorMessage = stripeErr?.message || `Stripe error: HTTP ${status}`;
+        const errorDetails = stripeErr ? JSON.stringify(stripeErr) : String(status);
         this.logger.error(`Stripe API error on ${path}: ${errorMessage} - Details: ${errorDetails}`);
-        throw stripeToAppError({ message: errorMessage });
-      }
-
-      return data as T;
-    } catch (err: any) {
-      this.logger.error(`Stripe API error on ${path}: ${err.message}`);
-      throw stripeToAppError(err);
-    }
+        return stripeToAppError({
+          message: errorMessage,
+          status,
+          responseBody: errorDetails,
+        });
+      },
+      mapError: (err: any) => {
+        this.logger.error(`Stripe API error on ${path}: ${err?.message ?? String(err)}`);
+        return stripeToAppError(err);
+      },
+    });
   }
 
   private async attachPaymentMethod(customerId: string, paymentMethodId: string): Promise<void> {
@@ -230,7 +245,11 @@ export class StripePaymentGateway implements IPaymentGateway {
         body.default_payment_method = input.creditCardToken;
       } catch (e: any) {
         this.logger.error(`Failed to attach payment method to customer: ${e.message}`);
-        throw new Error(`Failed to attach payment method: ${e.message}`);
+        throw new PaymentGatewayException(AppErrorCode.StripePaymentFailed, {
+          provider: 'stripe',
+          clientMessage: `Failed to attach payment method: ${e.message}`,
+          cause: e,
+        });
       }
     }
 

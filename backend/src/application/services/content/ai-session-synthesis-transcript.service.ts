@@ -1,6 +1,9 @@
-import { AI_SESSION_SYNTHESIS_PROCESSING } from '../../constants/ai-session-synthesis.constants.js';
-import crypto from 'node:crypto';
-import type { NoteSynthesisItem } from '../../models/note-synthesis.models.js';
+import {
+  AI_SESSION_SYNTHESIS_PROCESSING,
+  NoteSynthesisStatus,
+} from '../../constants/ai-session-synthesis.constants.js';
+import { sha256Hex } from '../../../domain/utils/crypto.utils.js';
+import type { NoteSynthesisItem, NoteSynthesisRecord } from '../../models/note-synthesis.models.js';
 
 export type AiSessionTurn = { role: 'user' | 'assistant'; text: string; number: number };
 
@@ -9,7 +12,15 @@ export type SynthesisRetrievalChunk = { chunkText: string; sourceRefs: number[] 
 const SYNTHESIS_RETRIEVAL_CHUNK_MAX_CHARS = 2_400;
 
 export function getAiSessionSourceHash(markdown: string | null | undefined): string {
-  return crypto.createHash('sha256').update(markdown || '').digest('hex');
+  return sha256Hex(markdown || '');
+}
+
+export function isSynthesisFresh(
+  synthesis: Pick<NoteSynthesisRecord, 'status' | 'sourceHash'> | null | undefined,
+  markdown: string | null | undefined,
+): boolean {
+  if (!synthesis || synthesis.status !== NoteSynthesisStatus.Completed) return false;
+  return synthesis.sourceHash === getAiSessionSourceHash(markdown);
 }
 
 export function parseAiSessionTurns(markdown: string): AiSessionTurn[] {

@@ -96,6 +96,9 @@ function createDatabase(pool) {
       db = drizzle(pool, { schema });
       return db;
     },
+    runInTransaction(fn) {
+      return this.getDb().transaction(fn);
+    },
   };
 }
 

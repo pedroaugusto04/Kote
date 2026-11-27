@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
+import { FolderNotFoundException } from '../../../domain/exceptions/index.js';
 import { slugify } from '../../../domain/strings.js';
 import { isDependencyNote } from '../../../domain/utils/note-embedding.utils.js';
 import { hasReminder } from '../../../domain/note-status.js';
@@ -40,7 +41,7 @@ export class ListProjectKnowledgeMapUseCase {
     };
     if (normalizedFolderId) {
       const selectedFolder = folders.find((folder) => folder.id === normalizedFolderId);
-      if (!selectedFolder) throw new NotFoundException('folder_not_found');
+      if (!selectedFolder) throw new FolderNotFoundException();
       queryInput.folderIds = collectFolderDescendantIds(folders, normalizedFolderId);
     }
 

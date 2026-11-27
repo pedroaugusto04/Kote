@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { AiSessionSynthesisOutboxRepository } from '../ports/notes/ai-session-synthesis-outbox.repository.js';
 import { AiSessionSynthesisGateway } from '../ports/notes/ai-session-synthesis.gateway.js';
 import { NoteSynthesisRepository } from '../ports/notes/note-synthesis.repository.js';

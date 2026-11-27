@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { QuotaRepository } from '../../ports/quota/quota.repository.js';
 import { UserRepository } from '../../ports/auth/auth.repository.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
-import { QuotaResourceType, AiOperationType, SubscriptionPlan } from '../../../domain/enums/plans.enums.js';
+import { QuotaResourceType, type AiOperationType, SubscriptionPlan } from '../../../domain/enums/plans.enums.js';
 import { AI_CREDIT_COSTS } from '../../../domain/constants/ai-credits.constants.js';
 import type { PlanRecord, UserSubscriptionWithPlan } from '../../models/repository-records.models.js';
 import { getQuotaPeriod } from '../../../domain/utils/subscription.utils.js';
@@ -31,7 +31,7 @@ export class QuotaService {
   constructor(
     private readonly quotaRepository: QuotaRepository,
     private readonly userRepository: UserRepository,
-    private readonly contentRepository?: ContentRepository
+    private readonly contentRepository: ContentRepository,
   ) {}
 
   async checkQuota(

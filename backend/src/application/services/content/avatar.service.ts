@@ -1,5 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
+import {
+  AppErrorCode,
+  AvatarNotFoundException,
+  AvatarValidationException,
+} from '../../../domain/exceptions/index.js';
 import { ObjectStorage, ObjectStorageMissingContentError } from '../../ports/notes/object-storage.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 
@@ -23,19 +28,14 @@ export class AvatarService {
 
   constructor(
     private readonly objectStorage: ObjectStorage,
-    private readonly environmentProvider: RuntimeEnvironmentProvider = { read: () => ({ avatarMaxSizeBytes: 3 * 1024 * 1024 }) as any },
+    private readonly environmentProvider: RuntimeEnvironmentProvider,
   ) {
     this.maxAvatarSizeBytes = this.environmentProvider.read().avatarMaxSizeBytes;
   }
 
-  private requireAvatarStorage(): ObjectStorage {
-    if (!this.objectStorage) throw new Error('avatar_storage_not_configured');
-    return this.objectStorage;
-  }
-
   private avatarStorageKey(userId: string, mimeType: string): string {
     const extension = avatarMimeTypes.get(mimeType);
-    if (!extension) throw new BadRequestException('unsupported_avatar_type');
+    if (!extension) throw new AvatarValidationException(AppErrorCode.UnsupportedAvatarType);
     return `users/${userId}/profile/avatar-${Date.now()}.${extension}`;
   }
 
@@ -44,11 +44,10 @@ export class AvatarService {
   }
 
   private async getStoredAvatarWithRetry(storageKey: string): Promise<Buffer> {
-    const storage = this.requireAvatarStorage();
     let lastError: unknown;
     for (let attempt = 1; attempt <= avatarStorageReadAttempts; attempt += 1) {
       try {
-        return await storage.get(storageKey);
+        return await this.objectStorage.get(storageKey);
       } catch (error) {
         lastError = error;
         if (!(error instanceof ObjectStorageMissingContentError) || attempt === avatarStorageReadAttempts) break;
@@ -65,17 +64,16 @@ export class AvatarService {
     sizeBytes: number;
     previousStorageKey: string | null;
   }): Promise<{ storageKey: string; mimeType: string; sizeBytes: number }> {
-    if (!avatarMimeTypes.has(input.mimeType)) throw new BadRequestException('unsupported_avatar_type');
-    if (!input.buffer.length || input.sizeBytes <= 0) throw new BadRequestException('avatar_file_required');
-    if (input.sizeBytes > this.maxAvatarSizeBytes || input.buffer.length > this.maxAvatarSizeBytes) throw new BadRequestException('avatar_file_too_large');
+    if (!avatarMimeTypes.has(input.mimeType)) throw new AvatarValidationException(AppErrorCode.UnsupportedAvatarType);
+    if (!input.buffer.length || input.sizeBytes <= 0) throw new AvatarValidationException(AppErrorCode.AvatarFileRequired);
+    if (input.sizeBytes > this.maxAvatarSizeBytes || input.buffer.length > this.maxAvatarSizeBytes) throw new AvatarValidationException(AppErrorCode.AvatarFileTooLarge);
 
-    const storage = this.requireAvatarStorage();
     const storageKey = this.avatarStorageKey(input.userId, input.mimeType);
-    await storage.put({ key: storageKey, body: input.buffer, contentType: input.mimeType });
+    await this.objectStorage.put({ key: storageKey, body: input.buffer, contentType: input.mimeType });
     await this.getStoredAvatarWithRetry(storageKey);
 
     if (input.previousStorageKey && input.previousStorageKey !== storageKey) {
-      await storage.delete(input.previousStorageKey).catch(() => undefined);
+      await this.objectStorage.delete(input.previousStorageKey).catch(() => undefined);
     }
 
     return { storageKey, mimeType: input.mimeType, sizeBytes: input.sizeBytes };
@@ -83,11 +81,11 @@ export class AvatarService {
 
   async deleteAvatar(storageKey: string | null): Promise<void> {
     if (!storageKey) return;
-    await this.requireAvatarStorage().delete(storageKey).catch(() => undefined);
+    await this.objectStorage.delete(storageKey).catch(() => undefined);
   }
 
   async getAvatarContent(storageKey: string): Promise<AvatarContent> {
-    if (!storageKey) throw new NotFoundException('avatar_not_found');
+    if (!storageKey) throw new AvatarNotFoundException();
     try {
       const body = await this.getStoredAvatarWithRetry(storageKey);
       const extension = storageKey.split('.').pop()?.toLowerCase() || 'png';
@@ -95,7 +93,7 @@ export class AvatarService {
       const mimeType = mimeTypeMap[extension] || 'image/png';
       return { body, mimeType };
     } catch (error) {
-      if (error instanceof ObjectStorageMissingContentError) throw new NotFoundException('avatar_not_found');
+      if (error instanceof ObjectStorageMissingContentError) throw new AvatarNotFoundException();
       throw error;
     }
   }

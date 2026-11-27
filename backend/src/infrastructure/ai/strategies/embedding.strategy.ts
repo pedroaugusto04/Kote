@@ -1,5 +1,5 @@
 import type { EmbeddingConfig } from '../../../application/ports/notes/embedding.gateway.js';
-import { EmbeddingTaskType } from '../../../contracts/enums.js';
+import { type EmbeddingTaskType } from '../../../contracts/enums.js';
 
 export interface EmbeddingStrategy {
   generateEmbeddings(

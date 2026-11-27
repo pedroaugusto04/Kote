@@ -1,7 +1,10 @@
 import { WorkspaceScopeResolver } from '../../../../dist/application/services/content/workspace-scope-resolver.service.js';
 import test, { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { NotFoundException } from '@nestjs/common';
+import {
+  CredentialNotFoundException,
+  WorkspaceNotFoundException,
+} from '../../../../dist/domain/exceptions/index.js';
 
 import { ImportDependenciesFromGithubUseCase } from '../../../../dist/application/use-cases/dependency-watcher/import-dependencies-from-github.use-case.js';
 import { CredentialRecordStatus } from '../../../../dist/contracts/enums.js';
@@ -75,12 +78,12 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
   });
 
   describe('Business Rules', () => {
-    it('should throw NotFoundException when workspace does not exist', async () => {
+    it('should throw WorkspaceNotFoundException when workspace does not exist', async () => {
       await assert.rejects(
         async () => {
           await useCase.execute('user-123', 'nonexistent-workspace');
         },
-        (err) => err instanceof NotFoundException && err.message === 'workspace_not_found',
+        (err) => err instanceof WorkspaceNotFoundException && err.code === 'workspace_not_found',
       );
     });
 
@@ -95,7 +98,7 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
       assert.equal(publishedJobs.length, 0);
     });
 
-    it('should throw NotFoundException when GitHub credential is missing', async () => {
+    it('should throw CredentialNotFoundException when GitHub credential is missing', async () => {
       mockContentRepository.listProjects = async () => [
         {
           id: 'project-no-cred',
@@ -108,7 +111,7 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
         async () => {
           await useCase.execute('user-123', 'no-cred-workspace');
         },
-        (err) => err instanceof NotFoundException && err.message === 'github_credential_not_found',
+        (err) => err instanceof CredentialNotFoundException && err.code === 'github_credential_not_found',
       );
     });
 

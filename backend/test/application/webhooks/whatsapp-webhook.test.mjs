@@ -15,6 +15,7 @@ import { ConversationFolderResolutionService } from '../../../dist/application/u
 import { IngestAgentToolsService } from '../../../dist/application/services/conversation/ingest-agent-tools.service.js';
 import { AiEntitlementService } from '../../../dist/application/services/ai/ai-entitlement.service.js';
 import { WhatsappConversationTaskQueue, WhatsappWebhookRateLimiter } from '../../../dist/application/use-cases/webhooks/whatsapp/whatsapp-webhook-flow-control.js';
+import { WhatsappMediaProcessorService } from '../../../dist/application/use-cases/webhooks/whatsapp/whatsapp-media-processor.service.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
 class CapturingWhatsappSender {
@@ -241,19 +242,20 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
   const dummyAudioGateway = options.audioTranscription || {
     transcribe: async () => null,
   };
+  const envProvider = { read: () => ({ reminderTimeZone: 'America/Sao_Paulo', webhookSecret: process.env.KB_WEBHOOK_SECRET || '', whatsappWebhookApiKey: process.env.KB_WPP_WEBHOOK_API_KEY || '', evolutionApiKey: process.env.EVOLUTION_API_KEY || '', audioAiProvider: options.audioTranscription ? 'gemini' : 'none', audioAiBaseUrl: 'https://generativelanguage.googleapis.com/v1beta', audioAiModel: 'gemini-2.5-flash', audioAiApiKey: 'dummy-key' }) };
+  const mediaProcessor = new WhatsappMediaProcessorService(mediaDownloader, dummyAudioGateway, envProvider, loggerMock);
   const askAttachmentsUseCase = new ResolveWhatsappAskAttachmentsUseCase(repositories.contentRepository, repositories.objectStorage);
   const whatsapp = new HandleWhatsappWebhookUseCase(
     repositories.externalIdentityRepository,
     repositories.credentialRepository,
     repositories.webhookEventRepository,
-    { read: () => ({ reminderTimeZone: 'America/Sao_Paulo', webhookSecret: process.env.KB_WEBHOOK_SECRET || '', whatsappWebhookApiKey: process.env.KB_WPP_WEBHOOK_API_KEY || '', evolutionApiKey: process.env.EVOLUTION_API_KEY || '', audioAiProvider: options.audioTranscription ? 'gemini' : 'none', audioAiBaseUrl: 'https://generativelanguage.googleapis.com/v1beta', audioAiModel: 'gemini-2.5-flash', audioAiApiKey: 'dummy-key' }) },
+    envProvider,
     dummyConnections,
     conversation,
     sender,
-    mediaDownloader,
+    mediaProcessor,
     loggerMock,
     askAttachmentsUseCase,
-    dummyAudioGateway,
     repositories.scopeResolver,
     new WhatsappWebhookRateLimiter(),
     new WhatsappConversationTaskQueue(),

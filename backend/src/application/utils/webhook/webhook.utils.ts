@@ -1,4 +1,5 @@
 import { WebhookIgnoreReason } from '../../../contracts/enums.js';
+import { isRecord } from '../../../domain/utils/type-guards.utils.js';
 import { redactSensitiveValue } from '../../../observability/redact.js';
 
 export function normalizeHeaders(headers: Record<string, string | string[] | undefined>): Record<string, string> {
@@ -57,12 +58,12 @@ function whatsappPayload(body: Record<string, unknown>): Record<string, unknown>
 }
 
 function objectValue(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+  return isRecord(value) ? value : undefined;
 }
 
 function firstObjectValue(value: unknown): Record<string, unknown> | undefined {
   if (Array.isArray(value)) {
-    return value.find((entry) => entry && typeof entry === 'object' && !Array.isArray(entry)) as Record<string, unknown> | undefined;
+    return value.find((entry): entry is Record<string, unknown> => isRecord(entry));
   }
   return objectValue(value);
 }

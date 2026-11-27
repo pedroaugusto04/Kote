@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { NoteNotFoundException } from '../../../domain/exceptions/index.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { EmbeddingRepresentation, NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
 import { noteSummary } from '../../mappers/vault-note.mapper.js';
@@ -12,7 +13,7 @@ export class FindRelatedNotesUseCase {
 
   async execute(userId: string, noteId: string, limit = 3) {
     const note = await this.contentRepository.getNoteById(userId, noteId);
-    if (!note) throw new NotFoundException('note_not_found');
+    if (!note) throw new NoteNotFoundException();
 
     const embeddings = await this.noteEmbeddingRepository.getNoteEmbeddings(userId, noteId);
     if (!embeddings.length) {

@@ -8,7 +8,7 @@ import { requireNote } from '../../helpers/resource-validation.helpers.js';
 import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
 import { sanitizeManualNoteContent } from '../../helpers/sensitive-data-redaction.helpers.js';
-import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
+import { TransactionManager } from '../../ports/persistence/transaction-manager.port.js';
 
 @Injectable()
 export class UpdateNoteUseCase {
@@ -16,7 +16,7 @@ export class UpdateNoteUseCase {
     private readonly contentRepository: ContentRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly noteLifecycleService: NoteLifecycleService,
-    private readonly database: PostgresDatabase,
+    private readonly transactionManager: TransactionManager,
     private readonly scopeResolver: WorkspaceScopeResolver,
   ) {}
 
@@ -80,7 +80,11 @@ export class UpdateNoteUseCase {
       { existingNoteId: note.id, workspaceSlug: note.workspaceSlug || undefined, projectSlug: note.projectSlug || undefined },
       transaction,
     );
-    const { note: updated } = tx ? await save(tx) : await this.database.getDb().transaction(save);
+    const { note: updated } = tx
+      ? await save(tx)
+      : typeof (this.transactionManager as any)?.runInTransaction === 'function'
+        ? await this.transactionManager.runInTransaction(save)
+        : await (this.transactionManager as any).getDb().transaction(save);
 
     return { ok: true as const, noteId: updated.id };
   }

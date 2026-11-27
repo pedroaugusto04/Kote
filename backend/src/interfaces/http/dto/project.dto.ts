@@ -124,7 +124,10 @@ export const projectCommitsQuerySchema = paginationInputSchema.extend({
     .enum(['all', 'with_notes', 'ai', 'manual', 'github_push'])
     .optional(),
   query: z.string().trim().optional(),
-});
+}).transform(({ onlyLinked, linkFilter, ...rest }) => ({
+  ...rest,
+  linkFilter: linkFilter ?? (onlyLinked ? ('with_notes' as const) : ('all' as const)),
+}));
 
 export type ProjectCommitsQuery = z.infer<typeof projectCommitsQuerySchema>;
 

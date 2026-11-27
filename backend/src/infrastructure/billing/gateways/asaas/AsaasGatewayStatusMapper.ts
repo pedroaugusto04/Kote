@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { IGatewayStatusMapper } from '../IGatewayStatusMapper.js';
-import { PaymentStatus } from '../../../persistence/schema/index.js';
+import { type IGatewayStatusMapper } from '../IGatewayStatusMapper.js';
+import { type PaymentStatus } from '../../../persistence/schema/index.js';
 
 @Injectable()
 export class AsaasGatewayStatusMapper implements IGatewayStatusMapper {

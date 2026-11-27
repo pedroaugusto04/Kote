@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { InternalServerErrorException } from '@nestjs/common';
+import { StorageConfigException } from '../../dist/domain/exceptions/index.js';
 import { ObjectStorageMissingContentError } from '../../dist/application/ports/notes/object-storage.js';
 import { SupabaseObjectStorage } from '../../dist/infrastructure/storage/supabase-object-storage.js';
 
@@ -146,19 +146,19 @@ test('supabase storage throws clear config errors when required env is missing',
 
   await assert.rejects(
     () => new SupabaseObjectStorage().put({ key: 'note.md', body: 'markdown' }),
-    InternalServerErrorException,
+    StorageConfigException,
   );
 
   process.env.SUPABASE_URL = 'https://project.supabase.co';
   await assert.rejects(
     () => new SupabaseObjectStorage().get('note.md'),
-    InternalServerErrorException,
+    StorageConfigException,
   );
 
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
   await assert.rejects(
     () => new SupabaseObjectStorage().delete('note.md'),
-    InternalServerErrorException,
+    StorageConfigException,
   );
 });
 

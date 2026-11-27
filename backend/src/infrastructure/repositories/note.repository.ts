@@ -1,8 +1,10 @@
 import crypto from 'node:crypto';
 
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { eq, and, count, desc, sql, inArray, notInArray, or, gte, type SQL } from 'drizzle-orm';
+
+import { NoteNotFoundException, WorkspaceNotFoundException } from '../../domain/exceptions/index.js';
 
 
 import type { ListNotesInput } from '../../application/models/note-list.models.js';
@@ -20,82 +22,31 @@ import { EventType, SourceChannel, TimelineCategory } from '../../contracts/enum
 import { noteSummary } from '../../application/mappers/vault-note.mapper.js';
 import { noteFromRow, toIsoTimestamp } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
-import { notes, attachments, NoteStatus, projects, workspaces, categories, noteCategories, askHistory, noteLinks } from '../persistence/schema/index.js';
+import { notes, attachments, type NoteStatus, projects, workspaces, categories, noteCategories, askHistory, noteLinks } from '../persistence/schema/index.js';
 import { resolveIds } from './utils/id-resolution.helpers.js';
 import { isAiSource } from '../../domain/notes.js';
 import { isUuid } from '../../domain/utils/uuid.utils.js';
 import { resolveNoteBodySearchText } from '../../domain/utils/note-search-text.utils.js';
 import { normalizeFilePath } from '../../domain/utils/file-path.utils.js';
 import type { ProductivityInsightsRaw } from '../../application/models/productivity.models.js';
+import {
+  NOTE_ATTACHMENT_COUNT_SELECT_COLUMN,
+  NOTE_CATEGORIES_SELECT_COLUMN,
+  NOTE_LINKED_COMMITS_SELECT_COLUMN,
+  NOTE_PROJECT_SELECT_COLUMNS,
+  NOTE_SELECT_COLUMNS,
+} from './projections/note.projections.js';
 
 
 export const NOTE_BASE_SELECT_FIELDS = {
-  id: notes.id,
-  userId: notes.userId,
-  path: notes.path,
-  title: notes.title,
-  projectId: notes.projectId,
-  workspaceId: notes.workspaceId,
-  workspaceSlug: workspaces.workspaceSlug,
-  projectSlug: projects.projectSlug,
-  folderId: notes.folderId,
-  status: notes.status,
-  tags: notes.tags,
-  occurredAt: notes.occurredAt,
-  sourceChannel: notes.sourceChannel,
-  source: notes.source,
-  summary: notes.summary,
-  markdownStorageKey: notes.markdownStorageKey,
-  metadata: notes.metadata,
-  sessionId: notes.sessionId,
-  reminderAt: notes.reminderAt,
-  isPinned: notes.isPinned,
-  createdAt: notes.createdAt,
-  updatedAt: notes.updatedAt,
-  categories: sql<unknown[]>`COALESCE(
-    json_agg(
-      json_build_object(
-        'id', ${categories.id},
-        'user_id', ${categories.userId},
-        'workspace_id', ${categories.workspaceId},
-        'name', ${categories.name},
-        'color', ${categories.color},
-        'icon', ${categories.icon},
-        'is_system', ${categories.isSystem},
-        'created_at', ${categories.createdAt},
-        'updated_at', ${categories.updatedAt}
-      )
-    ) FILTER (WHERE ${categories.id} IS NOT NULL),
-    '[]'::json
-  )`.as('categories'),
-  linkedCommits: sql<unknown[]>`COALESCE(
-    (
-      SELECT json_agg(
-        json_build_object(
-          'id', gc.id,
-          'commit_sha', gc.commit_sha,
-          'short_sha', left(gc.commit_sha, 7),
-          'message', gc.message,
-          'author_name', gc.author_name,
-          'committed_at', gc.committed_at,
-          'branch', nullif(gc.branch, ''),
-          'html_url', nullif(gc.commit_url, ''),
-          'link_source', ncl.link_source,
-          'matched_files', ncl.matched_files
-        )
-        ORDER BY gc.committed_at DESC
-      )
-      FROM kb_note_commit_links ncl
-      JOIN kb_git_commits gc ON gc.id = ncl.commit_id
-      WHERE ncl.note_id = ${notes.id} AND ncl.user_id = ${notes.userId}
-    ),
-    '[]'::json
-  )`.as('linked_commits'),
+  ...NOTE_SELECT_COLUMNS,
+  categories: NOTE_CATEGORIES_SELECT_COLUMN,
+  linkedCommits: NOTE_LINKED_COMMITS_SELECT_COLUMN,
 };
 
 export const NOTE_FULL_SELECT_FIELDS = {
   ...NOTE_BASE_SELECT_FIELDS,
-  attachmentCount: count(attachments.id).as('attachment_count'),
+  attachmentCount: NOTE_ATTACHMENT_COUNT_SELECT_COLUMN,
 };
 
 import {
@@ -488,7 +439,7 @@ export class PostgresNoteRepository {
   async getByIdOrThrow(userId: string, id: string, tx?: any): Promise<NoteRecord> {
     const note = await this.getById(userId, id, tx);
     if (!note) {
-      throw new NotFoundException('note_not_found');
+      throw new NoteNotFoundException();
     }
     return note;
   }
@@ -497,43 +448,8 @@ export class PostgresNoteRepository {
     const db = tx || this.database.getDb();
     const result = await db
       .select({
-        id: notes.id,
-        userId: notes.userId,
-        path: notes.path,
-        title: notes.title,
-        projectId: notes.projectId,
-        workspaceId: notes.workspaceId,
-        projectSlug: projects.projectSlug,
-        folderId: notes.folderId,
-        status: notes.status,
-        tags: notes.tags,
-        occurredAt: notes.occurredAt,
-        sourceChannel: notes.sourceChannel,
-        source: notes.source,
-        summary: notes.summary,
-        markdownStorageKey: notes.markdownStorageKey,
-        metadata: notes.metadata,
-        sessionId: notes.sessionId,
-        reminderAt: notes.reminderAt,
-        isPinned: notes.isPinned,
-        createdAt: notes.createdAt,
-        updatedAt: notes.updatedAt,
-        categories: sql<unknown[]>`COALESCE(
-          json_agg(
-            json_build_object(
-              'id', ${categories.id},
-              'user_id', ${categories.userId},
-              'workspace_id', ${categories.workspaceId},
-              'name', ${categories.name},
-              'color', ${categories.color},
-              'icon', ${categories.icon},
-              'is_system', ${categories.isSystem},
-              'created_at', ${categories.createdAt},
-              'updated_at', ${categories.updatedAt}
-            )
-          ) FILTER (WHERE ${categories.id} IS NOT NULL),
-          '[]'::json
-        )`.as('categories'),
+        ...NOTE_PROJECT_SELECT_COLUMNS,
+        categories: NOTE_CATEGORIES_SELECT_COLUMN,
       })
       .from(notes)
       .leftJoin(projects, eq(projects.id, notes.projectId))
@@ -765,7 +681,7 @@ export class PostgresNoteRepository {
         .where(and(eq(workspaces.userId, userId), eq(workspaces.workspaceSlug, input.workspaceSlug || 'default')))
         .limit(1);
       if (wsResult.length === 0) {
-        throw new NotFoundException('workspace_not_found');
+        throw new WorkspaceNotFoundException();
       }
       workspaceId = wsResult[0].id;
 

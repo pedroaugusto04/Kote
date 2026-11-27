@@ -42,7 +42,6 @@ export { IngestEntryUseCase } from './ingest/ingest-entry.use-case.js';
 export { ProcessAgentConversationUseCase } from './conversation/process-agent-conversation.use-case.js';
 export { BuildReminderDispatchUseCase } from './reminders/build-reminder-dispatch.use-case.js';
 export { DispatchDueRemindersUseCase } from './reminders/dispatch-due-reminders.use-case.js';
-export { DispatchDueTelegramRemindersUseCase } from './reminders/dispatch-due-telegram-reminders.use-case.js';
 export { ListReminderBoardUseCase } from './reminders/list-reminder-board.use-case.js';
 export { ListPaginatedRemindersUseCase } from './reminders/list-paginated-reminders.use-case.js';
 export { MarkReminderAsSentUseCase } from './reminders/mark-reminder-as-sent.use-case.js';

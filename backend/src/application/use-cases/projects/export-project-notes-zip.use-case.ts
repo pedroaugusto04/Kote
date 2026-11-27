@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 
+import { ProjectNotFoundException } from "../../../domain/exceptions/index.js";
 import type { ExportProjectNotesInput } from "../../models/project-timeline.models.js";
 import type { NoteRecord } from "../../models/repository-records.models.js";
 import { collectFolderDescendantIds } from "../../utils/content/project-folder.utils.js";
@@ -121,7 +122,7 @@ export class ExportProjectNotesZipUseCase {
 
     const project = await this.contentRepository.getProjectBySlug(userId, projectSlug!);
     if (!project || !project.enabled) {
-      throw new NotFoundException(EXPORT_ZIP_CONSTANTS.ERROR_PROJECT_NOT_FOUND);
+      throw new ProjectNotFoundException();
     }
 
     return {

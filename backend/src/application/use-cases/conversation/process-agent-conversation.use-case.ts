@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import {
   agentConversationStateSchema,
@@ -6,6 +6,7 @@ import {
 } from '../../../contracts/agent-conversation.js';
 import { type ConversationInput } from '../../../contracts/conversation.js';
 import { IntegrationProvider, AgentConversationAction } from '../../../contracts/enums.js';
+import { AiNotConnectedException, AppErrorCode, ConversationAgentUnavailableException } from '../../../domain/exceptions/index.js';
 import { displayNameFromProjectSlug, normalizeWorkspaceSlug, slugify } from '../../../domain/strings.js';
 import { currentDateTimeInTimeZone, nowIso } from '../../../domain/time.js';
 import { AppLogger } from '../../../observability/logger.js';
@@ -101,7 +102,7 @@ export class ProcessAgentConversationUseCase {
     const { input, userId, workspaceSlug = 'default', projectSlug } = params;
     const normalizedWorkspaceSlug = normalizeWorkspaceSlug(workspaceSlug);
     const aiEnabled = await this.aiEntitlement.isEnabled(userId, normalizedWorkspaceSlug, IntegrationProvider.AiConversation);
-    if (!aiEnabled) throw new NotFoundException('ai_conversation_not_enabled');
+    if (!aiEnabled) throw new AiNotConnectedException(AppErrorCode.AiConversationNotEnabled);
 
     const key = `agent:${input.chatId}:${input.senderId}`;
     const state = await this.loadState(userId, normalizedWorkspaceSlug, key, projectSlug);
@@ -205,7 +206,7 @@ export class ProcessAgentConversationUseCase {
     );
 
     if (!decision) {
-      throw new BadRequestException('conversation_agent_unavailable');
+      throw new ConversationAgentUnavailableException();
     }
 
     if (decision.action === 'cancel') {

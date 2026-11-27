@@ -31,15 +31,16 @@ import {
   ExportProjectAdrsUseCase,
 } from '../../application/use-cases/index.js';
 import { ListProjectDependenciesUseCase } from '../../application/use-cases/dependency-watcher/list-project-dependencies.use-case.js';
-import { DependencyWatcherRepository } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
-import { PostgresDependencyWatcherRepository } from '../repositories/dependency-watcher.repository.js';
-import { ProjectsController, ReviewsController } from '../../interfaces/http/controllers/index.js';
-import { ProjectCoverageRepository } from '../../application/ports/projects/project-coverage.repository.js';
-import { PostgresProjectCoverageRepository } from '../repositories/project-coverage.repository.js';
+import {
+  ProjectsController,
+  ProjectFoldersController,
+  ProjectInsightsController,
+  ReviewsController,
+} from '../../interfaces/http/controllers/index.js';
 
 import { SyncProjectFilesService } from '../../application/services/projects/sync-project-files.service.js';
 import { SemanticClusteringService } from '../../application/services/query/semantic-clustering.service.js';
-import { ProjectMapClusterRepository } from '../repositories/project-map-cluster.repository.js';
+import { GitCommitService } from '../../application/services/projects/git-commit.service.js';
 
 @Module({
   imports: [
@@ -54,6 +55,8 @@ import { ProjectMapClusterRepository } from '../repositories/project-map-cluster
   ],
   controllers: [
     ProjectsController,
+    ProjectFoldersController,
+    ProjectInsightsController,
     ReviewsController,
   ],
   providers: [
@@ -80,11 +83,7 @@ import { ProjectMapClusterRepository } from '../repositories/project-map-cluster
     ListProjectDependenciesUseCase,
     SyncProjectFilesService,
     SemanticClusteringService,
-    ProjectMapClusterRepository,
-    PostgresProjectCoverageRepository,
-    PostgresDependencyWatcherRepository,
-    { provide: ProjectCoverageRepository, useExisting: PostgresProjectCoverageRepository },
-    { provide: DependencyWatcherRepository, useExisting: PostgresDependencyWatcherRepository },
+    GitCommitService,
   ],
   exports: [
     GenerateProjectBriefUseCase,
@@ -95,7 +94,7 @@ import { ProjectMapClusterRepository } from '../repositories/project-map-cluster
     ListProjectDecisionsUseCase,
     ExportProjectAdrsUseCase,
     SyncProjectFilesService,
-    ProjectCoverageRepository,
+    GitCommitService,
     CreateProjectUseCase,
     UpdateProjectUseCase,
     DeleteProjectUseCase,

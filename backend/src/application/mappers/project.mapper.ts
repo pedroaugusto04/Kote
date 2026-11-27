@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-import type { CreateProjectDto, UpdateProjectDto } from '../dto/project.dto.js';
+import type { CreateProjectDto } from '../dto/project.dto.js';
 import type { ProjectRecord, RepositoryRecord } from '../models/repository-records.models.js';
 
 export function toProjectRecord(
@@ -19,17 +19,5 @@ export function toProjectRecord(
     defaultTags: dto.defaultTags,
     enabled: true,
     favorite: false,
-  };
-}
-
-export function toProjectUpdateRecord(
-  dto: UpdateProjectDto,
-  existing: ProjectRecord,
-  repositories: RepositoryRecord[],
-): Partial<ProjectRecord> {
-  return {
-    displayName: dto.displayName,
-    repositories,
-    defaultTags: dto.defaultTags,
   };
 }

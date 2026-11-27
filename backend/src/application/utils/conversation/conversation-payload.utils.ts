@@ -2,9 +2,9 @@ import type { ConversationInput } from '../../../contracts/conversation.js';
 import {
   CanonicalType,
   EventType,
-  Importance,
-  KnowledgeKind,
-  KnowledgeStatus,
+  type Importance,
+  type KnowledgeKind,
+  type KnowledgeStatus,
   SourceChannel,
 } from '../../../contracts/enums.js';
 import type { IngestPayload } from '../../../contracts/ingest.js';

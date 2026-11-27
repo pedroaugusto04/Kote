@@ -1,8 +1,8 @@
-import { ForbiddenException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 import { readEnvironment } from '../../adapters/environment.js';
 import { parseCookies, type TokenPair } from '../../application/services/auth/auth.service.js';
+import { InvalidOriginException } from '../../domain/exceptions/index.js';
 
 const accessCookieName = 'kb_access_token';
 const refreshCookieName = 'kb_refresh_token';
@@ -29,7 +29,7 @@ export function googleOAuthStateFromRequest(request: Request): string | undefine
 }
 
 export function setAuthCookies(response: Response, tokens: TokenPair) {
-  const secure = process.env.NODE_ENV === 'production';
+  const secure = readEnvironment().isProduction;
   response.cookie(accessCookieName, tokens.accessToken, {
     httpOnly: true,
     secure,
@@ -47,14 +47,14 @@ export function setAuthCookies(response: Response, tokens: TokenPair) {
 }
 
 export function clearAuthCookies(response: Response) {
-  const secure = process.env.NODE_ENV === 'production';
+  const secure = readEnvironment().isProduction;
   for (const name of [accessCookieName, refreshCookieName]) {
     response.clearCookie(name, { httpOnly: true, secure, sameSite: 'lax', path: '/' });
   }
 }
 
 export function setGoogleOAuthStateCookie(response: Response, value: string, maxAgeSeconds: number) {
-  const secure = process.env.NODE_ENV === 'production';
+  const secure = readEnvironment().isProduction;
   response.cookie(googleOAuthStateCookieName, value, {
     httpOnly: true,
     secure,
@@ -65,7 +65,7 @@ export function setGoogleOAuthStateCookie(response: Response, value: string, max
 }
 
 export function clearGoogleOAuthStateCookie(response: Response) {
-  const secure = process.env.NODE_ENV === 'production';
+  const secure = readEnvironment().isProduction;
   response.clearCookie(googleOAuthStateCookieName, { httpOnly: true, secure, sameSite: 'lax', path: '/' });
 }
 
@@ -81,11 +81,11 @@ export function assertTrustedBrowserOrigin(request: Request) {
     if (allowedIds.includes(extensionId)) {
       return;
     }
-    throw new ForbiddenException('invalid_origin');
+    throw new InvalidOriginException();
   }
   const expected = expectedOrigins(request);
   if (!expected.has(actualOrigin)) {
-    throw new ForbiddenException('invalid_origin');
+    throw new InvalidOriginException();
   }
 }
 

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 
 import { QueryKnowledgeUseCase } from '../../../dist/application/use-cases/index.js';
+import { VectorChunkSearchService } from '../../../dist/application/services/query/vector-chunk-search.service.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
 async function seedDefaultWorkspace(repositories, userId) {
@@ -102,12 +103,18 @@ test('query returns ranked matches from the authenticated user repository scope'
     getNotesEmbeddings: async () => [],
   };
 
+  const logger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
+  const vectorChunkSearch = new VectorChunkSearchService(
+    mockNoteEmbeddingRepository,
+    { publishQueryEmbedding: async () => [] },
+    repositories.runtimeEnvironmentProvider,
+    logger,
+  );
   const result = await new QueryKnowledgeUseCase(
     queryRepository,
-    mockEmbeddingGateway,
-    mockNoteEmbeddingRepository,
+    vectorChunkSearch,
     repositories.runtimeEnvironmentProvider,
-    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
+    logger,
   ).execute(
     { query: 'timeout webhook deploy', projectId: undefined, limit: 3 },
     user.id,
@@ -173,12 +180,18 @@ test('query filters textual matches by note status', async (t) => {
     getNotesEmbeddings: async () => [],
   };
 
+  const logger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
+  const vectorChunkSearch = new VectorChunkSearchService(
+    mockNoteEmbeddingRepository,
+    { publishQueryEmbedding: async () => [] },
+    repositories.runtimeEnvironmentProvider,
+    logger,
+  );
   const result = await new QueryKnowledgeUseCase(
     repositories.contentQueryRepository,
-    mockEmbeddingGateway,
-    mockNoteEmbeddingRepository,
+    vectorChunkSearch,
     repositories.runtimeEnvironmentProvider,
-    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
+    logger,
   ).execute(
     { query: 'webhook timeout', status: 'resolved', limit: 10 },
     user.id,
@@ -230,12 +243,18 @@ test('query handles special query: summarize my recent notes', async (t) => {
     getNotesEmbeddings: async () => [],
   };
 
+  const logger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
+  const vectorChunkSearch = new VectorChunkSearchService(
+    mockNoteEmbeddingRepository,
+    { publishQueryEmbedding: async () => [] },
+    repositories.runtimeEnvironmentProvider,
+    logger,
+  );
   const result = await new QueryKnowledgeUseCase(
     repositories.contentQueryRepository,
-    mockEmbeddingGateway,
-    mockNoteEmbeddingRepository,
+    vectorChunkSearch,
     repositories.runtimeEnvironmentProvider,
-    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
+    logger,
   ).execute(
     { query: 'Summarize my recent notes', limit: 10 },
     user.id,
@@ -290,12 +309,18 @@ test('query handles special query: what are my action items?', async (t) => {
     getNotesEmbeddings: async () => [],
   };
 
+  const logger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
+  const vectorChunkSearch = new VectorChunkSearchService(
+    mockNoteEmbeddingRepository,
+    { publishQueryEmbedding: async () => [] },
+    repositories.runtimeEnvironmentProvider,
+    logger,
+  );
   const result = await new QueryKnowledgeUseCase(
     repositories.contentQueryRepository,
-    mockEmbeddingGateway,
-    mockNoteEmbeddingRepository,
+    vectorChunkSearch,
     repositories.runtimeEnvironmentProvider,
-    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
+    logger,
   ).execute(
     { query: 'What are my action items?', limit: 10 },
     user.id,
@@ -360,12 +385,18 @@ test('query handles special query: review key decisions made', async (t) => {
     getNotesEmbeddings: async () => [],
   };
 
+  const logger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
+  const vectorChunkSearch = new VectorChunkSearchService(
+    mockNoteEmbeddingRepository,
+    { publishQueryEmbedding: async () => [] },
+    repositories.runtimeEnvironmentProvider,
+    logger,
+  );
   const result = await new QueryKnowledgeUseCase(
     repositories.contentQueryRepository,
-    mockEmbeddingGateway,
-    mockNoteEmbeddingRepository,
+    vectorChunkSearch,
     repositories.runtimeEnvironmentProvider,
-    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
+    logger,
   ).execute(
     { query: 'Review key decisions made', limit: 10 },
     user.id,
@@ -410,12 +441,18 @@ test('query matches unique terms stored in note markdown body via FTS', async (t
     getNotesEmbeddings: async () => [],
   };
 
+  const logger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
+  const vectorChunkSearch = new VectorChunkSearchService(
+    mockNoteEmbeddingRepository,
+    { publishQueryEmbedding: async () => [] },
+    repositories.runtimeEnvironmentProvider,
+    logger,
+  );
   const result = await new QueryKnowledgeUseCase(
     repositories.contentQueryRepository,
-    mockEmbeddingGateway,
-    mockNoteEmbeddingRepository,
+    vectorChunkSearch,
     repositories.runtimeEnvironmentProvider,
-    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
+    logger,
   ).execute(
     { query: uniqueToken, limit: 5 },
     user.id,

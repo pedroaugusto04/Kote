@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 
 import { ReminderDeliveryChannel } from '../../contracts/enums.js';
 import { AppLogger } from '../../observability/logger.js';

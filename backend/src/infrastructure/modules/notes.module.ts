@@ -44,6 +44,7 @@ import {
 } from '../../application/use-cases/index.js';
 import { RagRetrievalService } from '../../application/services/query/rag-retrieval.service.js';
 import { RagContextAssemblerService } from '../../application/services/query/rag-context-assembler.service.js';
+import { VectorChunkSearchService } from '../../application/services/query/vector-chunk-search.service.js';
 import { AskAgentToolsService } from '../../application/services/query/ask-agent-tools.service.js';
 import { PrReviewAgentToolsService } from '../../application/services/review/pr-review-agent-tools.service.js';
 import { EmbeddingJobProcessorService } from '../../application/services/notes/embedding-job-processor.service.js';
@@ -57,9 +58,12 @@ import { AiSessionSynthesisOutboxRelay } from '../../application/services/conten
 import { AiSessionSynthesisScheduler } from '../../application/services/content/ai-session-synthesis-scheduler.service.js';
 import { AiSessionSynthesisWorker } from '../../application/workers/ai-session-synthesis.worker.js';
 import { AutoActionWorker } from '../../application/workers/auto-action.worker.js';
-import { SettingsRepository } from '../../application/ports/settings.repository.js';
-import { PostgresSettingsRepository } from '../repositories/settings.repository.js';
-import { NotesController, AskAiController, QueryKnowledgeController } from '../../interfaces/http/controllers/index.js';
+import {
+  NoteIntelligenceController,
+  NotesController,
+  AskAiController,
+  QueryKnowledgeController,
+} from '../../interfaces/http/controllers/index.js';
 
 @Module({
   imports: [
@@ -76,6 +80,7 @@ import { NotesController, AskAiController, QueryKnowledgeController } from '../.
     WorkspacesModule,
   ],
   controllers: [
+    NoteIntelligenceController,
     NotesController,
     AskAiController,
     QueryKnowledgeController,
@@ -90,6 +95,7 @@ import { NotesController, AskAiController, QueryKnowledgeController } from '../.
     GetNoteDetailUseCase,
     RagRetrievalService,
     RagContextAssemblerService,
+    VectorChunkSearchService,
     EmbeddingJobProcessorService,
     HighPriorityEmbeddingWorker,
     LowPriorityEmbeddingWorker,
@@ -126,8 +132,6 @@ import { NotesController, AskAiController, QueryKnowledgeController } from '../.
     GenerateSessionHandoffUseCase,
     IngestEntryUseCase,
     QueryKnowledgeUseCase,
-    PostgresSettingsRepository,
-    { provide: SettingsRepository, useExisting: PostgresSettingsRepository },
   ],
   exports: [
     HighPriorityEmbeddingWorker,

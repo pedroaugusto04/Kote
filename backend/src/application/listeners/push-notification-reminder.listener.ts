@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, type OnModuleInit, type OnModuleDestroy } from '@nestjs/common';
 import { ReminderEventBus } from '../event-buses/reminder-event.bus.js';
 import { PushNotificationService } from '../services/notifications/push-notification.service.js';
 import { ReminderDeliveryChannel } from '../../contracts/enums.js';

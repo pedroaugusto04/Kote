@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { NoteSynthesisItem } from "../../../application/models/note-synthesis.models.js";
+import { isRecord } from "../../../domain/utils/type-guards.utils.js";
 
 const itemSchema = z.object({
   kind: z.enum(["goal", "outcome", "decision", "change", "failed_attempt", "open_item", "fact"]),
@@ -25,7 +26,7 @@ const memoryStatusAliases: Record<string, NoteSynthesisItem["status"]> = {
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+  return isRecord(value) ? value : null;
 }
 
 function normalizedKey(value: unknown): string {

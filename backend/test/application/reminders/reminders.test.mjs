@@ -1,11 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { BuildReminderDispatchUseCase, DispatchDueRemindersUseCase, DispatchDueTelegramRemindersUseCase, ListPaginatedRemindersUseCase, ListReminderBoardUseCase, MarkReminderAsSentUseCase, RefreshReminderStatusesUseCase, UpdateReminderStatusUseCase } from '../../../dist/application/use-cases/index.js';
+import { BuildReminderDispatchUseCase, DispatchDueRemindersUseCase, ListPaginatedRemindersUseCase, ListReminderBoardUseCase, MarkReminderAsSentUseCase, RefreshReminderStatusesUseCase, UpdateReminderStatusUseCase } from '../../../dist/application/use-cases/index.js';
 import { ReminderDeliveryChannel, ReminderDispatchMode } from '../../../dist/contracts/enums.js';
 import { formatReminderScheduledAtLabel, reminderDispatchKey } from '../../../dist/application/use-cases/reminders/reminder-schedule.js';
 import { ReminderDispatchWorker } from '../../../dist/application/workers/reminder-dispatch.worker.js';
-import { TelegramReminderDispatchWorker } from '../../../dist/application/workers/telegram-reminder-dispatch.worker.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
 async function createStoreWithReminder(t) {
@@ -774,28 +773,6 @@ test('default reminder dispatch sends overdue reminders only once using schedule
   assert.equal(sent.length, 1);
 });
 
-test('telegram reminder dispatch use case remains compatible as an alternative adapter path', async (t) => {
-  const { repositories } = await createStoreWithReminder(t);
-  const sent = [];
-  const markReminderAsSent = new MarkReminderAsSentUseCase(repositories.reminderDispatchRepository, repositories.contentRepository);
-  const dispatchDueReminders = new DispatchDueRemindersUseCase(
-    repositories.contentQueryRepository,
-    repositories.reminderDispatchRepository,
-    markReminderAsSent,
-    { sendText: async (input) => { sent.push(input); return { ok: true }; } },
-    createEventBusStub(),
-    createLoggerStub(),
-  );
-  const useCase = new DispatchDueTelegramRemindersUseCase(dispatchDueReminders);
-
-  const result = await useCase.execute('2099-12-31T12:00:00.000Z');
-
-  assert.equal(result.sent, 1);
-  assert.equal(sent[0].channel, ReminderDeliveryChannel.Telegram);
-  assert.equal(sent[0].recipientId, 'telegram-chat-1');
-});
-
-
 test('default reminder dispatch does not mark reminder as sent when Evolution delivery fails', async (t) => {
   const { repositories, user } = await createStoreWithReminder(t);
   const errors = [];
@@ -909,20 +886,6 @@ test('default reminder worker delegates to WhatsApp dispatch channel', async () 
 
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0], [ReminderDeliveryChannel.Whatsapp]);
-  assert.equal(result.ok, true);
-});
-
-test('telegram reminder worker delegates to telegram dispatch channel', async () => {
-  let calls = 0;
-  const worker = new TelegramReminderDispatchWorker(
-    { execute: async (channel) => { calls += 1; assert.equal(channel, ReminderDeliveryChannel.Telegram); return { ok: true, sent: 0 }; } },
-    createLoggerStub(),
-    { read: () => ({ databaseUrl: 'postgres://test' }) },
-  );
-
-  const result = await worker.runOnce();
-
-  assert.equal(calls, 1);
   assert.equal(result.ok, true);
 });
 

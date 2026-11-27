@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, type OnModuleInit, type OnModuleDestroy } from '@nestjs/common';
 import * as winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import * as path from 'node:path';

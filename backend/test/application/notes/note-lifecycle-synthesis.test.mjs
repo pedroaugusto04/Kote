@@ -29,8 +29,9 @@ function createService({ storedNote, synthesis }) {
   };
   const outbox = { enqueue: async (input) => { outboxCalls.push(input); } };
   const logger = { info() {}, error() {} };
+  const gitCommits = { reconcileNoteCommits: async () => [] };
   const scheduler = new AiSessionSynthesisScheduler(syntheses, outbox, logger);
-  const service = new NoteLifecycleService(content, { checkQuota: async () => ({ allowed: true }) }, { publish: async () => {} }, { dispatch: async () => {} }, logger, scheduler);
+  const service = new NoteLifecycleService(content, { checkQuota: async () => ({ allowed: true }) }, { publish: async () => {} }, { dispatch: async () => {} }, logger, scheduler, gitCommits);
   return { service, scheduler, pendingCalls, outboxCalls };
 }
 
@@ -93,6 +94,7 @@ test('dispatches embedding index immediately when saving an AI session note', as
     { dispatch: async () => {} },
     logger,
     scheduler,
+    { reconcileNoteCommits: async () => [] },
   );
 
   await service.saveNote(userId, { noteInput: { ...storedNote, markdown: 'User: updated request' } }, { existingNoteId: storedNote.id });

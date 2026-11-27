@@ -1,6 +1,6 @@
 import { schedule } from 'node-cron';
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { SubscriptionCancellationService } from '../services/billing/SubscriptionCancellationService.js';
+import { Injectable, type OnModuleInit, type OnModuleDestroy } from '@nestjs/common';
+import { SubscriptionCancellationService } from '../services/billing/subscription-cancellation.service.js';
 import { SubscriptionRepository } from '../ports/billing/billing-repositories.js';
 import { AppLogger } from '../../observability/logger.js';
 

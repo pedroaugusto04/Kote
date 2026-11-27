@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { QuotaService } from '../../services/quota/quota.service.js';
-import { SubscriptionService } from '../../services/billing/SubscriptionService.js';
-import { BillingCycle, BillingType } from '../../../domain/enums/billing.enums.js';
+import { SubscriptionService } from '../../services/billing/subscription.service.js';
+import { type BillingCycle, type BillingType } from '../../../domain/enums/billing.enums.js';
 import { BillingEventBus } from '../../event-buses/billing-event.bus.js';
+import { UserSubscriptionMapper } from '../../mappers/billing.mapper.js';
 
 export interface UpdateSubscriptionInput {
   userId: string;
@@ -25,17 +26,9 @@ export class UpdateSubscriptionUseCase {
   ) {}
 
   async execute(params: UpdateSubscriptionInput) {
-    const result = await this.subscriptionService.registerOrUpdateSubscription({
-      userId: params.userId,
-      userEmail: params.email,
-      userDisplayName: params.displayName,
-      planId: params.planId,
-      billingCycle: params.billingCycle,
-      billingType: params.billingType,
-      cpfCnpj: params.cpfCnpj,
-      countryCode: params.countryCode,
-      creditCardToken: params.creditCardToken,
-    });
+    const result = await this.subscriptionService.registerOrUpdateSubscription(
+      UserSubscriptionMapper.toRegisterOrUpdateInput(params),
+    );
 
     this.billingEventBus.emit(params.userId);
 

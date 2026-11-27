@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
-import { calculateAttachmentSize } from '../../../../domain/strings.js';
+import { AppErrorCode, MissingExternalIdentityException, WebhookAuthException } from '../../../../domain/exceptions/index.js';
 import { CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus, ExternalIdentityType, WebhookEventType } from '../../../../contracts/enums.js';
 import type { ConversationInput } from '../../../../contracts/conversation.js';
 import { IntegrationConnectionService } from '../../../services/integrations/integration-connection.service.js';
@@ -8,17 +8,16 @@ import type { WhatsappWebhookRequest } from '../../../models/webhook-request.mod
 import { CredentialRepository, ExternalIdentityRepository, resolveExternalIdentity } from '../../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
-import { WhatsappMediaDownloader } from '../../../ports/integrations/whatsapp-media.downloader.js';
 import { WhatsappReplySender } from '../../../ports/integrations/whatsapp-reply.sender.js';
 import { buildWhatsappWebhookCommand, type WhatsappWebhookCommand } from '../../../utils/webhook/whatsapp-webhook-command.utils.js';
 import { normalizeHeaders } from '../../../utils/webhook/webhook.utils.js';
-import { AudioTranscriptionGateway } from '../../../ports/audio/audio-transcription.gateway.js';
 import { ProcessAgentConversationUseCase } from '../../conversation/process-agent-conversation.use-case.js';
 import type { AskKnowledgeUseCase } from '../../query/ask-knowledge.use-case.js';
 import { ResolveWhatsappAskAttachmentsUseCase } from '../../query/resolve-whatsapp-ask-attachments.use-case.js';
 import { AppLogger } from '../../../../observability/logger.js';
 import { parseWhatsappEvolutionMessage } from '../../../utils/webhook/webhook.utils.js';
 import { WhatsappConversationTaskQueue, WhatsappWebhookRateLimiter } from './whatsapp-webhook-flow-control.js';
+import { WhatsappMediaProcessorService } from './whatsapp-media-processor.service.js';
 import type { WhatsappAskAttachmentResolution } from '../../../models/whatsapp-ask-attachment.models.js';
 import { WorkspaceScopeResolver } from '../../../services/content/workspace-scope-resolver.service.js';
 
@@ -40,10 +39,9 @@ export class HandleWhatsappWebhookUseCase {
     private readonly connections: IntegrationConnectionService,
     private readonly processAgentConversationUseCase: ProcessAgentConversationUseCase,
     private readonly whatsappReplySender: WhatsappReplySender,
-    private readonly whatsappMediaDownloader: WhatsappMediaDownloader,
+    private readonly mediaProcessor: WhatsappMediaProcessorService,
     private readonly logger: AppLogger,
     private readonly resolveWhatsappAskAttachmentsUseCase: ResolveWhatsappAskAttachmentsUseCase,
-    private readonly audioTranscriptionGateway: AudioTranscriptionGateway,
     private readonly scopeResolver: WorkspaceScopeResolver,
     private readonly rateLimiter: WhatsappWebhookRateLimiter,
     private readonly conversationQueue: WhatsappConversationTaskQueue,
@@ -58,7 +56,7 @@ export class HandleWhatsappWebhookUseCase {
       return { ok: true, processed: false, ignored: command.reason };
     }
     if (command.kind === 'reject') {
-      throw new UnauthorizedException(command.reason);
+      throw new MissingExternalIdentityException();
     }
     context.externalIdentity.externalId = command.externalId;
 
@@ -168,57 +166,8 @@ export class HandleWhatsappWebhookUseCase {
     const validWebhookApiKey =
       Boolean(environment.whatsappWebhookApiKey) && evolutionApiKey === environment.whatsappWebhookApiKey;
     if (!validWebhookApiKey) {
-      throw new UnauthorizedException('invalid_webhook_token');
+      throw new WebhookAuthException(AppErrorCode.InvalidWebhookToken);
     }
-  }
-
-  private async transcribeAudioMessageIfNeeded(input: ConversationInput): Promise<ConversationInput> {
-    if (
-      input.messageText ||
-      !input.hasMedia ||
-      !input.media.dataBase64 ||
-      !input.media.mimeType.startsWith('audio/')
-    ) {
-      return input;
-    }
-
-    const environment = this.environmentProvider.read();
-    if (!environment.audioAiProvider || environment.audioAiProvider === 'none') {
-      return input;
-    }
-
-    try {
-      const transcription = await this.audioTranscriptionGateway.transcribe(
-        {
-          provider: environment.audioAiProvider,
-          baseUrl: environment.audioAiBaseUrl,
-          model: environment.audioAiModel,
-          apiKey: environment.audioAiApiKey,
-        },
-        {
-          dataBase64: input.media.dataBase64,
-          mimeType: input.media.mimeType,
-          fileName: input.media.fileName,
-        },
-      );
-      if (transcription) {
-        this.logger.info('whatsapp.audio.transcribed', {
-          messageId: input.messageId,
-          textLength: transcription.length,
-        });
-        return {
-          ...input,
-          messageText: transcription,
-        };
-      }
-    } catch (transcriptionError) {
-      this.logger.error('whatsapp.audio.transcription_failed', {
-        messageId: input.messageId,
-        error: transcriptionError instanceof Error ? transcriptionError.message : String(transcriptionError),
-      });
-    }
-
-    return input;
   }
 
   private async handleEvolutionMessage(
@@ -227,9 +176,11 @@ export class HandleWhatsappWebhookUseCase {
     workspaceSlug: string,
     input: ConversationInput,
   ) {
-    const downloadedInput = await this.withDownloadedMedia(context, input);
-    const enrichedInput = await this.transcribeAudioMessageIfNeeded(downloadedInput);
-
+    const enrichedInput = await this.mediaProcessor.enrichConversationInput({
+      externalId: context.externalIdentity.externalId,
+      rawPayload: context.body,
+      input,
+    });
 
     return this.handleAgentConversation(context, userId, workspaceSlug, enrichedInput);
   }
@@ -412,29 +363,6 @@ export class HandleWhatsappWebhookUseCase {
     if (parsedMessage.kind !== 'message') return '';
     if (!parsedMessage.messageId) return '';
     return `${context.externalIdentity.externalId}:${parsedMessage.messageId}`;
-  }
-
-  private async withDownloadedMedia(context: WhatsappWebhookContext, input: ConversationInput): Promise<ConversationInput> {
-    if (!input.hasMedia || input.media.dataBase64 || !this.whatsappMediaDownloader) return input;
-    const result = await this.whatsappMediaDownloader.downloadBase64({ body: context.body });
-    if (!result.ok) {
-      this.logger.warn('whatsapp.media.download_failed', {
-        externalId: context.externalIdentity.externalId,
-        chatId: input.chatId,
-        messageId: input.messageId,
-        error: result.error,
-      });
-      return input;
-    }
-    const sizeBytes = calculateAttachmentSize(input.media.sizeBytes, result.dataBase64);
-    return {
-      ...input,
-      media: {
-        ...input.media,
-        dataBase64: result.dataBase64,
-        sizeBytes,
-      },
-    };
   }
 
   private async processed<T>(context: WhatsappWebhookContext, result: T, resolvedUserId?: string) {

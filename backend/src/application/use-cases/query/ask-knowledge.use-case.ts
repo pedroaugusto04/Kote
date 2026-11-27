@@ -1,4 +1,4 @@
-import { ConversationConfidence } from '../../../contracts/enums.js';
+import { type ConversationConfidence } from '../../../contracts/enums.js';
 import type { AskConversationTurn } from '../../../contracts/ask-conversation.js';
 
 export type AskKnowledgeResult = {

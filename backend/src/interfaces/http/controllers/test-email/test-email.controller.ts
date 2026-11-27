@@ -1,5 +1,5 @@
-import { Body, Controller, Post, HttpCode, HttpStatus, BadRequestException, UnauthorizedException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { Body, Controller, Post, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 import { z } from 'zod';
 
@@ -8,6 +8,10 @@ import { WeeklySummaryService } from '../../../../application/services/content/w
 import { NotifyHighSeverityFindingsService } from '../../../../application/use-cases/notifications/notify-high-severity-findings.use-case.js';
 import { UserService } from '../../../../application/services/auth/user.service.js';
 import { RuntimeEnvironmentProvider } from '../../../../application/ports/observability/runtime-environment.port.js';
+import {
+  TestEmailAuthException,
+  TestEmailAuthNotConfiguredException,
+} from '../../../../domain/exceptions/index.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
 const testEmailBodySchema = z.object({
@@ -36,10 +40,10 @@ export class TestEmailController {
 
   private validateAuth(authHeader: string | undefined): void {
     if (!this.authSecret) {
-      throw new BadRequestException('test_email_auth_not_configured');
+      throw new TestEmailAuthNotConfiguredException();
     }
     if (!authHeader || authHeader !== `Bearer ${this.authSecret}`) {
-      throw new UnauthorizedException('invalid_test_email_auth');
+      throw new TestEmailAuthException();
     }
   }
 

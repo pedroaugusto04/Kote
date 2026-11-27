@@ -1,7 +1,11 @@
 import { eq, and } from 'drizzle-orm';
-import { NotFoundException } from '@nestjs/common';
+import {
+  ProjectNotFoundException,
+  ResourceNotFoundException,
+  WorkspaceNotFoundException,
+} from '../../../domain/exceptions/index.js';
 import { isUuid } from '../../../domain/utils/uuid.utils.js';
-import { PostgresDatabase } from '../../persistence/database.js';
+import { type PostgresDatabase } from '../../persistence/database.js';
 import { workspaces, projects } from '../../persistence/schema/index.js';
 
 export async function resolveWorkspaceId(
@@ -21,7 +25,7 @@ export async function resolveWorkspaceId(
     .limit(1);
 
   if (result.length === 0) {
-    throw new NotFoundException('workspace_not_found');
+    throw new WorkspaceNotFoundException();
   }
   return result[0].id;
 }
@@ -43,7 +47,7 @@ export async function resolveProjectId(
     .limit(1);
 
   if (result.length === 0) {
-    throw new NotFoundException('project_not_found');
+    throw new ProjectNotFoundException();
   }
   return result[0].id;
 }
@@ -58,7 +62,10 @@ export async function resolveIds(
   if (workspaceSlug) {
     try {
       workspaceId = await resolveWorkspaceId(database, userId, workspaceSlug);
-    } catch {
+    } catch (err) {
+      if (!(err instanceof ResourceNotFoundException)) {
+        throw err;
+      }
       // Workspace not found - return null
       workspaceId = null;
     }
@@ -68,7 +75,10 @@ export async function resolveIds(
   if (projectSlug) {
     try {
       projectId = await resolveProjectId(database, userId, projectSlug);
-    } catch {
+    } catch (err) {
+      if (!(err instanceof ResourceNotFoundException)) {
+        throw err;
+      }
       // Project not found - return null (matches original behavior in note.repository.ts)
       projectId = null;
     }

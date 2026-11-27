@@ -39,7 +39,7 @@ export const ingestPayloadSchema = z
     }),
     event: z.object({
       type: eventTypeSchema,
-      occurredAt: z.string().datetime().or(z.string().min(1)),
+      occurredAt: z.string().min(1),
       projectSlug: z.string().min(1),
     }),
     content: z.object({
@@ -87,11 +87,7 @@ export const ingestPayloadSchema = z
       ...payload.classification,
       tags: [...new Set(payload.classification.tags.map((tag) => slugify(tag)).filter(Boolean))],
     },
-    actions: {
-      ...payload.actions,
-      reminderAt: payload.actions.reminderAt || '',
-      followUpBy: payload.actions.followUpBy || '',
-    },
+    actions: payload.actions,
   }));
 
 export type IngestPayload = z.infer<typeof ingestPayloadSchema>;

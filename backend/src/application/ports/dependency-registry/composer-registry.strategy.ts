@@ -34,7 +34,7 @@ export class ComposerRegistryStrategy extends RegistryStrategy {
       let data;
       try {
         data = await response.json();
-      } catch (error) {
+      } catch {
         throw new Error(`Failed to parse Packagist response for ${packageName}`);
       }
 

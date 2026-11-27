@@ -10,7 +10,7 @@ const DLX_NAME = `${EXCHANGE_NAME}.dlx`;
 const DLQ_NAME = `${QUEUE_NAME}.dlq`;
 
 import {
-  DependencyCheckQueuePublisher,
+  type DependencyCheckQueuePublisher,
   type DependencyCheckJobMessage,
 } from '../../application/ports/dependency-watcher/dependency-check-queue.publisher.js';
 

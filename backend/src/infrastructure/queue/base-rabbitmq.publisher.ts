@@ -1,6 +1,8 @@
-import { OnModuleDestroy, InternalServerErrorException } from '@nestjs/common';
+import { type OnModuleDestroy } from '@nestjs/common';
 import amqplib, { type ChannelModel, type Channel } from 'amqplib';
-import { AppLogger } from '../../observability/logger.js';
+import { readEnvironment } from '../../adapters/environment.js';
+import { RabbitMqConfigException } from '../../domain/exceptions/index.js';
+import { type AppLogger } from '../../observability/logger.js';
 
 const RECONNECT_DELAY_MS = 5_000;
 
@@ -29,7 +31,7 @@ export abstract class BaseRabbitMqPublisher implements OnModuleDestroy {
   }
 
   protected getUrl(): string {
-    return String(process.env.KB_RABBITMQ_URL || '').trim();
+    return readEnvironment().rabbitmqUrl;
   }
 
   protected async ensureChannel(url: string): Promise<Channel> {
@@ -37,7 +39,7 @@ export abstract class BaseRabbitMqPublisher implements OnModuleDestroy {
     if (this.connecting) {
       await new Promise((resolve) => setTimeout(resolve, 500));
       if (this.channel) return this.channel;
-      throw new InternalServerErrorException('rabbitmq_not_configured');
+      throw new RabbitMqConfigException();
     }
 
     this.connecting = true;

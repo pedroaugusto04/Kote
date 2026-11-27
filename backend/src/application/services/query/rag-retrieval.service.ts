@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EmbeddingGateway, type EmbeddingConfig } from '../../ports/notes/embedding.gateway.js';
 import { EmbeddingRepresentation, NoteEmbeddingRepository, type SimilarChunk } from '../../ports/notes/note-embedding.repository.js';
 import { EmbeddingQueuePublisher } from '../../ports/notes/embedding-queue.publisher.js';
@@ -58,7 +58,7 @@ export class RagRetrievalService {
     private readonly contentQueryRepository: ContentQueryRepository,
     private readonly embeddingQueue: EmbeddingQueuePublisher,
     private readonly logger: AppLogger,
-    @Optional() private readonly synthesisRepository?: NoteSynthesisRepository,
+    private readonly synthesisRepository: NoteSynthesisRepository,
   ) {}
 
   async retrieveHybridChunks(
@@ -344,45 +344,26 @@ export class RagRetrievalService {
 
   async loadValidSyntheses(userId: string, notes: NoteRecord[]): Promise<Map<string, NoteSynthesisRecord>> {
     const result = new Map<string, NoteSynthesisRecord>();
-    if (!this.synthesisRepository) return result;
 
     const aiNotes = notes.filter(
       (note) => note.sourceChannel === SourceChannel.AiChat || note.source === SourceChannel.AiChat,
     );
     if (aiNotes.length === 0) return result;
 
-    if (this.synthesisRepository.getByNoteIds) {
-      const synthesisMap = await this.synthesisRepository.getByNoteIds(
-        userId,
-        aiNotes.map((note) => note.id),
-      );
-      for (const note of aiNotes) {
-        const synthesis = synthesisMap.get(note.id);
-        const sourceHash = getAiSessionSourceHash(note.markdown);
-        if (
-          synthesis?.status === NoteSynthesisStatus.Completed &&
-          synthesis.sourceHash === sourceHash &&
-          Boolean(synthesis.overview.trim())
-        ) {
-          result.set(note.id, synthesis);
-        }
-      }
-      return result;
-    }
-
-    const records = await Promise.all(
-      aiNotes.map(async (note) => {
-        const synthesis = await this.synthesisRepository!.getByNoteId(userId, note.id);
-        const sourceHash = getAiSessionSourceHash(note.markdown);
-        return synthesis?.status === NoteSynthesisStatus.Completed &&
-          synthesis.sourceHash === sourceHash &&
-          Boolean(synthesis.overview.trim())
-          ? ([note.id, synthesis] as const)
-          : null;
-      }),
+    const synthesisMap = await this.synthesisRepository.getByNoteIds(
+      userId,
+      aiNotes.map((note) => note.id),
     );
-    for (const record of records) {
-      if (record) result.set(record[0], record[1]);
+    for (const note of aiNotes) {
+      const synthesis = synthesisMap.get(note.id);
+      const sourceHash = getAiSessionSourceHash(note.markdown);
+      if (
+        synthesis?.status === NoteSynthesisStatus.Completed &&
+        synthesis.sourceHash === sourceHash &&
+        Boolean(synthesis.overview.trim())
+      ) {
+        result.set(note.id, synthesis);
+      }
     }
     return result;
   }

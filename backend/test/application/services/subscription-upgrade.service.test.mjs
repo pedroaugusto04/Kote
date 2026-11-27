@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SubscriptionUpgradeService } from '../../../dist/application/services/billing/SubscriptionUpgradeService.js';
+import { SubscriptionUpgradeService } from '../../../dist/application/services/billing/subscription-upgrade.service.js';
 import { SubscriptionPlan } from '../../../dist/domain/enums/plans.enums.js';
 import { BillingCycle, BillingType } from '../../../dist/domain/enums/billing.enums.js';
 import { GatewayNameEnum } from '../../../dist/infrastructure/billing/gateways/IPaymentGateway.js';
@@ -30,9 +30,12 @@ test('SubscriptionUpgradeService prorates when upgrading between paid plans', as
     },
   };
 
+  const gatewayFactory = {
+    getGateway: () => ({ getSubscriptionByGatewayId: async () => ({ nextDueDate: new Date().toISOString() }) }),
+  };
+
   const service = new SubscriptionUpgradeService(
-    { getSubscriptionByGatewayId: async () => ({ nextDueDate: new Date().toISOString() }) },
-    { getSubscriptionByGatewayId: async () => ({ nextDueDate: new Date().toISOString() }) },
+    gatewayFactory,
     { error: () => {}, warn: () => {}, info: () => {} },
     mockSubscriptionRepository,
   );
@@ -55,9 +58,12 @@ test('getUpgradeFirstPaymentValue requires a gateway subscription', async () => 
     async getPlanById() { return null; },
   };
 
+  const gatewayFactory = {
+    getGateway: () => ({ getSubscriptionByGatewayId: async () => null }),
+  };
+
   const service = new SubscriptionUpgradeService(
-    { getSubscriptionByGatewayId: async () => null },
-    { getSubscriptionByGatewayId: async () => null },
+    gatewayFactory,
     { error: () => {}, warn: () => {}, info: () => {} },
     mockSubscriptionRepository,
   );

@@ -1,14 +1,29 @@
 import crypto from 'node:crypto';
 
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { eq, and, sql } from 'drizzle-orm';
 
 import { WebhookSubscriptionRepository } from '../../application/ports/webhooks/webhook-subscription.repository.js';
 import type { WebhookSubscriptionRecord } from '../../application/models/webhook-subscription.models.js';
+import { AppErrorCode, ValidationException } from '../../domain/exceptions/index.js';
 import { webhookSubscriptionFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { webhookSubscriptions, workspaces } from '../persistence/schema/index.js';
 import { resolveWorkspaceId } from './utils/id-resolution.helpers.js';
+
+const WEBHOOK_SUBSCRIPTION_SELECT_COLUMNS = {
+  id: webhookSubscriptions.id,
+  userId: webhookSubscriptions.userId,
+  workspaceId: webhookSubscriptions.workspaceId,
+  workspaceSlug: workspaces.workspaceSlug,
+  label: webhookSubscriptions.label,
+  url: webhookSubscriptions.url,
+  secret: webhookSubscriptions.secret,
+  events: webhookSubscriptions.events,
+  enabled: webhookSubscriptions.enabled,
+  createdAt: webhookSubscriptions.createdAt,
+  updatedAt: webhookSubscriptions.updatedAt,
+};
 
 @Injectable()
 export class PostgresWebhookSubscriptionRepository extends WebhookSubscriptionRepository {
@@ -19,19 +34,7 @@ export class PostgresWebhookSubscriptionRepository extends WebhookSubscriptionRe
   async list(userId: string, workspaceSlug: string): Promise<WebhookSubscriptionRecord[]> {
     const db = this.database.getDb();
     const result = await db
-      .select({
-        id: webhookSubscriptions.id,
-        userId: webhookSubscriptions.userId,
-        workspaceId: webhookSubscriptions.workspaceId,
-        workspaceSlug: workspaces.workspaceSlug,
-        label: webhookSubscriptions.label,
-        url: webhookSubscriptions.url,
-        secret: webhookSubscriptions.secret,
-        events: webhookSubscriptions.events,
-        enabled: webhookSubscriptions.enabled,
-        createdAt: webhookSubscriptions.createdAt,
-        updatedAt: webhookSubscriptions.updatedAt,
-      })
+      .select(WEBHOOK_SUBSCRIPTION_SELECT_COLUMNS)
       .from(webhookSubscriptions)
       .innerJoin(workspaces, eq(workspaces.id, webhookSubscriptions.workspaceId))
       .where(and(eq(webhookSubscriptions.userId, userId), eq(workspaces.workspaceSlug, workspaceSlug)))
@@ -43,19 +46,7 @@ export class PostgresWebhookSubscriptionRepository extends WebhookSubscriptionRe
   async findById(userId: string, id: string): Promise<WebhookSubscriptionRecord | null> {
     const db = this.database.getDb();
     const result = await db
-      .select({
-        id: webhookSubscriptions.id,
-        userId: webhookSubscriptions.userId,
-        workspaceId: webhookSubscriptions.workspaceId,
-        workspaceSlug: workspaces.workspaceSlug,
-        label: webhookSubscriptions.label,
-        url: webhookSubscriptions.url,
-        secret: webhookSubscriptions.secret,
-        events: webhookSubscriptions.events,
-        enabled: webhookSubscriptions.enabled,
-        createdAt: webhookSubscriptions.createdAt,
-        updatedAt: webhookSubscriptions.updatedAt,
-      })
+      .select(WEBHOOK_SUBSCRIPTION_SELECT_COLUMNS)
       .from(webhookSubscriptions)
       .innerJoin(workspaces, eq(workspaces.id, webhookSubscriptions.workspaceId))
       .where(and(eq(webhookSubscriptions.id, id), eq(webhookSubscriptions.userId, userId)))
@@ -74,7 +65,7 @@ export class PostgresWebhookSubscriptionRepository extends WebhookSubscriptionRe
       workspaceId = await resolveWorkspaceId(this.database, input.userId, input.workspaceSlug);
     }
     if (!workspaceId) {
-      throw new BadRequestException('invalid_workspace_query');
+      throw new ValidationException(AppErrorCode.InvalidWorkspaceQuery);
     }
     const result = await db
       .insert(webhookSubscriptions)
@@ -150,19 +141,7 @@ export class PostgresWebhookSubscriptionRepository extends WebhookSubscriptionRe
   async findByEvent(userId: string, workspaceSlug: string, event: string): Promise<WebhookSubscriptionRecord[]> {
     const db = this.database.getDb();
     const result = await db
-      .select({
-        id: webhookSubscriptions.id,
-        userId: webhookSubscriptions.userId,
-        workspaceId: webhookSubscriptions.workspaceId,
-        workspaceSlug: workspaces.workspaceSlug,
-        label: webhookSubscriptions.label,
-        url: webhookSubscriptions.url,
-        secret: webhookSubscriptions.secret,
-        events: webhookSubscriptions.events,
-        enabled: webhookSubscriptions.enabled,
-        createdAt: webhookSubscriptions.createdAt,
-        updatedAt: webhookSubscriptions.updatedAt,
-      })
+      .select(WEBHOOK_SUBSCRIPTION_SELECT_COLUMNS)
       .from(webhookSubscriptions)
       .innerJoin(workspaces, eq(workspaces.id, webhookSubscriptions.workspaceId))
       .where(and(

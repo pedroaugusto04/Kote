@@ -1,4 +1,4 @@
-import { createParamDecorator, ExecutionContext, SetMetadata } from '@nestjs/common';
+import { createParamDecorator, type ExecutionContext, SetMetadata } from '@nestjs/common';
 import type { AuthenticatedRequest } from './auth.decorators.js';
 import type { WorkspaceScope } from '../../application/models/workspace-scope.models.js';
 

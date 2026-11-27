@@ -1,7 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { LoggerModule } from './logger.module.js';
 import { StorageModule } from './storage.module.js';
 
+import { TransactionManager } from '../../application/ports/persistence/transaction-manager.port.js';
+import { PostgresTransactionManager } from '../persistence/postgres-transaction-manager.js';
 import { SchemaMigrator, UserRepository } from '../../application/ports/auth/auth.repository.js';
 import { ContentQueryRepository, ContentRepository } from '../../application/ports/notes/content.repository.js';
 import {
@@ -20,6 +22,9 @@ import { NoteSynthesisRepository } from '../../application/ports/notes/note-synt
 import { AiSessionSynthesisOutboxRepository } from '../../application/ports/notes/ai-session-synthesis-outbox.repository.js';
 import { NoteContextRepository } from '../../application/ports/notes/note-context.repository.js';
 import { GitCommitRepository } from '../../application/ports/projects/git-commit.repository.js';
+import { SettingsRepository } from '../../application/ports/settings.repository.js';
+import { DependencyWatcherRepository } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
+import { ProjectCoverageRepository } from '../../application/ports/projects/project-coverage.repository.js';
 import { QuotaRepository } from '../../application/ports/quota/quota.repository.js';
 import {
   BillingCustomerRepository,
@@ -49,6 +54,9 @@ import { PostgresProjectRepository } from '../repositories/project.repository.js
 import { PostgresNoteRepository } from '../repositories/note.repository.js';
 import { PostgresNoteContextRepository } from '../repositories/note-context.repository.js';
 import { PostgresGitCommitRepository } from '../repositories/git-commit.repository.js';
+import { PostgresSettingsRepository } from '../repositories/settings.repository.js';
+import { PostgresDependencyWatcherRepository } from '../repositories/dependency-watcher.repository.js';
+import { PostgresProjectCoverageRepository } from '../repositories/project-coverage.repository.js';
 import { PostgresFolderRepository } from '../repositories/folder.repository.js';
 import { PostgresAttachmentRepository } from '../repositories/attachment.repository.js';
 import { PostgresCategoryRepository } from '../repositories/category.repository.js';
@@ -63,6 +71,8 @@ import {
 
 const repositories = [
   PostgresDatabase,
+  PostgresTransactionManager,
+  { provide: TransactionManager, useExisting: PostgresTransactionManager },
   PostgresSchemaMigrator,
   PostgresUserRepository,
   PostgresIntegrationRepository,
@@ -81,6 +91,9 @@ const repositories = [
   PostgresAiSessionSynthesisOutboxRepository,
   PostgresNoteContextRepository,
   PostgresGitCommitRepository,
+  PostgresSettingsRepository,
+  PostgresDependencyWatcherRepository,
+  PostgresProjectCoverageRepository,
   PostgresWorkflowStateRepository,
   PostgresWebhookEventRepository,
   PostgresWebhookSubscriptionRepository,
@@ -106,6 +119,9 @@ const repositories = [
   { provide: NoteEmbeddingRepository, useExisting: PostgresNoteEmbeddingRepository },
   { provide: NoteContextRepository, useExisting: PostgresNoteContextRepository },
   { provide: GitCommitRepository, useExisting: PostgresGitCommitRepository },
+  { provide: SettingsRepository, useExisting: PostgresSettingsRepository },
+  { provide: DependencyWatcherRepository, useExisting: PostgresDependencyWatcherRepository },
+  { provide: ProjectCoverageRepository, useExisting: PostgresProjectCoverageRepository },
   { provide: ConversationStateRepository, useExisting: PostgresWorkflowStateRepository },
   { provide: ReminderDispatchRepository, useExisting: PostgresWorkflowStateRepository },
   { provide: WebhookEventRepository, useExisting: PostgresWebhookEventRepository },
@@ -118,6 +134,7 @@ const repositories = [
   { provide: BillingIntentRepository, useExisting: PostgresBillingIntentRepository },
 ];
 
+@Global()
 @Module({
   imports: [LoggerModule, StorageModule],
   providers: repositories,

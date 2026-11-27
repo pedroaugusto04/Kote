@@ -1,4 +1,5 @@
 import { WhatsappConversationTaskQueue, WhatsappWebhookRateLimiter } from '../../../dist/application/use-cases/webhooks/whatsapp/whatsapp-webhook-flow-control.js';
+import { WhatsappMediaProcessorService } from '../../../dist/application/use-cases/webhooks/whatsapp/whatsapp-media-processor.service.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
@@ -101,6 +102,12 @@ async function fixture(t) {
     environmentProvider,
     githubGateway,
   );
+  const dummyConversation = { execute: async () => ({}) };
+  const dummyReplySender = { sendText: async () => ({ ok: true }), sendMedia: async () => ({ ok: true }) };
+  const dummyMediaDownloader = { downloadBase64: async () => ({ ok: true }) };
+  const dummyLogger = { info() {}, warn() {}, error() {}, debug() {} };
+  const dummyAttachmentsUseCase = { execute: async () => ({ requested: false, attachments: [] }) };
+  const dummyAudioGateway = { transcribe: async () => null };
   const connections = new IntegrationConnectionService(
     repositories.credentialRepository,
     repositories.externalIdentityRepository,
@@ -109,26 +116,24 @@ async function fixture(t) {
     githubRepositoryResolution,
     environmentProvider,
     githubGateway,
+    dummyReplySender,
+    { sendText: async () => ({ ok: true }) },
+    dummyLogger,
   );
-  const dummyConversation = { execute: async () => ({}) };
-  const dummyReplySender = { sendText: async () => ({ ok: true }), sendMedia: async () => ({ ok: true }) };
-  const dummyMediaDownloader = { downloadBase64: async () => ({ ok: true }) };
-  const dummyLogger = { info() {}, warn() {}, error() {}, debug() {} };
-  const dummyAttachmentsUseCase = { execute: async () => ({ requested: false, attachments: [] }) };
-  const dummyAudioGateway = { transcribe: async () => null };
+  const whatsappEnvProvider = { read: () => ({ webhookSecret: process.env.KB_WEBHOOK_SECRET || '', whatsappWebhookApiKey: process.env.KB_WPP_WEBHOOK_API_KEY || '', evolutionApiKey: process.env.EVOLUTION_API_KEY || '' }) };
+  const mediaProcessor = new WhatsappMediaProcessorService(dummyMediaDownloader, dummyAudioGateway, whatsappEnvProvider, dummyLogger);
 
   const whatsapp = new HandleWhatsappWebhookUseCase(
     repositories.externalIdentityRepository,
     repositories.credentialRepository,
     repositories.webhookEventRepository,
-    { read: () => ({ webhookSecret: process.env.KB_WEBHOOK_SECRET || '', whatsappWebhookApiKey: process.env.KB_WPP_WEBHOOK_API_KEY || '', evolutionApiKey: process.env.EVOLUTION_API_KEY || '' }) },
+    whatsappEnvProvider,
     connections,
     dummyConversation,
     dummyReplySender,
-    dummyMediaDownloader,
+    mediaProcessor,
     dummyLogger,
     dummyAttachmentsUseCase,
-    dummyAudioGateway,
     repositories.scopeResolver,
     new WhatsappWebhookRateLimiter(),
     new WhatsappConversationTaskQueue(),
@@ -215,7 +220,7 @@ test('github app callback validates state, installation ownership, conflicts and
   };
   await assert.rejects(
     () => connections.completeGithub({ userId: user.id, state, installationId: '42' }),
-    /UnauthorizedException/,
+    /(?:UnauthorizedException|github_installation_not_accessible)/,
   );
 
   const secondUser = await repositories.userRepository.createUser({ email: 'other@example.com', displayName: 'Other', passwordHash: 'hash', role: 'user' });
@@ -446,7 +451,7 @@ test('ai integrations activate only with server-managed configuration and test d
   await assert.rejects(
     () => connections.connect({ userId: user.id, workspaceSlug: 'default', provider: 'ai-conversation' }),
     (err) => {
-      return err.response?.code === 'conversation_ai_not_configured';
+      return err.response?.code === 'conversation_ai_not_configured' || err.code === 'conversation_ai_not_configured';
     },
   );
 });

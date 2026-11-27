@@ -1,8 +1,9 @@
 import crypto from 'node:crypto';
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { eq, and, desc, inArray } from 'drizzle-orm';
 
+import { NoteNotFoundException } from '../../domain/exceptions/index.js';
 import { calculateAttachmentSize } from '../../domain/strings.js';
 import type { AttachmentRecord, SaveAttachmentInput } from '../../application/models/repository-records.models.js';
 import { ContentObjectStorageService } from '../../application/services/content/content-object-storage.service.js';
@@ -30,7 +31,7 @@ export class PostgresAttachmentRepository {
       .limit(1);
     
     if (!noteResult) {
-      throw new NotFoundException('note_not_found');
+      throw new NoteNotFoundException();
     }
     
     const workspaceSlug = noteResult.workspaceSlug || 'default';

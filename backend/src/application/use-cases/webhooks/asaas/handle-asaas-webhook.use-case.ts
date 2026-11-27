@@ -1,5 +1,6 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
-import crypto from 'node:crypto';
+import { Injectable, Logger } from '@nestjs/common';
+import { AppErrorCode, WebhookAuthException } from '../../../../domain/exceptions/index.js';
+import { sha256Hex } from '../../../../domain/utils/crypto.utils.js';
 import { BillingWebhookEventRepository } from '../../../ports/billing/billing-repositories.js';
 import { BillingQueuePublisher } from '../../../ports/billing/billing-queue.publisher.js';
 
@@ -16,7 +17,7 @@ export class HandleAsaasWebhookUseCase {
     const expectedToken = process.env.ASAAS_WEBHOOK_TOKEN;
     if (!expectedToken) {
       this.logger.error('ASAAS_WEBHOOK_TOKEN is not configured. Webhook rejected.');
-      throw new UnauthorizedException('unauthorized_webhook');
+      throw new WebhookAuthException(AppErrorCode.UnauthorizedWebhook);
     }
 
     const rawToken =
@@ -27,14 +28,14 @@ export class HandleAsaasWebhookUseCase {
     const token = Array.isArray(rawToken) ? rawToken[0] : rawToken;
 
     if (!token || String(token) !== String(expectedToken)) {
-      throw new UnauthorizedException('unauthorized_webhook');
+      throw new WebhookAuthException(AppErrorCode.UnauthorizedWebhook);
     }
 
     const eventType = String(body?.event ?? 'unknown');
     const gatewayEventId = body?.id ? String(body.id) : null;
 
     // Fallback deduplication key using SHA-256 hash of body if event id is missing
-    const dedupKey = gatewayEventId || crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
+    const dedupKey = gatewayEventId || sha256Hex(JSON.stringify(body));
 
     const payment = body?.payment;
     const subscription = body?.subscription;

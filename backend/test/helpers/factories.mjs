@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
-import { SubscriptionService } from '../../dist/application/services/billing/SubscriptionService.js';
+import { SubscriptionService } from '../../dist/application/services/billing/subscription.service.js';
+import { VectorChunkSearchService } from '../../dist/application/services/query/vector-chunk-search.service.js';
 import { FindRelatedNotesByFileUseCase } from '../../dist/application/use-cases/notes/find-related-notes-by-file.use-case.js';
 
 export function createTestUser(overrides = {}) {
@@ -113,12 +114,19 @@ export function createTestSubscriptionService(deps = {}) {
 
 export function createTestFindRelatedNotesByFileUseCase(deps = {}) {
   const noopLogger = { info() {}, warn() {}, error() {}, debug() {} };
+  const runtimeEnv = deps.runtimeEnv ?? { read: () => ({}) };
+  const logger = deps.logger ?? noopLogger;
+  const vectorChunkSearch = deps.vectorChunkSearch ?? new VectorChunkSearchService(
+    deps.noteEmbeddingRepository ?? null,
+    deps.embeddingQueue ?? null,
+    runtimeEnv,
+    logger,
+  );
   return new FindRelatedNotesByFileUseCase(
     deps.contentRepository ?? null,
     deps.contentQueryRepository ?? null,
-    deps.noteEmbeddingRepository ?? null,
-    deps.runtimeEnv ?? { read: () => ({}) },
-    deps.logger ?? noopLogger,
-    deps.embeddingQueue ?? null,
+    vectorChunkSearch,
+    runtimeEnv,
+    logger,
   );
 }

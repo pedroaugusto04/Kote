@@ -44,7 +44,7 @@ export class MavenRegistryStrategy extends RegistryStrategy {
       let data;
       try {
         data = await response.json();
-      } catch (error) {
+      } catch {
         throw new Error(`Failed to parse Maven Central response for ${packageName}`);
       }
 

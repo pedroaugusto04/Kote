@@ -52,7 +52,7 @@ import { GlobalRateLimitGuard } from './interfaces/http/guards/auth.guards.js';
   ],
   controllers: [HealthController],
   providers: [
-    { provide: APP_GUARD, useClass: GlobalRateLimitGuard },
+    { provide: APP_GUARD, useExisting: GlobalRateLimitGuard },
   ],
 })
 export class AppModule {}

@@ -1,4 +1,3 @@
-import { AiProvider } from '../contracts/enums.js';
 import type { RuntimeEnvironment } from '../application/ports/observability/runtime-environment.port.js';
 import { DEFAULT_APP_TIMEZONE, normalizeTimeZone, setDefaultAppTimeZone } from '../domain/time.js';
 
@@ -239,5 +238,16 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     codeLensSnippetSearchKeywordWeight: normalizeNumber(env.KB_CODELENS_SNIPPET_SEARCH_KEYWORD_WEIGHT, 0.3),
     codeLensSnippetSearchRrfK: normalizeNumber(env.KB_CODELENS_SNIPPET_SEARCH_RRF_K, 20),
     codeLensSnippetSearchResultLimit: normalizeNumber(env.KB_CODELENS_SNIPPET_SEARCH_RESULT_LIMIT, 10),
+    rabbitmqUrl: String(env.KB_RABBITMQ_URL || '').trim(),
+    onlyStripe: String(env.ONLY_STRIPE || '').trim().toLowerCase() === 'true',
+    stripePublishableKey: String(env.STRIPE_PUBLISHABLE_KEY || '').trim(),
+    stripeSecretKey: String(env.STRIPE_SECRET_KEY || '').trim(),
+    stripeWebhookSecret: String(env.STRIPE_WEBHOOK_SECRET || '').trim(),
+    asaasAccessToken: String(env.ASAAS_ACCESS_TOKEN || '').trim(),
+    asaasBaseUrl: String(env.ASAAS_BASE_URL || '').trim(),
+    asaasWebhookToken: String(env.ASAAS_WEBHOOK_TOKEN || '').trim(),
+    appName: String(env.APP_NAME || '').trim(),
+    appLogoUrl: String(env.APP_LOGO_URL || '').trim(),
+    isProduction: env.NODE_ENV === 'production',
   };
 }

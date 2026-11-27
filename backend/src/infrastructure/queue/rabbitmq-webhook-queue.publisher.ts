@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { type Channel } from 'amqplib';
 
-import { WebhookQueuePublisher } from '../../application/ports/webhooks/webhook-queue.publisher.js';
+import { type WebhookQueuePublisher } from '../../application/ports/webhooks/webhook-queue.publisher.js';
 import type { NoteEventPayload } from '../../domain/note-event.js';
 import { AppLogger } from '../../observability/logger.js';
 import { BaseRabbitMqPublisher } from './base-rabbitmq.publisher.js';

@@ -1,10 +1,11 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, BadRequestException } from '@nestjs/common';
+import { Injectable, type OnModuleInit, type OnModuleDestroy } from '@nestjs/common';
 import amqplib, { type Channel, type ChannelModel, type ConsumeMessage } from 'amqplib';
 
 import { AppLogger } from '../../../observability/logger.js';
 import { EmailProvider } from '../../../application/ports/email/email-provider.js';
 import { RuntimeEnvironmentProvider } from '../../../application/ports/observability/runtime-environment.port.js';
 import type { EmailSendPayload } from '../../../application/models/email.models.js';
+import { AppErrorCode, ValidationException } from '../../../domain/exceptions/index.js';
 
 @Injectable()
 export class EmailQueueConsumer implements OnModuleInit, OnModuleDestroy {
@@ -104,7 +105,7 @@ export class EmailQueueConsumer implements OnModuleInit, OnModuleDestroy {
     try {
       payload = JSON.parse(msg.content.toString()) as EmailSendPayload;
       if (!payload?.to || !payload?.subject) {
-        throw new BadRequestException('invalid_email_payload');
+        throw new ValidationException(AppErrorCode.InvalidEmailPayload);
       }
 
       await this.emailProvider.sendEmail(payload);

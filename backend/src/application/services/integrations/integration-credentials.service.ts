@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import {
   CredentialRecordStatus,
@@ -7,6 +7,12 @@ import {
   StoredIntegrationStatus,
   IntegrationActionType,
 } from '../../../contracts/enums.js';
+import {
+  CredentialNotFoundException,
+  ExternalIdentityNotFoundException,
+  ProviderNotFoundException,
+  WorkspaceSlugRequiredException,
+} from '../../../domain/exceptions/index.js';
 import type { IntegrationCredentialRecord } from '../../models/repository-records.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { CredentialRepository, ExternalIdentityRepository } from '../../ports/integrations/integrations.repository.js';
@@ -179,18 +185,16 @@ export class IntegrationCredentialService {
     private readonly credentials: CredentialRepository,
     private readonly externalIdentities: ExternalIdentityRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
-    private readonly contentRepository?: ContentRepository,
-    private readonly pushSubscriptionRepository?: PushSubscriptionRepository,
+    private readonly contentRepository: ContentRepository,
+    private readonly pushSubscriptionRepository: PushSubscriptionRepository,
   ) {}
 
   async list(userId: string, workspaceSlug = 'default') {
-    if (!workspaceSlug) throw new BadRequestException('workspace_slug_required');
+    if (!workspaceSlug) throw new WorkspaceSlugRequiredException();
     const [records, pushSubs, workspaces] = await Promise.all([
       this.credentials.listCredentials(userId, workspaceSlug),
-      this.pushSubscriptionRepository
-        ? this.pushSubscriptionRepository.listByUserId(userId)
-        : Promise.resolve([]),
-      this.contentRepository?.listWorkspaces(userId) || Promise.resolve([]),
+      this.pushSubscriptionRepository.listByUserId(userId),
+      this.contentRepository.listWorkspaces(userId),
     ]);
     const workspace = workspaces.find((w) => w.workspaceSlug === workspaceSlug);
     const integrations = guidedProviders.map((provider) => {
@@ -223,8 +227,8 @@ export class IntegrationCredentialService {
   }
 
   async revoke(userId: string, workspaceSlug: string, provider: string) {
-    if (!isGuidedProvider(provider)) throw new NotFoundException('provider_not_found');
-    if (!workspaceSlug) throw new BadRequestException('workspace_slug_required');
+    if (!isGuidedProvider(provider)) throw new ProviderNotFoundException();
+    if (!workspaceSlug) throw new WorkspaceSlugRequiredException();
     if (provider === IntegrationProvider.PushNotifications) {
       if (this.pushSubscriptionRepository) {
         const subs = await this.pushSubscriptionRepository.listByUserId(userId);
@@ -272,8 +276,8 @@ export class IntegrationCredentialService {
       provider !== IntegrationProvider.ProjectBriefAi &&
       provider !== IntegrationProvider.PrContextAi &&
       provider !== IntegrationProvider.FileNotesSummaryAi
-    ) throw new NotFoundException('provider_not_found');
-    if (!workspaceSlug) throw new BadRequestException('workspace_slug_required');
+    ) throw new ProviderNotFoundException();
+    if (!workspaceSlug) throw new WorkspaceSlugRequiredException();
     const status = aiEnvStatus(provider, this.environmentProvider);
     const record = await this.credentials.findCredential(userId, workspaceSlug, provider);
     const active = Boolean(record && record.status === CredentialRecordStatus.Connected && !record.revokedAt);
@@ -297,10 +301,10 @@ export class IntegrationCredentialService {
     userId?: string;
     externalIdentity?: { provider: string; identityType?: string; externalId: string };
   }) {
-    if (!isGuidedProvider(input.provider)) throw new NotFoundException('provider_not_found');
+    if (!isGuidedProvider(input.provider)) throw new ProviderNotFoundException();
     const userId = await this.resolveUserId(input.userId, input.externalIdentity);
     const record = await this.credentials.findCredential(userId, input.workspaceSlug || 'default', input.provider);
-    if (!record || record.status !== CredentialRecordStatus.Connected || record.revokedAt) throw new NotFoundException('credential_not_found');
+    if (!record || record.status !== CredentialRecordStatus.Connected || record.revokedAt) throw new CredentialNotFoundException();
     return {
       ok: true as const,
       userId,
@@ -316,10 +320,10 @@ export class IntegrationCredentialService {
     externalIdentity: { provider: string; identityType?: string; externalId: string } | undefined,
   ) {
     if (userId) return userId;
-    if (!externalIdentity) throw new NotFoundException('identity_not_found');
+    if (!externalIdentity) throw new ExternalIdentityNotFoundException();
     const identityType = externalIdentity.identityType || defaultIdentityType(externalIdentity.provider);
     const identity = await this.externalIdentities.findExternalIdentity(externalIdentity.provider, identityType, externalIdentity.externalId);
-    if (!identity) throw new NotFoundException('identity_not_found');
+    if (!identity) throw new ExternalIdentityNotFoundException();
     return identity.userId;
   }
 

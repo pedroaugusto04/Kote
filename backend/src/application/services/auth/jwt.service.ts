@@ -1,8 +1,19 @@
-import crypto from 'node:crypto';
-
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { JwtTokenType } from '../../../contracts/enums.js';
+import {
+  AppErrorCode,
+  InvalidTokenException,
+  JwtSecretNotConfiguredException,
+  TokenExpiredException,
+} from '../../../domain/exceptions/index.js';
+import {
+  decodeBase64UrlJson,
+  encodeBase64Url,
+  hmacSha256Base64Url,
+  timingSafeEquals,
+} from '../../../domain/utils/crypto.utils.js';
+import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 
 export type JwtPayload = {
   sub: string;
@@ -22,44 +33,47 @@ export type TokenPair = {
 
 @Injectable()
 export class JwtService {
-  constructor(
-    private readonly accessSecret: string,
-    private readonly refreshSecret: string,
-    private readonly accessTokenTtlSeconds: number,
-    private readonly refreshTokenTtlSeconds: number,
-  ) {}
+  constructor(private readonly environmentProvider: RuntimeEnvironmentProvider) {}
 
-  private base64url(input: Buffer | string): string {
-    return Buffer.from(input).toString('base64url');
+  private get accessSecret(): string {
+    return this.environmentProvider.read().jwtAccessSecret;
   }
 
-  private parseBase64urlJson(value: string): unknown {
-    return JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as unknown;
+  private get refreshSecret(): string {
+    return this.environmentProvider.read().jwtRefreshSecret;
+  }
+
+  private get accessTokenTtlSeconds(): number {
+    return this.environmentProvider.read().accessTokenTtlSeconds;
+  }
+
+  private get refreshTokenTtlSeconds(): number {
+    return this.environmentProvider.read().refreshTokenTtlSeconds;
   }
 
   signJwt(payload: Omit<JwtPayload, 'iat' | 'exp'>, secret: string, ttlSeconds: number): string {
-    if (!secret) throw new Error('jwt_secret_not_configured');
+    if (!secret) throw new JwtSecretNotConfiguredException();
     const issuedAt = Math.floor(Date.now() / 1000);
     const header = { alg: 'HS256', typ: 'JWT' };
     const body: JwtPayload = { ...payload, iat: issuedAt, exp: issuedAt + ttlSeconds };
-    const signingInput = `${this.base64url(JSON.stringify(header))}.${this.base64url(JSON.stringify(body))}`;
-    const signature = crypto.createHmac('sha256', secret).update(signingInput).digest('base64url');
+    const signingInput = `${encodeBase64Url(JSON.stringify(header))}.${encodeBase64Url(JSON.stringify(body))}`;
+    const signature = hmacSha256Base64Url(signingInput, secret);
     return `${signingInput}.${signature}`;
   }
 
   verifyJwt(token: string, secret: string, expectedType: JwtPayload['typ']): JwtPayload {
-    if (!secret) throw new UnauthorizedException('jwt_secret_not_configured');
+    if (!secret) throw new JwtSecretNotConfiguredException();
     const [encodedHeader, encodedPayload, signature] = token.split('.');
-    if (!encodedHeader || !encodedPayload || !signature) throw new UnauthorizedException('invalid_token');
+    if (!encodedHeader || !encodedPayload || !signature) throw new InvalidTokenException();
     const signingInput = `${encodedHeader}.${encodedPayload}`;
-    const expected = crypto.createHmac('sha256', secret).update(signingInput).digest('base64url');
-    if (signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
-      throw new UnauthorizedException('invalid_token');
+    const expected = hmacSha256Base64Url(signingInput, secret);
+    if (!timingSafeEquals(signature, expected)) {
+      throw new InvalidTokenException();
     }
-    const payload = this.parseBase64urlJson(encodedPayload) as JwtPayload;
-    if (payload.typ !== expectedType) throw new UnauthorizedException('invalid_token_type');
-    if (!payload.sub || !payload.email || !payload.role || !payload.exp) throw new UnauthorizedException('invalid_token');
-    if (payload.exp <= Math.floor(Date.now() / 1000)) throw new UnauthorizedException('token_expired');
+    const payload = decodeBase64UrlJson(encodedPayload) as JwtPayload;
+    if (payload.typ !== expectedType) throw new InvalidTokenException(AppErrorCode.InvalidTokenType);
+    if (!payload.sub || !payload.email || !payload.role || !payload.exp) throw new InvalidTokenException();
+    if (payload.exp <= Math.floor(Date.now() / 1000)) throw new TokenExpiredException();
     return payload;
   }
 
@@ -100,7 +114,7 @@ export class JwtService {
   verifyConnectionToken(connectionToken: string): JwtPayload {
     const trimmed = String(connectionToken || '').trim();
     if (!trimmed.startsWith('kbc_')) {
-      throw new UnauthorizedException('invalid_connection_token');
+      throw new InvalidTokenException(AppErrorCode.InvalidConnectionToken);
     }
     const token = trimmed.slice(4);
     return this.verifyJwt(token, this.accessSecret, JwtTokenType.Connection);

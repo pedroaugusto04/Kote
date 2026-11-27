@@ -105,34 +105,16 @@ export class BuildDashboardUseCase {
       return coverageMap;
     }
 
-    if (this.projectCoverageRepository.getProjectsCoveragePercentage) {
-      try {
-        const projectIds = projects.map((p) => p.id).filter(Boolean);
-        const percentageById = await this.projectCoverageRepository.getProjectsCoveragePercentage(userId, projectIds);
-        for (const project of projects) {
-          const pct = percentageById.get(project.id) ?? 0;
-          coverageMap.set(project.projectSlug, pct);
-          coverageMap.set(project.id, pct);
-        }
-        return coverageMap;
-      } catch {
-        return coverageMap;
+    try {
+      const projectIds = projects.map((p) => p.id).filter(Boolean);
+      const percentageById = await this.projectCoverageRepository.getProjectsCoveragePercentage(userId, projectIds);
+      for (const project of projects) {
+        const pct = percentageById.get(project.id) ?? 0;
+        coverageMap.set(project.projectSlug, pct);
+        coverageMap.set(project.id, pct);
       }
-    }
-
-    const coverageResults = await Promise.all(
-      projects.map(async (project) => {
-        try {
-          const res = await this.projectCoverageRepository.getProjectCoverage(userId, project.id);
-          return { projectSlug: project.projectSlug, coveragePercentage: res.coveragePercentage };
-        } catch {
-          return { projectSlug: project.projectSlug, coveragePercentage: 0 };
-        }
-      }),
-    );
-
-    for (const res of coverageResults) {
-      coverageMap.set(res.projectSlug, res.coveragePercentage);
+    } catch {
+      return coverageMap;
     }
     return coverageMap;
   }

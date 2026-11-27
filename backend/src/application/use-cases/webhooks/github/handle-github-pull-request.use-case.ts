@@ -1,11 +1,11 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
-import { buildGithubPrContextNoteEvent } from '../../../services/integrations/github-review.service.js';
+import { AppErrorCode, ExternalIdentityNotFoundException, GithubAuthException } from '../../../../domain/exceptions/index.js';
 import type { GithubPullRequestWebhookRequest } from '../../../models/webhook-request.models.js';
 import { ContentRepository } from '../../../ports/notes/content.repository.js';
 import { GithubIntegrationGateway } from '../../../ports/integrations/github-integration.port.js';
-import { ExternalIdentityRepository, resolveExternalIdentity } from '../../../ports/integrations/integrations.repository.js';
+import { ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
 import { normalizeHeaders } from '../../../utils/webhook/webhook.utils.js';
@@ -15,17 +15,11 @@ import { PrReviewAgentGateway } from '../../../ports/integrations/pr-review-agen
 import { PrReviewAgentToolsService } from '../../../services/review/pr-review-agent-tools.service.js';
 import { AgentContextTracker } from '../../../services/query/agent-context-tracker.js';
 import { resolveEmbeddingConfig, resolveRagConfig } from '../../../utils/query/query-config.utils.js';
-import { formatPrReviewComment } from '../../../services/review/pr-review-presenter.js';
-import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
 import { GithubRepositoryResolutionService } from '../../../services/integrations/github-repository-resolution.service.js';
 import { AppLogger } from '../../../../observability/logger.js';
 import { githubPrAuditPayload, type GithubPullRequestPayload } from '../../../utils/github/github-audit.utils.js';
 import { filterAndTruncateChangedFiles } from '../../../utils/github/github-diff-filter.utils.js';
-import {
-  isCommentForShaAlreadyPosted,
-  formatPullRequestCommentWithSha,
-  ingestPrReviewNote,
-} from '../../../utils/github/github-review.helpers.js';
+import { GithubPrCommentSyncService } from './github-pr-comment-sync.service.js';
 
 @Injectable()
 export class HandleGithubPullRequestUseCase {
@@ -37,7 +31,7 @@ export class HandleGithubPullRequestUseCase {
     private readonly prReviewAgentGateway: PrReviewAgentGateway,
     private readonly prReviewAgentToolsService: PrReviewAgentToolsService,
     private readonly aiEntitlement: AiEntitlementService,
-    private readonly ingestEntryUseCase: IngestEntryUseCase,
+    private readonly prCommentSync: GithubPrCommentSyncService,
     private readonly githubRepositoryResolution: GithubRepositoryResolutionService,
     private readonly contentRepository: ContentRepository,
     private readonly logger: AppLogger,
@@ -59,7 +53,7 @@ export class HandleGithubPullRequestUseCase {
     });
 
     if (!environment.githubWebhookSecret) {
-      throw new UnauthorizedException('github_webhook_secret_not_configured');
+      throw new GithubAuthException(AppErrorCode.GithubWebhookSecretNotConfigured);
     }
 
     try {
@@ -69,11 +63,11 @@ export class HandleGithubPullRequestUseCase {
         String(headers['x-hub-signature-256'] || ''),
       );
     } catch (error) {
-      throw new UnauthorizedException('invalid_github_signature');
+      throw new GithubAuthException(AppErrorCode.InvalidGithubSignature);
     }
 
     if (!installationId) {
-      throw new UnauthorizedException('missing_installation_id');
+      throw new GithubAuthException(AppErrorCode.MissingInstallationId);
     }
 
     const identity = await this.externalIdentities.findExternalIdentity(ExternalIdentityProvider.GithubApp, 'installation_id', installationId);
@@ -82,7 +76,7 @@ export class HandleGithubPullRequestUseCase {
         installationId,
         repository: body.repository?.full_name,
       });
-      throw new NotFoundException('identity_not_found');
+      throw new ExternalIdentityNotFoundException();
     }
 
     this.logger.info('github_pr_installation_identity_found', {
@@ -276,13 +270,13 @@ export class HandleGithubPullRequestUseCase {
 
       // Check if we have already posted a comment for the current headSha
       const prNumber = Number(body.pull_request?.number || 0);
-      const existingComments = await this.githubIntegrationGateway.fetchPullRequestComments(repoFullName, prNumber, token);
-      if (isCommentForShaAlreadyPosted(existingComments, headSha)) {
-        this.logger.info('github_pr_comment_already_exists_for_sha', {
-          repository: repoFullName,
-          prNumber,
-          headSha,
-        });
+      const alreadyPosted = await this.prCommentSync.isCommentAlreadyPosted({
+        repoFullName,
+        prNumber,
+        headSha,
+        token,
+      });
+      if (alreadyPosted) {
         return this.recordIgnored({
           userId: identity.userId,
           externalIdentity,
@@ -411,55 +405,19 @@ export class HandleGithubPullRequestUseCase {
         };
       }
 
-      // Post the comment to the PR
-      const formattedComment = formatPrReviewComment(decision, headSha, tracker.getSources());
-      const { comment: finalComment, isTruncated } = formatPullRequestCommentWithSha(formattedComment, headSha);
-      if (isTruncated) {
-        this.logger.warn('github_pr_comment_exceeded_limit', {
-          repository: repoFullName,
-          prNumber,
-          originalLength: formattedComment.length + headSha.length,
-        });
-      }
-
-      this.logger.info('github_pr_posting_comment', {
-        repository: repoFullName,
+      // Format, post comment to the PR, and ingest review note
+      const { commentPosted, noteId } = await this.prCommentSync.publishReviewCommentAndSyncNote({
+        input,
+        decision,
+        trackedSources: tracker.getSources(),
+        changedFiles,
         projectSlug,
+        identity,
+        repoFullName,
         prNumber,
-        commentLength: finalComment.length,
+        headSha,
+        token,
       });
-
-      const posted = await this.githubIntegrationGateway.postPullRequestComment(repoFullName, prNumber, finalComment, token);
-
-      this.logger.info('github_pr_comment_posted', {
-        repository: repoFullName,
-        projectSlug,
-        prNumber,
-        posted,
-      });
-
-      // Generate and ingest a review note based on the AI analysis
-      const contextSummary = tracker.getSources().length > 0
-        ? tracker.getSources().map(s => `- ${s.title}: (${s.path})`).join('\n')
-        : undefined;
-
-      const noteId = await ingestPrReviewNote(
-        {
-          ingestEntryUseCase: this.ingestEntryUseCase,
-          logger: this.logger,
-        },
-        {
-          input,
-          commentText: finalComment,
-          changedFiles,
-          contextSummary,
-          projectSlug,
-          identity,
-          repoFullName,
-          prNumber,
-          buildPrContextNoteEvent: buildGithubPrContextNoteEvent,
-        },
-      );
 
       await this.recordEvent({
         userId: identity.userId,
@@ -472,7 +430,7 @@ export class HandleGithubPullRequestUseCase {
       return {
         ok: true,
         processed: true,
-        commentPosted: posted,
+        commentPosted,
         noteId,
       };
     } catch (error) {

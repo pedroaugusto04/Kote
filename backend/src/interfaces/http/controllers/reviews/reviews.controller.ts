@@ -1,7 +1,8 @@
-import { Controller, Get, NotFoundException, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 
 import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
+import { ReviewNotFoundException } from '../../../../domain/exceptions/index.js';
 import {
   GetReviewDetailUseCase,
   ListPaginatedReviewsUseCase,
@@ -48,7 +49,7 @@ export class ReviewsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     const review = await this.getReviewDetail.execute(user.id, params.id);
-    if (!review) throw new NotFoundException('review_not_found');
+    if (!review) throw new ReviewNotFoundException();
     return { ok: true, review };
   }
 }

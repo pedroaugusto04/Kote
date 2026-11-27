@@ -1,5 +1,10 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
+import {
+  AppErrorCode,
+  FolderNotFoundException,
+  ResourceConflictException,
+} from '../../../domain/exceptions/index.js';
 import type { CreateProjectFolderInput } from '../../models/project-folder-input.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { toFolderCreateInput } from '../../mappers/project-folder.mapper.js';
@@ -19,13 +24,12 @@ export class CreateProjectFolderUseCase {
     const parentFolder = input.parentFolderId
       ? folders.find((folder) => folder.id === input.parentFolderId) || null
       : null;
-    if (input.parentFolderId && !parentFolder) throw new NotFoundException('folder_parent_not_found');
+    if (input.parentFolderId && !parentFolder) throw new FolderNotFoundException(AppErrorCode.FolderParentNotFound);
 
     const folderInput = toFolderCreateInput(input, project.projectSlug, project.workspaceSlug, parentFolder?.fullSlugPath ?? '');
     
     if (folders.some((folder) => folder.parentFolderId === (parentFolder?.id || null) && folder.folderSlug === folderInput.folderSlug)) {
-      throw new ConflictException({
-        code: 'folder_slug_already_exists',
+      throw new ResourceConflictException(AppErrorCode.FolderSlugAlreadyExists, {
         details: { fieldErrors: { displayName: 'A folder with this name already exists at this level.' } },
       });
     }

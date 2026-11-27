@@ -1,6 +1,6 @@
 import type { AskConversationTurn } from '../../../contracts/ask-conversation.js';
 import type { RuntimeEnvironment } from '../observability/runtime-environment.port.js';
-import { ConversationConfidence } from '../../../contracts/enums.js';
+import { type ConversationConfidence } from '../../../contracts/enums.js';
 
 export type AnswerGenerationConfig = Pick<
   RuntimeEnvironment,

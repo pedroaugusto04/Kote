@@ -1,6 +1,13 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { CredentialRecordStatus, IntegrationProvider, MissingCredentialError } from '../../../contracts/enums.js';
+import {
+  AppErrorCode,
+  CredentialNotFoundException,
+  DomainRuleException,
+  GithubIntegrationException,
+  WorkspaceNotFoundException,
+} from '../../../domain/exceptions/index.js';
 import { decryptConfig } from '../../utils/security/credentials-crypto.utils.js';
 import type { RepositoryRecord } from '../../models/repository-records.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
@@ -20,9 +27,8 @@ export class GithubRepositoryResolutionService {
   async listAccessibleRepositories(input: { userId: string; workspaceSlug: string; missingCredentialError: MissingCredentialError }) {
     const credential = await this.credentialRepository.findCredential(input.userId, input.workspaceSlug, IntegrationProvider.GithubApp);
     if (!credential || credential.status !== CredentialRecordStatus.Connected || credential.revokedAt) {
-      if (input.missingCredentialError === 'not_found') throw new NotFoundException('credential_not_found');
-      throw new BadRequestException({
-        code: 'github_connection_required',
+      if (input.missingCredentialError === 'not_found') throw new CredentialNotFoundException();
+      throw new DomainRuleException(AppErrorCode.GithubConnectionRequired, {
         details: { fieldErrors: { repositoryIds: 'Connect GitHub before linking repositories to the project.' } },
       });
     }
@@ -31,7 +37,7 @@ export class GithubRepositoryResolutionService {
     const config = decryptConfig(credential.encryptedConfig, this.environmentProvider) as { installationId?: string };
     const installationId = String(config.installationId || '').trim();
     if (!environment.githubAppId || !environment.githubAppPrivateKey || !installationId) {
-      throw new BadRequestException('github_app_installation_not_configured');
+      throw new GithubIntegrationException(AppErrorCode.GithubAppInstallationNotConfigured);
     }
 
     return this.githubIntegrationGateway.fetchInstallationRepositories({
@@ -51,7 +57,7 @@ export class GithubRepositoryResolutionService {
 
     const workspaces = await this.contentRepository.listWorkspaces(input.userId);
     const workspace = workspaces.find((w) => w.workspaceSlug === input.workspaceSlug) || workspaces[0];
-    if (!workspace) throw new NotFoundException('workspace_not_found');
+    if (!workspace) throw new WorkspaceNotFoundException();
 
     const availableRepositories = await this.listAccessibleRepositories({
       userId: input.userId,
@@ -61,8 +67,7 @@ export class GithubRepositoryResolutionService {
     const repositoryById = new Map(availableRepositories.map((repository) => [String(repository.id), repository]));
     const missingRepositoryId = input.repositoryIds.find((repositoryId) => !repositoryById.has(repositoryId));
     if (missingRepositoryId) {
-      throw new BadRequestException({
-        code: 'invalid_project_repository_selection',
+      throw new DomainRuleException(AppErrorCode.InvalidProjectRepositorySelection, {
         details: { fieldErrors: { repositoryIds: 'Select only repositories accessible through the linked GitHub account.' } },
       });
     }

@@ -1,7 +1,8 @@
-import { Body, Controller, Get, NotFoundException, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 
 import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
+import { ReminderNotFoundException } from '../../../../domain/exceptions/index.js';
 import {
   ListPaginatedRemindersUseCase,
   ListReminderBoardUseCase,
@@ -85,7 +86,7 @@ export class RemindersController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     const result = await this.updateReminderStatusUseCase.execute(user.id, { id: params.id, status: body.status });
-    if (!result.ok) throw new NotFoundException(result.reason);
+    if (!result.ok) throw new ReminderNotFoundException();
     return result;
   }
 }

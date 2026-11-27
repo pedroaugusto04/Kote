@@ -1,13 +1,19 @@
-import { CanActivate, ExecutionContext, ForbiddenException, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
 
 import { readEnvironment } from '../../../adapters/environment.js';
 import { AuthService } from '../../../application/services/auth/auth.service.js';
+import {
+  AppErrorCode,
+  DomainRuleException,
+  InvalidInternalTokenException,
+  InvalidOriginException,
+} from '../../../domain/exceptions/index.js';
 import type { AuthenticatedRequest } from '../auth.decorators.js';
 import { accessTokenFromRequest, assertTrustedBrowserOrigin } from '../http-security.js';
 import { requestIp } from '../request-ip.js';
 import { updateRequestContext } from '../../../observability/request-context.js';
-import { AUTH_ERROR_MESSAGES, AUTH_HEADERS, RATE_LIMIT_CONFIG, RATE_LIMIT_NAMESPACES } from './auth-guards.constants.js';
+import { AUTH_HEADERS, RATE_LIMIT_CONFIG, RATE_LIMIT_NAMESPACES } from './auth-guards.constants.js';
 
 type RateLimitBucket = { 
   resetAt: number;
@@ -40,7 +46,7 @@ function assertRateLimit(request: Request, namespace: string, limit: number, win
     return;
   }
   current.count += 1;
-  if (current.count > limit) throw new HttpException(AUTH_ERROR_MESSAGES.RATE_LIMITED, HttpStatus.TOO_MANY_REQUESTS);
+  if (current.count > limit) throw new DomainRuleException(AppErrorCode.RateLimited);
 }
 
 @Injectable()
@@ -89,7 +95,7 @@ export class BrowserExtensionGuard implements CanActivate {
         return true;
       }
 
-      throw new ForbiddenException(AUTH_ERROR_MESSAGES.INVALID_ORIGIN);
+      throw new InvalidOriginException();
     }
 
     // Validate web origins
@@ -104,7 +110,7 @@ export class BrowserExtensionGuard implements CanActivate {
     }
 
     if (!allowedOrigins.has(actualOrigin)) {
-      throw new ForbiddenException(AUTH_ERROR_MESSAGES.INVALID_ORIGIN);
+      throw new InvalidOriginException();
     }
 
     return true;
@@ -118,7 +124,7 @@ export class InternalServiceTokenGuard implements CanActivate {
     const authorization = request.headers.authorization || '';
     const token = String(authorization).startsWith(AUTH_HEADERS.BEARER_PREFIX) ? String(authorization).slice(AUTH_HEADERS.BEARER_PREFIX.length) : '';
     if (!readEnvironment().internalServiceToken || token !== readEnvironment().internalServiceToken) {
-      throw new UnauthorizedException(AUTH_ERROR_MESSAGES.INVALID_INTERNAL_TOKEN); 
+      throw new InvalidInternalTokenException(); 
     }
     return true;
   }

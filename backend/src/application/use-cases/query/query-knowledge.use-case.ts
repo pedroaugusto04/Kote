@@ -3,13 +3,11 @@ import { Injectable } from '@nestjs/common';
 import type { QueryInput } from '../../../contracts/query.js';
 import { buildPaginationMeta, DEFAULT_PAGE_SIZE } from '../../../contracts/pagination.js';
 import { ContentQueryRepository } from '../../ports/notes/content.repository.js';
-import { EmbeddingGateway } from '../../ports/notes/embedding.gateway.js';
-import { EmbeddingRepresentation, NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
-import { EmbeddingQueuePublisher } from '../../ports/notes/embedding-queue.publisher.js';
+import { EmbeddingRepresentation } from '../../ports/notes/note-embedding.repository.js';
+import { VectorChunkSearchService } from '../../services/query/vector-chunk-search.service.js';
 import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../ports/observability/runtime-environment.port.js';
 import { rankKnowledgeMatches, rankHybridKnowledgeMatches } from '../../utils/query/query.utils.js';
 import { AppLogger } from '../../../observability/logger.js';
-import { EmbeddingTaskType } from '../../../contracts/enums.js';
 import type { VaultNoteSummary } from '../../models/vault-note.models.js';
 
 type QueryMatch = ReturnType<typeof rankKnowledgeMatches>[number];
@@ -21,11 +19,9 @@ export class QueryKnowledgeUseCase {
 
   constructor(
     private readonly contentQueryRepository: ContentQueryRepository,
-    private readonly embeddingGateway: EmbeddingGateway,
-    private readonly noteEmbeddingRepository: NoteEmbeddingRepository,
+    private readonly vectorChunkSearch: VectorChunkSearchService,
     private readonly runtimeEnv: RuntimeEnvironmentProvider,
     private readonly logger: AppLogger,
-    private readonly embeddingQueue: EmbeddingQueuePublisher,
   ) {
     this.env = this.runtimeEnv.read();
   }
@@ -41,7 +37,17 @@ export class QueryKnowledgeUseCase {
     });
 
     const [vectorResult, ftsNotes] = await Promise.all([
-      this.searchVectorChunks(userId, input),
+      this.vectorChunkSearch.search({
+        userId,
+        queryText: input.query,
+        limit: this.ftsCandidateLimit(input),
+        workspaceId: input.workspaceId,
+        projectId: input.projectId,
+        minSimilarity: this.env.searchMinSimilarity,
+        representations: [EmbeddingRepresentation.Synthesis, EmbeddingRepresentation.Raw],
+        synthesisBoost: 0,
+        logPrefix: 'query_knowledge',
+      }),
       this.searchFtsNotes(userId, input),
     ]);
 
@@ -53,14 +59,14 @@ export class QueryKnowledgeUseCase {
     const hasVectorResults = vectorResult.chunks.length > 0;
     if (hasVectorResults) {
       const matches = rankHybridKnowledgeMatches(ftsNotes, vectorResult.chunks, input, {
-        vector: this.env.searchHybridVectorWeight ?? 0.4,
-        keyword: this.env.searchHybridKeywordWeight ?? 0.6,
+        vector: this.env.searchHybridVectorWeight,
+        keyword: this.env.searchHybridKeywordWeight,
       }, this.env.searchRrfK);
 
       this.logger.info('query_knowledge.hybrid_ranking_complete', {
         matchesCount: matches.length,
-        vectorWeight: this.env.searchHybridVectorWeight ?? 0.4,
-        keywordWeight: this.env.searchHybridKeywordWeight ?? 0.6,
+        vectorWeight: this.env.searchHybridVectorWeight,
+        keywordWeight: this.env.searchHybridKeywordWeight,
         rrfK: this.env.searchRrfK,
       });
 
@@ -78,7 +84,7 @@ export class QueryKnowledgeUseCase {
   }
 
   private ftsCandidateLimit(input: QueryInput): number {
-    return input.limit * (this.env.searchCandidateLimitMultiplier ?? 4);
+    return input.limit * this.env.searchCandidateLimitMultiplier;
   }
 
   private async searchFtsNotes(userId: string, input: QueryInput): Promise<VaultNoteSummary[]> {
@@ -95,65 +101,6 @@ export class QueryKnowledgeUseCase {
     });
 
     return results;
-  }
-
-  private async searchVectorChunks(userId: string, input: QueryInput) {
-    const embeddingConfig = {
-      provider: this.env.embeddingAiProvider,
-      baseUrl: this.env.embeddingAiBaseUrl,
-      model: this.env.embeddingAiModel,
-      apiKey: this.env.embeddingAiApiKey,
-    };
-
-    if (!embeddingConfig.provider || !embeddingConfig.apiKey || !embeddingConfig.model) {
-      this.logger.info('query_knowledge.embedding_not_configured');
-      return { chunks: [] as Array<{ noteId: string; similarity: number }> };
-    }
-
-    try {
-      const embeddings = await this.embeddingQueue.publishQueryEmbedding({
-        userId,
-        queryText: input.query,
-      });
-      this.logger.info('query_knowledge.embedding_generated', {
-        embeddingDim: embeddings[0]?.length,
-      });
-
-      const queryEmbedding = embeddings[0];
-      if (!queryEmbedding?.length) {
-        this.logger.warn('query_knowledge.embedding_empty');
-        return { chunks: [] as Array<{ noteId: string; similarity: number }> };
-      }
-
-      const searchOptions = {
-        limit: this.ftsCandidateLimit(input),
-        workspaceId: input.workspaceId,
-        projectId: input.projectId,
-        minSimilarity: this.env.searchMinSimilarity ?? 0.35,
-        synthesisBoost: 0,
-      };
-      const [synthesisChunks, rawChunks] = await Promise.all([
-        this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, { ...searchOptions, representation: EmbeddingRepresentation.Synthesis }),
-        this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, { ...searchOptions, representation: EmbeddingRepresentation.Raw }),
-      ]);
-      const chunks = [...synthesisChunks, ...rawChunks];
-
-      this.logger.info('query_knowledge.vector_search_complete', {
-        resultCount: chunks.length,
-        avgSimilarity: chunks.length > 0
-          ? chunks.reduce((sum, result) => sum + result.similarity, 0) / chunks.length
-          : 0,
-      });
-
-      return { chunks };
-    } catch (error) {
-      this.logger.warn('query_knowledge.vector_search_failed', {
-        userId,
-        query: input.query,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return { chunks: [] as Array<{ noteId: string; similarity: number }> };
-    }
   }
 
   private buildResponse(input: QueryInput, matches: QueryMatch[], mode: QuerySearchMode) {

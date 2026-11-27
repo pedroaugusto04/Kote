@@ -1,10 +1,11 @@
-import crypto from 'node:crypto';
+import { sha256Hex } from '../../domain/utils/crypto.utils.js';
 
 import type { NoteRecord } from '../models/repository-records.models.js';
-import {
-  ProjectBriefFallbackReason,
-  type ProjectBrief,
-  type ProjectBriefContextItem,
+import type {
+  ProjectBrief,
+  ProjectBriefAiConfig,
+  ProjectBriefContextItem,
+  SaveProjectBriefHistoryInput,
 } from '../models/project-brief.models.js';
 import { resolveCanonicalTypeFromCategories } from '../../domain/note-classification.js';
 
@@ -66,8 +67,34 @@ export function toNormalizedBrief(brief: ProjectBrief, projectSlug: string, gene
   };
 }
 
+export interface ProjectBriefHistorySaveContext {
+  userId: string;
+  projectId?: string;
+  workspaceId: string;
+  contextHash: string;
+  contextWindow: number;
+  config: Pick<ProjectBriefAiConfig, 'provider' | 'model'>;
+}
+
+export function toProjectBriefHistorySaveInput(
+  brief: ProjectBrief,
+  context: ProjectBriefHistorySaveContext,
+): SaveProjectBriefHistoryInput {
+  return {
+    userId: context.userId,
+    projectId: context.projectId,
+    workspaceId: context.workspaceId,
+    brief,
+    sourceRefs: brief.sources,
+    contextHash: context.contextHash,
+    contextWindow: context.contextWindow,
+    provider: context.config.provider,
+    model: context.config.model,
+  };
+}
+
 export function toSha256(value: string): string {
-  return crypto.createHash('sha256').update(value).digest('hex');
+  return sha256Hex(value);
 }
 
 function truncate(value: string, maxLength: number): string {

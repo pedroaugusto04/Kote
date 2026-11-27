@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { ingestPayloadSchema, withDerivedReminderAt, type IngestPayload } from '../../../contracts/ingest.js';
+import { FolderNotFoundException } from '../../../domain/exceptions/index.js';
 import type { Project } from '../../../domain/projects.js';
 import { normalizeWorkspaceSlug } from '../../../domain/strings.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
@@ -10,7 +11,7 @@ import type { SaveNoteResult } from '../../models/note-save-result.models.js';
 import { NoteLifecycleService } from '../../services/content/note-lifecycle.service.js';
 import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 import { AppLogger } from '../../../observability/logger.js';
-import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
+import { TransactionManager } from '../../ports/persistence/transaction-manager.port.js';
 import { toIngestPayloadWithProject, toNoteInputFromIngest, toNotePathsFromIngest, toSaveNoteResult } from '../../mappers/ingest.mapper.js';
 import { buildFolderSummary } from '../../utils/content/project-folder.utils.js';
 
@@ -30,7 +31,7 @@ export class IngestEntryUseCase {
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly noteLifecycleService: NoteLifecycleService,
     private readonly logger: AppLogger,
-    private readonly database: PostgresDatabase,
+    private readonly transactionManager: TransactionManager,
     private readonly scopeResolver: WorkspaceScopeResolver,
   ) {}
 
@@ -51,8 +52,11 @@ export class IngestEntryUseCase {
       return result;
     };
 
-    if (this.database && typeof this.database.getDb === 'function') {
-      return this.database.getDb().transaction(run);
+    if (typeof (this.transactionManager as any)?.runInTransaction === 'function') {
+      return this.transactionManager.runInTransaction(run);
+    }
+    if (typeof (this.transactionManager as any)?.getDb === 'function') {
+      return (this.transactionManager as any).getDb().transaction(run);
     }
     return run();
   }
@@ -100,7 +104,7 @@ async function saveIngestedNote(params: SaveIngestedNoteParams): Promise<SaveNot
   const folder = options.folderId
     ? await contentRepository.getProjectFolderById(userId, projectId, options.folderId)
     : null;
-  if (options.folderId && (!folder || folder.workspaceSlug !== workspaceSlug)) throw new NotFoundException('folder_not_found');
+  if (options.folderId && (!folder || folder.workspaceSlug !== workspaceSlug)) throw new FolderNotFoundException();
 
   const categoryIds = await scopeResolver.resolveOrCreateCategoryIds(
     userId,

@@ -1,8 +1,9 @@
 import crypto from 'node:crypto';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 
 import { GitCommitRepository } from '../../application/ports/projects/git-commit.repository.js';
+import { CommitOrNoteNotFoundException } from '../../domain/exceptions/index.js';
 import type {
   CommitLinkSource,
   LinkedCommitNoteSummary,
@@ -862,7 +863,7 @@ export class PostgresGitCommitRepository extends GitCommitRepository {
     commitId: string,
   ): Promise<LinkedCommitSummary> {
     if (!isUuid(noteId) || !isUuid(commitId)) {
-      throw new NotFoundException('commit_or_note_not_found');
+      throw new CommitOrNoteNotFoundException();
     }
     const pool = this.database.getPool();
 
@@ -874,7 +875,7 @@ export class PostgresGitCommitRepository extends GitCommitRepository {
     const noteRow = noteCheck.rows[0];
     const commitRow = commitCheck.rows[0];
     if (!noteRow || !commitRow) {
-      throw new NotFoundException('commit_or_note_not_found');
+      throw new CommitOrNoteNotFoundException();
     }
 
     const commitFiles = normalizeChangedFiles(commitRow.changed_files);

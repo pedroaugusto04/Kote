@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { ContentRepository, ContentQueryRepository } from '../../ports/notes/content.repository.js';
 import type { EmbeddingConfig } from '../../ports/notes/embedding.gateway.js';
@@ -28,7 +28,7 @@ export class AskAgentToolsService {
     private readonly ragContextAssemblerService: RagContextAssemblerService,
     private readonly contentRepository: ContentRepository,
     private readonly logger: AppLogger,
-    @Optional() private readonly contentQueryRepository?: ContentQueryRepository,
+    private readonly contentQueryRepository: ContentQueryRepository,
   ) {}
 
   buildTools(
@@ -237,9 +237,6 @@ export class AskAgentToolsService {
       },
       execute: async (args: Record<string, any>) => {
         this.logger.info('ask_agent.tool.list_reminders', { userId, args, scope });
-        if (!this.contentQueryRepository) {
-          return { reminders: [] };
-        }
 
         const [reminders, workspaces, projects] = await Promise.all([
           this.contentQueryRepository.listReminders(userId),

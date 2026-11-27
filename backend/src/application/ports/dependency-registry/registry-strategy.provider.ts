@@ -6,7 +6,7 @@ import { ComposerRegistryStrategy } from './composer-registry.strategy.js';
 import { MavenRegistryStrategy } from './maven-registry.strategy.js';
 import { NpmRegistryStrategy } from './npm-registry.strategy.js';
 import { PipRegistryStrategy } from './pip-registry.strategy.js';
-import { RegistryStrategy } from './registry-strategy.interface.js';
+import { type RegistryStrategy } from './registry-strategy.interface.js';
 import { RuntimeEnvironmentProvider } from '../observability/runtime-environment.port.js';
 
 @Injectable()

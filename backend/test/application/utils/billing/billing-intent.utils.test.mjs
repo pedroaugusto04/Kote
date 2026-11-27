@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BadRequestException } from '@nestjs/common';
+import { BillingRuleException } from '../../../../dist/domain/exceptions/index.js';
 
 import {
   buildExternalReference,
@@ -25,9 +25,9 @@ test('parseExternalReference parses valid external reference query string', () =
   });
 });
 
-test('parseExternalReference throws BadRequestException when reference or fields are missing', () => {
-  assert.throws(() => parseExternalReference(''), (err) => err instanceof BadRequestException);
-  assert.throws(() => parseExternalReference(null), (err) => err instanceof BadRequestException);
-  assert.throws(() => parseExternalReference('id=intent-123'), (err) => err instanceof BadRequestException);
-  assert.throws(() => parseExternalReference('t=new'), (err) => err instanceof BadRequestException);
+test('parseExternalReference throws BillingRuleException when reference or fields are missing', () => {
+  assert.throws(() => parseExternalReference(''), (err) => err instanceof BillingRuleException);
+  assert.throws(() => parseExternalReference(null), (err) => err instanceof BillingRuleException);
+  assert.throws(() => parseExternalReference('id=intent-123'), (err) => err instanceof BillingRuleException);
+  assert.throws(() => parseExternalReference('t=new'), (err) => err instanceof BillingRuleException);
 });

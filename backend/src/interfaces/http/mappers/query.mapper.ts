@@ -1,4 +1,5 @@
-import { queryInputSchema } from '../../../contracts/query.js';
+import { DEFAULT_PAGE_SIZE } from '../../../contracts/pagination.js';
+import type { QueryInput } from '../../../contracts/query.js';
 import type { WorkspaceScope } from '../../../application/models/workspace-scope.models.js';
 import type { QueryRequest } from '../dto/query.dto.js';
 import { normalizeScopeId } from '../http-helpers.js';
@@ -6,14 +7,14 @@ import { normalizeScopeId } from '../http-helpers.js';
 export function toQueryKnowledgeInput(
   query: QueryRequest,
   scope?: WorkspaceScope,
-) {
-  return queryInputSchema.parse({
-    query: query.query,
-    status: query.status,
-    limit: query.limit,
-    page: query.page,
-    pageSize: query.pageSize,
+): QueryInput {
+  return {
+    query: query.query.trim(),
+    status: query.status ?? 'open',
+    limit: query.limit ?? 5,
+    page: query.page ?? 1,
+    pageSize: query.pageSize ?? DEFAULT_PAGE_SIZE,
     projectId: normalizeScopeId(scope?.projectId),
     workspaceId: normalizeScopeId(scope?.workspaceId),
-  });
+  };
 }

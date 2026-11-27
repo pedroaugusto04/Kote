@@ -16,8 +16,8 @@ export const reminderDispatchEligibleStatuses = [
   KnowledgeStatus.Overdue,
 ] as const;
 
-export function hasReminder(input: { reminderDate?: string; reminderAt?: string } | null | undefined) {
-  return Boolean(String(input?.reminderDate || '').trim() || String(input?.reminderAt || '').trim());
+export function hasReminder(input: { reminderAt?: string } | null | undefined) {
+  return Boolean(String(input?.reminderAt || '').trim());
 }
 
 function isTerminalNoteStatus(status: string | null | undefined) {
@@ -75,8 +75,6 @@ export function normalizeManualNoteStatus(input: {
 
 export function isReminderOverdue(input: {
   status?: string | null | undefined;
-  reminderDate?: string | null | undefined;
-  reminderTime?: string | null | undefined;
   reminderAt?: string | null | undefined;
   now?: Date;
 }) {
@@ -85,15 +83,7 @@ export function isReminderOverdue(input: {
 
   const now = input.now || new Date();
   const reminderAt = String(input.reminderAt || '').trim();
-  if (reminderAt) {
-    const timestamp = Date.parse(reminderAt);
-    return !Number.isNaN(timestamp) && timestamp < now.getTime();
-  }
-
-  const reminderDate = String(input.reminderDate || '').trim();
-  if (!reminderDate) return false;
-  const reminderTime = String(input.reminderTime || '').trim();
-  const fallback = reminderTime ? `${reminderDate}T${reminderTime}:00.000Z` : `${reminderDate}T09:00:00.000Z`;
-  const timestamp = Date.parse(fallback);
+  if (!reminderAt) return false;
+  const timestamp = Date.parse(reminderAt);
   return !Number.isNaN(timestamp) && timestamp < now.getTime();
 }

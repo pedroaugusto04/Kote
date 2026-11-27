@@ -1,7 +1,8 @@
-import { Injectable, Optional, InternalServerErrorException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { createClient } from '@supabase/supabase-js';
 
 import { ObjectStorage, ObjectStorageMissingContentError, type ObjectStoragePutInput } from '../../application/ports/notes/object-storage.js';
+import { AppErrorCode, ExternalServiceException, StorageConfigException } from '../../domain/exceptions/index.js';
 import { SUPABASE_STORAGE_DEFAULTS, SUPABASE_STORAGE_ERRORS } from './supabase-storage.constants.js';
 
 type SupabaseStorageConfig = {
@@ -35,12 +36,12 @@ function readConfig(env = process.env): SupabaseStorageConfig {
 }
 
 function requireConfig(config: SupabaseStorageConfig) {
-  if (!config.url) throw new InternalServerErrorException(SUPABASE_STORAGE_ERRORS.URL_NOT_CONFIGURED);
-  if (!config.serviceRoleKey) throw new InternalServerErrorException(SUPABASE_STORAGE_ERRORS.SERVICE_ROLE_KEY_NOT_CONFIGURED);
-  if (!config.bucket) throw new InternalServerErrorException(SUPABASE_STORAGE_ERRORS.BUCKET_NOT_CONFIGURED);
+  if (!config.url) throw new StorageConfigException(AppErrorCode.SupabaseUrlNotConfigured);
+  if (!config.serviceRoleKey) throw new StorageConfigException(AppErrorCode.SupabaseServiceRoleKeyNotConfigured);
+  if (!config.bucket) throw new StorageConfigException(AppErrorCode.SupabaseStorageBucketNotConfigured);
 }
 
-function createSupabaseStorageClient(config: SupabaseStorageConfig): SupabaseStorageBucketClient {
+export function createSupabaseStorageClient(config: SupabaseStorageConfig): SupabaseStorageBucketClient {
   const client = createClient(config.url, config.serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
@@ -80,9 +81,14 @@ function buildStorageError(prefix: string, error: unknown): Error {
   return new Error(`${prefix}:${statusCode ?? 'unknown'}:${message}`);
 }
 
+export const SUPABASE_STORAGE_CLIENT_FACTORY = Symbol('SUPABASE_STORAGE_CLIENT_FACTORY');
+
 @Injectable()
 export class SupabaseObjectStorage extends ObjectStorage {
-  constructor(@Optional() private readonly createStorageClient: SupabaseStorageClientFactory = createSupabaseStorageClient) {
+  constructor(
+    @Inject(SUPABASE_STORAGE_CLIENT_FACTORY)
+    private readonly createStorageClient: SupabaseStorageClientFactory = createSupabaseStorageClient,
+  ) {
     super();
   }
 
@@ -109,7 +115,7 @@ export class SupabaseObjectStorage extends ObjectStorage {
       if (readErrorStatusCode(error) === 404) throw new ObjectStorageMissingContentError(key);
       throw buildStorageError(SUPABASE_STORAGE_ERRORS.GET_FAILED, error);
     }
-    if (!data) throw new InternalServerErrorException('internal_server_error');
+    if (!data) throw new ExternalServiceException(AppErrorCode.InternalServerError, { provider: 'supabase-storage' });
     return Buffer.from(await data.arrayBuffer());
   }
 

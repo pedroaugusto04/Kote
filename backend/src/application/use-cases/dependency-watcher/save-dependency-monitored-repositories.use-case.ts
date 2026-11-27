@@ -1,5 +1,7 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+
+import { AppErrorCode, DomainRuleException } from '../../../domain/exceptions/index.js';
 
 import type { SaveDependencyMonitoredRepositoriesResult } from '../../models/dependency-watcher.models.js';
 import { DependencyWatcherRepository } from '../../ports/dependency-watcher/dependency-watcher.repository.js';
@@ -34,8 +36,7 @@ export class SaveDependencyMonitoredRepositoriesUseCase {
     const uniqueExternalIds = [...new Set(repositoryExternalIds.map((id) => String(id).trim()).filter(Boolean))];
     const invalidSelection = uniqueExternalIds.find((externalId) => !linkedExternalIds.has(externalId));
     if (invalidSelection) {
-      throw new BadRequestException({
-        code: 'invalid_dependency_repository_selection',
+      throw new DomainRuleException(AppErrorCode.InvalidDependencyRepositorySelection, {
         details: { fieldErrors: { repositoryIds: 'Select only repositories linked to workspace projects.' } },
       });
     }

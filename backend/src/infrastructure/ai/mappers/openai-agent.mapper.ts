@@ -1,4 +1,4 @@
-import { AiProvider } from '../../../contracts/enums.js';
+import { type AiProvider } from '../../../contracts/enums.js';
 import type { AgentTool } from '../../../contracts/agent-tool.js';
 
 export class OpenAiAgentExecutionError extends Error {

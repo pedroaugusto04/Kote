@@ -60,7 +60,7 @@ test('QuotaService monthly slicing for annual plans', async (t) => {
       },
     };
 
-    const service = new QuotaService(mockQuotaRepository, mockUserRepository);
+    const service = new QuotaService(mockQuotaRepository, mockUserRepository, { listProjects: async () => [] });
 
     const originalDate = global.Date;
     
@@ -160,7 +160,7 @@ test('QuotaService monthly slicing for annual plans', async (t) => {
       async findUserById() { return {}; },
     };
 
-    const service = new QuotaService(mockQuotaRepository, mockUserRepository);
+    const service = new QuotaService(mockQuotaRepository, mockUserRepository, { listProjects: async () => [] });
     const originalDate = global.Date;
 
     const setMockDate = (isoString) => {

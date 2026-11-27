@@ -1,7 +1,7 @@
 import { WorkspaceScopeResolver } from '../../../../dist/application/services/content/workspace-scope-resolver.service.js';
 import test, { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { DomainRuleException, WorkspaceNotFoundException } from '../../../../dist/domain/exceptions/index.js';
 
 import { SaveDependencyMonitoredRepositoriesUseCase } from '../../../../dist/application/use-cases/dependency-watcher/save-dependency-monitored-repositories.use-case.js';
 
@@ -74,7 +74,7 @@ describe('Backend: Save Dependency Monitored Repositories Use Case', () => {
       async () => {
         await useCase.execute('user-1', 'missing', []);
       },
-      (err) => err instanceof NotFoundException,
+      (err) => err instanceof WorkspaceNotFoundException,
     );
   });
 
@@ -83,7 +83,7 @@ describe('Backend: Save Dependency Monitored Repositories Use Case', () => {
       async () => {
         await useCase.execute('user-1', 'acme', ['999']);
       },
-      (err) => err instanceof BadRequestException,
+      (err) => err instanceof DomainRuleException && err.code === 'invalid_dependency_repository_selection',
     );
   });
 

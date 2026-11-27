@@ -1,16 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
-  CreateCustomerInput,
-  CreatePaymentInput,
-  CreateSubscriptionInput,
+  type CreateCustomerInput,
+  type CreatePaymentInput,
+  type CreateSubscriptionInput,
   GatewayNameEnum,
-  GatewayCustomer,
-  GatewayPayment,
-  GatewaySubscription,
-  GatewayWebhookEvent,
-  IPaymentGateway,
-  UpdateSubscriptionInput,
-  UpdatePaymentInput,
+  type GatewayCustomer,
+  type GatewayPayment,
+  type GatewaySubscription,
+  type GatewayWebhookEvent,
+  type IPaymentGateway,
+  type UpdateSubscriptionInput,
+  type UpdatePaymentInput,
   BillingTypeEnum,
 } from '../IPaymentGateway.js';
 import {
@@ -23,6 +23,7 @@ import {
   PLAN_PRICE_SCALE,
 } from './AsaasHelpers.js';
 import { AsaasPaymentMapper } from './AsaasPaymentMapper.js';
+import { executeGatewayHttpRequest } from '../http-gateway.helpers.js';
 
 interface AsaasCreditCardTokenSource {
   creditCardToken?: string;
@@ -81,42 +82,16 @@ export class AsaasPaymentGateway implements IPaymentGateway {
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     this.ensureConfigured();
-    const url = `${getAsaasBaseUrl()}${path}`;
-    const headers = {
-      'Content-Type': 'application/json',
-      'access_token': process.env.ASAAS_ACCESS_TOKEN || '',
-      ...(options.headers || {}),
-    };
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
-
-      const text = await response.text();
-      let data: any = null;
-      if (text) {
-        try {
-          data = JSON.parse(text);
-        } catch {
-          data = text;
-        }
-      }
-
-      if (!response.ok) {
-        throw {
-          response: {
-            status: response.status,
-            data,
-          },
-        };
-      }
-
-      return data as T;
-    } catch (err: any) {
-      throw asaasToAppError(err);
-    }
+    return executeGatewayHttpRequest<T>({
+      url: `${getAsaasBaseUrl()}${path}`,
+      init: options,
+      headers: {
+        'Content-Type': 'application/json',
+        'access_token': process.env.ASAAS_ACCESS_TOKEN || '',
+      },
+      mapHttpError: (status, data) => asaasToAppError({ response: { status, data } }),
+      mapError: (err) => asaasToAppError(err),
+    });
   }
 
   private readCreditCardToken(payload?: AsaasPaymentLike | null): string | undefined {

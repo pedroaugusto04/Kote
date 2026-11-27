@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
+import { AppErrorCode, ExternalIdentityNotFoundException, WebhookAuthException } from '../../../../domain/exceptions/index.js';
 import { extractTelegramChatId, extractTelegramConnectionCode, IntegrationConnectionService } from '../../../services/integrations/integration-connection.service.js';
 import type { TelegramWebhookRequest } from '../../../models/webhook-request.models.js';
 import { ExternalIdentityRepository, resolveExternalIdentity } from '../../../ports/integrations/integrations.repository.js';
@@ -25,10 +26,10 @@ export class HandleTelegramWebhookUseCase {
     const externalId = extractTelegramChatId(body);
     const externalIdentity = { provider: ExternalIdentityProvider.Telegram, identityType: 'chat_id', externalId };
     if (!environment.telegramWebhookToken || token !== environment.telegramWebhookToken) {
-      throw new UnauthorizedException('invalid_webhook_token');
+      throw new WebhookAuthException(AppErrorCode.InvalidWebhookToken);
     }
     if (!externalId) {
-      throw new UnauthorizedException('external_identity_required');
+      throw new ExternalIdentityNotFoundException(AppErrorCode.ExternalIdentityRequired);
     }
     const connectionCode = extractTelegramConnectionCode(body);
     if (connectionCode) {

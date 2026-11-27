@@ -1,6 +1,1 @@
-import { PaymentStatus } from '../../persistence/schema/index.js';
-
-export interface IGatewayStatusMapper {
-  normalizeSubscriptionStatus(raw?: string | null): string | null;
-  normalizePaymentStatus(rawStatus?: string | null, event?: string | null): PaymentStatus | null;
-}
+export type { IGatewayStatusMapper } from '../../../application/ports/billing/payment-gateway.port.js';

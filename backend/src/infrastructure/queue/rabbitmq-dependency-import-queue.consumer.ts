@@ -15,7 +15,7 @@ import { parseManifestDependencies } from '../../application/utils/dependency/ma
 import { AppLogger } from '../../observability/logger.js';
 import { BaseRabbitMqConsumer } from './base-rabbitmq.consumer.js';
 import { type DependencyImportJobMessage } from './rabbitmq-dependency-import-queue.publisher.js';
-import { calculateBackoff, isRateLimitError, RateLimitError, type BackoffOptions } from '../../application/utils/retry/backoff.utils.js';
+import { calculateBackoff, isRateLimitError, type RateLimitError, type BackoffOptions } from '../../application/utils/retry/backoff.utils.js';
 
 const QUEUE_NAME = 'kb.dependency_import.jobs';
 const EXCHANGE_NAME = 'kb.dependency_import';

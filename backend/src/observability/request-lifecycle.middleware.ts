@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { NextFunction, Request, Response } from 'express';
 
-import { AppLogger } from './logger.js';
+import { type AppLogger } from './logger.js';
 import { getRequestMetadata, getSafeRequestLogDetails } from './request-metadata.js';
 import { runWithRequestContext, updateRequestContext } from './request-context.js';
 

@@ -12,6 +12,21 @@ import { toIsoTimestamp } from '../mappers/row.mappers.js';
 
 type Row = Record<string, unknown>;
 
+const PROJECT_BRIEF_HISTORY_SELECT_COLUMNS = {
+  id: projectBriefHistory.id,
+  userId: projectBriefHistory.userId,
+  projectId: projectBriefHistory.projectId,
+  workspaceId: projectBriefHistory.workspaceId,
+  brief: projectBriefHistory.brief,
+  sourceRefs: projectBriefHistory.sourceRefs,
+  contextHash: projectBriefHistory.contextHash,
+  contextWindow: projectBriefHistory.contextWindow,
+  provider: projectBriefHistory.provider,
+  model: projectBriefHistory.model,
+  generatedAt: projectBriefHistory.generatedAt,
+  createdAt: projectBriefHistory.createdAt,
+};
+
 function projectBriefHistoryFromRow(row: Row): ProjectBriefHistoryRecord {
   return {
     id: String(row.id || ''),
@@ -73,20 +88,7 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
     }
 
     const result = await db
-      .select({
-        id: projectBriefHistory.id,
-        userId: projectBriefHistory.userId,
-        projectId: projectBriefHistory.projectId,
-        workspaceId: projectBriefHistory.workspaceId,
-        brief: projectBriefHistory.brief,
-        sourceRefs: projectBriefHistory.sourceRefs,
-        contextHash: projectBriefHistory.contextHash,
-        contextWindow: projectBriefHistory.contextWindow,
-        provider: projectBriefHistory.provider,
-        model: projectBriefHistory.model,
-        generatedAt: projectBriefHistory.generatedAt,
-        createdAt: projectBriefHistory.createdAt,
-      })
+      .select(PROJECT_BRIEF_HISTORY_SELECT_COLUMNS)
       .from(projectBriefHistory)
       .where(and(...conditions))
       .orderBy(desc(projectBriefHistory.generatedAt))
@@ -122,20 +124,7 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
     const offset = (pagination.page - 1) * pagination.pageSize;
 
     const result = await db
-      .select({
-        id: projectBriefHistory.id,
-        userId: projectBriefHistory.userId,
-        projectId: projectBriefHistory.projectId,
-        workspaceId: projectBriefHistory.workspaceId,
-        brief: projectBriefHistory.brief,
-        sourceRefs: projectBriefHistory.sourceRefs,
-        contextHash: projectBriefHistory.contextHash,
-        contextWindow: projectBriefHistory.contextWindow,
-        provider: projectBriefHistory.provider,
-        model: projectBriefHistory.model,
-        generatedAt: projectBriefHistory.generatedAt,
-        createdAt: projectBriefHistory.createdAt,
-      })
+      .select(PROJECT_BRIEF_HISTORY_SELECT_COLUMNS)
       .from(projectBriefHistory)
       .where(and(...conditions))
       .orderBy(desc(projectBriefHistory.generatedAt), desc(projectBriefHistory.id))

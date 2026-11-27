@@ -1,4 +1,5 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { AppErrorCode, WebhookAuthException } from '../../../../domain/exceptions/index.js';
 import { BillingWebhookEventRepository } from '../../../ports/billing/billing-repositories.js';
 import { BillingQueuePublisher } from '../../../ports/billing/billing-queue.publisher.js';
 import { PAYMENT_GATEWAY } from '../../../../domain/constants/billing.constants.js';
@@ -25,12 +26,12 @@ export class HandleStripeWebhookUseCase {
       const signature = Array.isArray(sigHeader) ? sigHeader[0] : sigHeader;
 
       if (!signature) {
-        throw new UnauthorizedException('missing_webhook_signature');
+        throw new WebhookAuthException(AppErrorCode.MissingWebhookSignature);
       }
 
       const isValid = verifyStripeWebhookSignature(rawBodyStr || JSON.stringify(body), signature, webhookSecret);
       if (!isValid) {
-        throw new UnauthorizedException('invalid_webhook_signature');
+        throw new WebhookAuthException(AppErrorCode.InvalidWebhookSignature);
       }
     }
 

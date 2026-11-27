@@ -1,4 +1,4 @@
-import { NoteRecord } from '../../models/repository-records.models.js';
+import { type NoteRecord } from '../../models/repository-records.models.js';
 
 export type FindNotesByFileOptions = {
   limit?: number;

@@ -3,7 +3,7 @@ import { type Channel } from 'amqplib';
 import { randomUUID } from 'crypto';
 
 import {
-  EmbeddingQueuePublisher,
+  type EmbeddingQueuePublisher,
   type EmbeddingJobPayload,
   EmbeddingJobType,
 } from '../../application/ports/notes/embedding-queue.publisher.js';

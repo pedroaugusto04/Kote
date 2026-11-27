@@ -1,5 +1,5 @@
 import type { PaginatedResult } from '../../contracts/pagination.js';
-import { ConversationConfidence } from '../../contracts/enums.js';
+import { type ConversationConfidence } from '../../contracts/enums.js';
 
 export type AskHistorySource = {
   noteId: string;

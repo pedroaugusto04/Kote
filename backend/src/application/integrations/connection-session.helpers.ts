@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 
-import { BadRequestException } from '@nestjs/common';
-
+import { AppErrorCode, GithubIntegrationException } from '../../domain/exceptions/index.js';
+import { sha256Hex } from '../../domain/utils/crypto.utils.js';
 import type { IntegrationConnectionSessionRecord } from '../models/repository-records.models.js';
 
 export const CONNECTION_TTL_MS = 10 * 60 * 1000;
@@ -28,7 +28,7 @@ export type ConnectionSessionView = {
 };
 
 export function sha256(value: string): string {
-  return crypto.createHash('sha256').update(value).digest('hex');
+  return sha256Hex(value);
 }
 
 export function randomState(): string {
@@ -81,7 +81,7 @@ export function normalizeGithubAppInstallUrl(url: string): string {
 
 export function extractGithubInstallationId(value: unknown): string {
   const installationId = String(value ?? '').trim();
-  if (!installationId) throw new BadRequestException('github_callback_missing_installation');
+  if (!installationId) throw new GithubIntegrationException(AppErrorCode.GithubCallbackMissingInstallation);
   return installationId;
 }
 

@@ -1,8 +1,9 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { type Channel } from 'amqplib';
 
-import { EmailQueuePublisher } from '../../application/ports/email/email-queue.publisher.js';
+import { type EmailQueuePublisher } from '../../application/ports/email/email-queue.publisher.js';
 import type { EmailSendPayload } from '../../application/models/email.models.js';
+import { RabbitMqConfigException } from '../../domain/exceptions/index.js';
 import { AppLogger } from '../../observability/logger.js';
 import { RuntimeEnvironmentProvider } from '../../application/ports/observability/runtime-environment.port.js';
 import { BaseRabbitMqPublisher } from './base-rabbitmq.publisher.js';
@@ -25,7 +26,7 @@ export class RabbitMqEmailQueuePublisher extends BaseRabbitMqPublisher implement
   async publishEmailMessage(payload: EmailSendPayload): Promise<void> {
     const url = this.getUrl();
     if (!url) {
-      throw new InternalServerErrorException('rabbitmq_not_configured');
+      throw new RabbitMqConfigException();
     }
 
     const channel = await this.ensureChannel(url);

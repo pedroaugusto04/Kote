@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import {
+  AiNotConnectedException,
+  AppErrorCode,
+  NoteNotAiSessionException,
+  NoteNotFoundException,
+} from '../../../domain/exceptions/index.js';
 import { SourceChannel } from '../../../domain/enums/knowledge.enums.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
@@ -17,13 +23,13 @@ export class RequestAiSessionSynthesisUseCase {
 
   async execute(userId: string, noteId: string) {
     const note = await this.content.getNoteById(userId, noteId);
-    if (!note) throw new NotFoundException('note_not_found');
+    if (!note) throw new NoteNotFoundException();
     if (note.sourceChannel !== SourceChannel.AiChat && note.source !== SourceChannel.AiChat) {
-      throw new BadRequestException('note_not_ai_session');
+      throw new NoteNotAiSessionException();
     }
     if (!await this.entitlement.isEnabled(userId, note.workspaceSlug || '', IntegrationProvider.AiSessionSynthesis)) {
       this.logger.warn('ai_session_synthesis.manual_request_rejected', { userId, noteId, reason: 'integration_disabled' });
-      throw new BadRequestException('ai_session_synthesis_not_connected');
+      throw new AiNotConnectedException(AppErrorCode.AiSessionSynthesisNotConnected);
     }
 
     const job = await this.scheduler.scheduleImmediately(userId, note);

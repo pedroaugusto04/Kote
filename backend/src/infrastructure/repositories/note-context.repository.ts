@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { eq, and, sql, desc, or, like } from 'drizzle-orm';
-import { NoteContextRepository, type FindNotesByFileOptions } from '../../application/ports/notes/note-context.repository.js';
-import { NoteRecord } from '../../application/models/repository-records.models.js';
+import { type NoteContextRepository, type FindNotesByFileOptions } from '../../application/ports/notes/note-context.repository.js';
+import { type NoteRecord } from '../../application/models/repository-records.models.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { ContentObjectStorageService } from '../../application/services/content/content-object-storage.service.js';
 import { notes, projects, noteLinks } from '../persistence/schema/index.js';
 import { noteFromRow } from '../mappers/row.mappers.js';
 import { SPECIAL_PROJECT_SLUGS, isSpecialProjectSlug } from '../../domain/projects.js';
 import { normalizeFilePath } from '../../domain/utils/file-path.utils.js';
+import { NOTE_LINKED_COMMITS_SELECT_COLUMN, NOTE_PROJECT_SELECT_COLUMNS } from './projections/note.projections.js';
 
 @Injectable()
 export class PostgresNoteContextRepository implements NoteContextRepository {
@@ -95,50 +96,8 @@ export class PostgresNoteContextRepository implements NoteContextRepository {
 
     const result = await db
       .select({
-        id: notes.id,
-        userId: notes.userId,
-        path: notes.path,
-        title: notes.title,
-        projectId: notes.projectId,
-        workspaceId: notes.workspaceId,
-        projectSlug: projects.projectSlug,
-        folderId: notes.folderId,
-        status: notes.status,
-        tags: notes.tags,
-        occurredAt: notes.occurredAt,
-        sourceChannel: notes.sourceChannel,
-        source: notes.source,
-        summary: notes.summary,
-        markdownStorageKey: notes.markdownStorageKey,
-        metadata: notes.metadata,
-        sessionId: notes.sessionId,
-        reminderAt: notes.reminderAt,
-        isPinned: notes.isPinned,
-        createdAt: notes.createdAt,
-        updatedAt: notes.updatedAt,
-        linkedCommits: sql<unknown[]>`COALESCE(
-          (
-            SELECT json_agg(
-              json_build_object(
-                'id', gc.id,
-                'commit_sha', gc.commit_sha,
-                'short_sha', left(gc.commit_sha, 7),
-                'message', gc.message,
-                'author_name', gc.author_name,
-                'committed_at', gc.committed_at,
-                'branch', nullif(gc.branch, ''),
-                'html_url', nullif(gc.commit_url, ''),
-                'link_source', ncl.link_source,
-                'matched_files', ncl.matched_files
-              )
-              ORDER BY gc.committed_at DESC
-            )
-            FROM kb_note_commit_links ncl
-            JOIN kb_git_commits gc ON gc.id = ncl.commit_id
-            WHERE ncl.note_id = ${notes.id} AND ncl.user_id = ${notes.userId}
-          ),
-          '[]'::json
-        )`.as('linked_commits'),
+        ...NOTE_PROJECT_SELECT_COLUMNS,
+        linkedCommits: NOTE_LINKED_COMMITS_SELECT_COLUMN,
       })
       .from(notes)
       .leftJoin(projects, eq(projects.id, notes.projectId))

@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { PushSubscriptionNotFoundException } from '../../../domain/exceptions/index.js';
 import { PushSubscriptionRepository } from '../../ports/push/push-subscription.repository.js';
 import type { PushSubscriptionRecord } from '../../models/repository-records.models.js';
 
@@ -37,7 +38,7 @@ export class DeletePushSubscriptionUseCase {
 
   async execute(userId: string, endpoint: string): Promise<{ ok: boolean }> {
     const deleted = await this.repo.deleteByEndpoint(userId, endpoint);
-    if (!deleted) throw new NotFoundException('push_subscription_not_found');
+    if (!deleted) throw new PushSubscriptionNotFoundException();
     return { ok: true };
   }
 }

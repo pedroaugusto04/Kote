@@ -4,23 +4,13 @@ import type { EmbeddingConfig } from '../../../application/ports/notes/embedding
 import type { EmbeddingStrategy } from './embedding.strategy.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { truncateForLog } from '../../utils/logging.js';
-import { EmbeddingTaskType } from '../../../contracts/enums.js';
+import { type EmbeddingTaskType } from '../../../contracts/enums.js';
+import { chunkArray } from '../../../domain/utils/array.utils.js';
 
 /**
  * Max texts per OpenAI-compatible /embeddings request.
  */
 const OPENAI_BATCH_SIZE = 2048;
-
-/**
- * Split an array into chunks of at most `size` elements.
- */
-function chunk<T>(arr: T[], size: number): T[][] {
-  const result: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    result.push(arr.slice(i, i + size));
-  }
-  return result;
-}
 
 @Injectable()
 export class OpenAiEmbeddingStrategy implements EmbeddingStrategy {
@@ -33,7 +23,7 @@ export class OpenAiEmbeddingStrategy implements EmbeddingStrategy {
   ): Promise<number[][]> {
     if (!texts.length) return [];
 
-    const batches = chunk(texts, OPENAI_BATCH_SIZE);
+    const batches = chunkArray(texts, OPENAI_BATCH_SIZE);
 
     const allEmbeddings: number[][] = [];
 

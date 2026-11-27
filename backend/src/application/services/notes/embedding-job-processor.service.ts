@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EmbeddingGateway, type EmbeddingConfig } from '../../ports/notes/embedding.gateway.js';
 import { NoteEmbeddingRepository, EmbeddingRepresentation } from '../../ports/notes/note-embedding.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
@@ -28,7 +28,7 @@ export class EmbeddingJobProcessorService {
     private readonly runtimeEnv: RuntimeEnvironmentProvider,
     private readonly logger: AppLogger,
     private readonly objectStorage: ObjectStorage,
-    @Optional() private readonly synthesisRepository?: NoteSynthesisRepository,
+    private readonly synthesisRepository: NoteSynthesisRepository,
   ) {}
 
   async processJob(ch: any, job: EmbeddingJobPayload): Promise<void> {
@@ -173,18 +173,16 @@ export class EmbeddingJobProcessorService {
 
     await this.noteEmbeddingRepository.upsertChunks(userId, noteId, records);
 
-    if (this.synthesisRepository) {
-      const synthesis = await this.synthesisRepository.getByNoteId(userId, noteId);
-      const sourceHash = getAiSessionSourceHash(note.markdown);
-      if (synthesis && this.isUsableSynthesis(synthesis, sourceHash)) {
-        await this.indexSynthesis(userId, noteId, env, embeddingConfig, synthesis, textToEmbeddingMap);
-      } else {
-        await this.noteEmbeddingRepository.deleteByNoteIdAndRepresentation(
-          userId,
-          noteId,
-          EmbeddingRepresentation.Synthesis,
-        );
-      }
+    const synthesis = await this.synthesisRepository.getByNoteId(userId, noteId);
+    const sourceHash = getAiSessionSourceHash(note.markdown);
+    if (synthesis && this.isUsableSynthesis(synthesis, sourceHash)) {
+      await this.indexSynthesis(userId, noteId, env, embeddingConfig, synthesis, textToEmbeddingMap);
+    } else {
+      await this.noteEmbeddingRepository.deleteByNoteIdAndRepresentation(
+        userId,
+        noteId,
+        EmbeddingRepresentation.Synthesis,
+      );
     }
 
     const bodySearchText = resolveNoteBodySearchText(note.markdown, note.metadata);

@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { eq, and, desc, count, gte, lte, sql } from 'drizzle-orm';
 
 import { buildPaginationMeta, type PaginatedResult } from '../../contracts/pagination.js';
-import { ConversationConfidence } from '../../contracts/enums.js';
+import { type ConversationConfidence } from '../../contracts/enums.js';
 import type {
   AskHistoryItem,
   AskHistoryRelatedNote,

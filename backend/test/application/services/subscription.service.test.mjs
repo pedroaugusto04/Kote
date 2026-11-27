@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BillingCycle, BillingType, SubscriptionStatus, PaymentStatus } from '../../../dist/domain/enums/billing.enums.js';
+import { BillingCycle, BillingType, SubscriptionStatus } from '../../../dist/domain/enums/billing.enums.js';
+import { BillingRuleException } from '../../../dist/domain/exceptions/index.js';
 import { createTestSubscriptionService } from '../../helpers/factories.mjs';
 
 // Setup environment variables for test execution
@@ -57,7 +58,7 @@ test('SubscriptionService throws when trying to subscribe to the same active pla
       countryCode: 'US',
     }),
     (err) => {
-      assert.equal(err.status, 400);
+      assert.ok(err instanceof BillingRuleException);
       assert.match(err.message, /already subscribed to this plan/i);
       return true;
     }

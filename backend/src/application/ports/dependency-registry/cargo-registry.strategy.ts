@@ -31,7 +31,7 @@ export class CargoRegistryStrategy extends RegistryStrategy {
       let data;
       try {
         data = await response.json();
-      } catch (error) {
+      } catch {
         throw new Error(`Failed to parse crates.io response for ${packageName}`);
       }
 

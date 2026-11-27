@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 
 import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
 import { IntegrationConnectionService } from '../../../../application/services/integrations/integration-connection.service.js';
@@ -28,6 +28,14 @@ import {
   type GuidedProviderParam,
   type SessionParam,
 } from '../../dto/integration-credentials.dto.js';
+import {
+  toConnectIntegrationInput,
+  toGithubBackfillJobResponse,
+  toGithubRepositoriesScopeInput,
+  toIntegrationSessionInput,
+  toSaveGithubRepositoriesInput,
+  toStartGithubBackfillInput,
+} from '../../mappers/user-integrations.mapper.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
 @ApiTags('Integrations')
@@ -64,11 +72,7 @@ export class UserIntegrationsController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Scope() scope: WorkspaceScope,
   ) {
-    return this.githubBackfill.start({
-      userId: currentUser.id,
-      workspaceSlug: scope.workspaceSlug,
-      repositories: body.repositories,
-    });
+    return this.githubBackfill.start(toStartGithubBackfillInput(body, currentUser.id, scope));
   }
 
   @Get('github-app/backfill/status')
@@ -88,20 +92,7 @@ export class UserIntegrationsController {
     }
     return {
       ok: true as const,
-      job: {
-        id: job.id,
-        status: job.status,
-        total: job.total,
-        processed: job.processed,
-        imported: job.imported,
-        skipped: job.skipped,
-        limit: job.limit,
-        repositories: job.repositories,
-        error: job.error,
-        startedAt: job.startedAt,
-        updatedAt: job.updatedAt,
-        completedAt: job.completedAt,
-      },
+      job: toGithubBackfillJobResponse(job),
     };
   }
 
@@ -133,14 +124,7 @@ export class UserIntegrationsController {
     @Req() request: { headers: { origin?: string } },
     @Scope() scope?: WorkspaceScope,
   ) {
-    const workspaceSlug = scope?.workspaceSlug || body.workspaceSlug;
-    return this.connections.connect({
-      userId: currentUser.id,
-      workspaceSlug,
-      provider: params.provider,
-      returnToPath: body.returnToPath,
-      browserOrigin: request?.headers?.origin,
-    });
+    return this.connections.connect(toConnectIntegrationInput(params, body, currentUser.id, request, scope));
   }
 
   @Post(':provider/test')
@@ -168,7 +152,7 @@ export class UserIntegrationsController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Scope() scope: WorkspaceScope,
   ) {
-    return this.connections.listGithubRepositories({ userId: currentUser.id, workspaceSlug: scope.workspaceSlug });
+    return this.connections.listGithubRepositories(toGithubRepositoriesScopeInput(currentUser.id, scope));
   }
 
   @Post('github-app/repositories')
@@ -182,7 +166,7 @@ export class UserIntegrationsController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Scope() scope: WorkspaceScope,
   ) {
-    return this.connections.saveGithubRepositories({ userId: currentUser.id, workspaceSlug: scope.workspaceSlug, repositories: body.repositories });
+    return this.connections.saveGithubRepositories(toSaveGithubRepositoriesInput(body, currentUser.id, scope));
   }
 
   @Get(':provider/sessions/:sessionId')
@@ -195,7 +179,7 @@ export class UserIntegrationsController {
     @Param(new ZodValidationPipe(sessionParamSchema, 'connection_session_not_found')) params: SessionParam,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.connections.session({ userId: currentUser.id, provider: params.provider, sessionId: params.sessionId });
+    return this.connections.session(toIntegrationSessionInput(params, currentUser.id));
   }
 
   @Delete(':provider')

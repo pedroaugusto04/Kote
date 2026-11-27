@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 
 export type StripeConfigDTO = {
   publishableKey: string | null;
@@ -8,15 +9,17 @@ export type StripeConfigDTO = {
 
 @Injectable()
 export class GetStripeConfigUseCase {
+  constructor(private readonly environmentProvider: RuntimeEnvironmentProvider) {}
+
   execute(): StripeConfigDTO {
-    const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY?.trim() || null;
-    const configured = Boolean(process.env.STRIPE_SECRET_KEY?.trim()) && Boolean(publishableKey);
-    const onlyStripe = process.env.ONLY_STRIPE === 'true';
+    const env = this.environmentProvider.read();
+    const publishableKey = env.stripePublishableKey || null;
+    const configured = Boolean(env.stripeSecretKey) && Boolean(publishableKey);
 
     return {
       publishableKey,
       configured,
-      onlyStripe,
+      onlyStripe: env.onlyStripe,
     };
   }
 }

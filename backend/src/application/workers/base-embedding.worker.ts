@@ -1,10 +1,10 @@
 import { type OnModuleInit, type OnModuleDestroy } from '@nestjs/common';
 import type { ChannelModel, Channel, ConsumeMessage } from 'amqplib';
 
-import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
+import { type RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
 import { type EmbeddingJobPayload } from '../ports/notes/embedding-queue.publisher.js';
-import { EmbeddingJobProcessorService } from '../services/notes/embedding-job-processor.service.js';
-import { AppLogger } from '../../observability/logger.js';
+import { type EmbeddingJobProcessorService } from '../services/notes/embedding-job-processor.service.js';
+import { type AppLogger } from '../../observability/logger.js';
 
 export const EMBEDDING_EXCHANGE_NAME = 'kb.embedding';
 const RECONNECT_DELAY_MS = 5_000;

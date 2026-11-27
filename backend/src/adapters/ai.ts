@@ -1,7 +1,7 @@
 import { AiProvider } from '../contracts/enums.js';
 import { runChatCompletion, type ChatConfig } from '../infrastructure/ai/openai-compatible-chat.js';
 import { buildReviewAnalysisSystemPrompt, parseReviewAnalysis, reviewAnalysisFallback, type ReviewAnalysis } from '../infrastructure/ai/prompts/review-analysis.prompt.js';
-import { buildWeeklySummarySystemPrompt, parseWeeklySummary, weeklySummaryFallback } from '../infrastructure/ai/prompts/weekly-summary.prompt.js';
+import { buildWeeklySummarySystemPrompt, parseWeeklySummary } from '../infrastructure/ai/prompts/weekly-summary.prompt.js';
 import { buildDependencyAlertSystemPrompt, parseDependencyAlert, dependencyAlertFallback } from '../infrastructure/ai/prompts/dependency-alert.prompt.js';
 import type { WeeklySummaryAnalysis } from '../contracts/weekly-summary.js';
 import type { DependencyAlertResult } from '../application/ports/dependency-watcher/dependency-alert.port.js';

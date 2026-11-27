@@ -1,5 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
+import {
+  AppErrorCode,
+  FolderCycleNotAllowedException,
+  FolderNotFoundException,
+  ResourceConflictException,
+} from '../../../domain/exceptions/index.js';
 import { rewriteNotePathForFolder } from '../../../domain/notes.js';
 import type { UpdateProjectFolderInput } from '../../models/project-folder-input.models.js';
 import type { NoteRecord, ProjectFolderRecord } from '../../models/repository-records.models.js';
@@ -27,18 +33,17 @@ export class UpdateProjectFolderUseCase {
 
     const descendantIds = new Set(collectFolderDescendantIds(folders, currentFolder.id));
     if (input.parentFolderId && descendantIds.has(input.parentFolderId)) {
-      throw new BadRequestException('folder_cycle_not_allowed');
+      throw new FolderCycleNotAllowedException();
     }
 
     const parentFolder = input.parentFolderId
       ? folders.find((folder) => folder.id === input.parentFolderId) || null
       : null;
-    if (input.parentFolderId && !parentFolder) throw new NotFoundException('folder_parent_not_found');
+    if (input.parentFolderId && !parentFolder) throw new FolderNotFoundException(AppErrorCode.FolderParentNotFound);
 
     const folderSlug = folderSlugFromDisplayName(input.displayName);
     if (folders.some((folder) => folder.id !== currentFolder.id && folder.parentFolderId === (parentFolder?.id || null) && folder.folderSlug === folderSlug)) {
-      throw new ConflictException({
-        code: 'folder_slug_already_exists',
+      throw new ResourceConflictException(AppErrorCode.FolderSlugAlreadyExists, {
         details: { fieldErrors: { displayName: 'A folder with this name already exists at this level.' } },
       });
     }
