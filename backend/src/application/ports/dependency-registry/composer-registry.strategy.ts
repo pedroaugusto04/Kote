@@ -1,4 +1,5 @@
 import { RegistryStrategy, type RegistryVersionInfo } from './registry-strategy.interface.js';
+import { RegistryPackageNotFoundException } from '../../../domain/exceptions/index.js';
 import { compare, coerce } from 'semver';
 import { extractRepositoryUrl } from '../../utils/dependency/repository-url.utils.js';
 import { isSemverPrerelease } from '../../utils/dependency/version.utils.js';
@@ -14,75 +15,42 @@ export class ComposerRegistryStrategy extends RegistryStrategy {
   async fetchLatestVersion(packageName: string, stableOnly?: boolean): Promise<RegistryVersionInfo> {
     const shouldFilterStable = stableOnly !== undefined ? stableOnly : this.stableOnly;
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.TIMEOUT_MS);
-
-      const response = await fetch(`https://repo.packagist.org/p2/${encodeURIComponent(packageName)}.json`, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'Kote-DependencyWatcher/1.0',
+    return this.withRegistryErrorHandling('Packagist', packageName, async () => {
+      const data = await this.fetchRegistryJson<{ packages?: Record<string, Record<string, any>> }>(
+        `https://repo.packagist.org/p2/${encodeURIComponent(packageName)}.json`,
+        {
+          registryName: 'Packagist',
+          packageName,
+          timeoutMs: this.TIMEOUT_MS,
         },
-      });
+      );
 
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch package info from Packagist: ${response.status}`);
+      const packageVersions = data.packages?.[packageName];
+      const versions = packageVersions ? Object.keys(packageVersions) : [];
+      if (versions.length === 0) {
+        throw new RegistryPackageNotFoundException('Packagist', packageName);
       }
 
-      let data;
-      try {
-        data = await response.json();
-      } catch {
-        throw new Error(`Failed to parse Packagist response for ${packageName}`);
-      }
-
-      const packageVersions = data.packages[packageName];
-      
-      if (!packageVersions || Object.keys(packageVersions).length === 0) {
-        throw new Error(`Package ${packageName} not found in Packagist`);
-      }
-
-      const versions = Object.keys(packageVersions);
-      let filteredVersions = versions;
-      
-      if (shouldFilterStable) {
-        filteredVersions = versions.filter(v => !isSemverPrerelease(v));
-        
-        if (filteredVersions.length === 0) {
-          // No stable versions found, use the latest version as fallback
-          filteredVersions = versions;
-        }
-      }
-
-      const sortedVersions = filteredVersions.sort((a, b) => {
+      const stableVersions = shouldFilterStable ? versions.filter((v) => !isSemverPrerelease(v)) : [];
+      const pool = stableVersions.length > 0 ? stableVersions : versions;
+      pool.sort((a, b) => {
         const coercedA = coerce(a);
         const coercedB = coerce(b);
         if (!coercedA || !coercedB) return 0;
         return compare(coercedA, coercedB);
       });
-      
-      const latestVersion = sortedVersions[sortedVersions.length - 1];
-      const packageData = packageVersions[latestVersion];
-      
+
+      const latestVersion = pool[pool.length - 1];
+      const packageData = packageVersions?.[latestVersion];
       if (!packageData) {
-        throw new Error(`Version data not found for ${packageName}@${latestVersion}`);
+        throw new RegistryPackageNotFoundException('Packagist', packageName);
       }
-      
-      const repositoryUrl = extractRepositoryUrl(packageData.source?.url, packageData.homepage);
-      const changelog = packageData.description || '';
 
       return {
         version: latestVersion,
-        repositoryUrl,
-        changelog,
+        repositoryUrl: extractRepositoryUrl(packageData.source?.url, packageData.homepage),
+        changelog: packageData.description || '',
       };
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(`Packagist request timeout for ${packageName}`);
-      }
-      throw new Error(`Composer registry fetch failed for ${packageName}: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    });
   }
 }

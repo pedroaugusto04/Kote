@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { trimText } from '../domain/strings.js';
 import { isEligibleFileForCoverage } from '../application/utils/github/coverage-file-filter.utils.js';
 import { RateLimitError, parseRateLimitFromHeaders } from '../application/utils/retry/backoff.utils.js';
+import { AppErrorCode, GithubAuthException } from '../domain/exceptions/index.js';
 import { isValidCommitSha } from '../application/utils/github/github-review.helpers.js';
 import {
   detectEcosystemFromManifest,
@@ -26,7 +27,7 @@ export function verifyGithubSignature(secret: string, rawBody: string, signature
   const expected = `sha256=${crypto.createHmac('sha256', secret).update(rawBody).digest('hex')}`;
   const normalizedSignature = signature.trim();
   if (!normalizedSignature || !timingSafeEqualString(normalizedSignature, expected)) {
-    throw new Error('invalid_github_signature');
+    throw new GithubAuthException(AppErrorCode.InvalidGithubSignature);
   }
 }
 

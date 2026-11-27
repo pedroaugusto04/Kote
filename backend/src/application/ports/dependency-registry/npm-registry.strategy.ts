@@ -1,4 +1,5 @@
 import { RegistryStrategy, type RegistryVersionInfo } from './registry-strategy.interface.js';
+import { RegistryPackageNotFoundException } from '../../../domain/exceptions/index.js';
 import { extractRepositoryUrl } from '../../utils/dependency/repository-url.utils.js';
 import { isSemverPrerelease } from '../../utils/dependency/version.utils.js';
 
@@ -13,12 +14,12 @@ export class NpmRegistryStrategy extends RegistryStrategy {
   async fetchLatestVersion(packageName: string, stableOnly?: boolean): Promise<RegistryVersionInfo> {
     const shouldFilterStable = stableOnly !== undefined ? stableOnly : this.stableOnly;
 
-    try {
+    return this.withRegistryErrorHandling('npm registry', packageName, async () => {
       const data = await this.fetchRegistryJson<any>(`https://registry.npmjs.org/${packageName}`, {
         registryName: 'npm registry',
         packageName,
         timeoutMs: this.TIMEOUT_MS,
-        buildStatusError: (response) => `Failed to fetch npm package: ${response.statusText}`,
+        buildStatusError: (response) => response.statusText || `HTTP ${response.status}`,
       });
       const repositoryUrl = extractRepositoryUrl(data.repository?.url, data.homepage);
 
@@ -28,7 +29,7 @@ export class NpmRegistryStrategy extends RegistryStrategy {
         const stableVersions = shouldFilterStable ? versions.filter((v) => !isSemverPrerelease(v)) : [];
         const pool = stableVersions.length > 0 ? stableVersions : versions;
         if (pool.length === 0) {
-          throw new Error(`No versions found for package ${packageName}`);
+          throw new RegistryPackageNotFoundException('npm registry', packageName);
         }
         pool.sort((a, b) => this.compareSemver(a, b));
         version = pool[pool.length - 1];
@@ -39,12 +40,7 @@ export class NpmRegistryStrategy extends RegistryStrategy {
         repositoryUrl: repositoryUrl || undefined,
         releaseNotes: data.description || undefined,
       };
-    } catch (error) {
-      if (error instanceof Error && error.message.startsWith('npm registry request timeout')) {
-        throw error;
-      }
-      throw new Error(`Npm registry fetch failed for ${packageName}: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    });
   }
 
   /**

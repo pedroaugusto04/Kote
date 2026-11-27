@@ -1,4 +1,5 @@
 import { RegistryStrategy, type RegistryVersionInfo } from './registry-strategy.interface.js';
+import { RegistryPackageNotFoundException } from '../../../domain/exceptions/index.js';
 import { extractRepositoryUrl } from '../../utils/dependency/repository-url.utils.js';
 import { isPipPrerelease } from '../../utils/dependency/version.utils.js';
 
@@ -13,7 +14,7 @@ export class PipRegistryStrategy extends RegistryStrategy {
   async fetchLatestVersion(packageName: string, stableOnly?: boolean): Promise<RegistryVersionInfo> {
     const shouldFilterStable = stableOnly !== undefined ? stableOnly : this.stableOnly;
 
-    try {
+    return this.withRegistryErrorHandling('PyPI', packageName, async () => {
       const data = await this.fetchRegistryJson<any>(
         `https://pypi.org/pypi/${encodeURIComponent(packageName)}/json`,
         {
@@ -24,7 +25,7 @@ export class PipRegistryStrategy extends RegistryStrategy {
       );
 
       if (!data.info || !data.info.version) {
-        throw new Error(`Invalid package data from PyPI for ${packageName}`);
+        throw new RegistryPackageNotFoundException('PyPI', packageName);
       }
 
       let latestVersion = data.info.version;
@@ -46,12 +47,7 @@ export class PipRegistryStrategy extends RegistryStrategy {
         repositoryUrl,
         changelog: data.info.summary || '',
       };
-    } catch (error) {
-      if (error instanceof Error && error.message.startsWith('PyPI request timeout')) {
-        throw error;
-      }
-      throw new Error(`PyPI registry fetch failed for ${packageName}: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    });
   }
 
   /**

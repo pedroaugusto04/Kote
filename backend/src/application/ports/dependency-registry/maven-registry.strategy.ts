@@ -1,4 +1,8 @@
 import { RegistryStrategy, type RegistryVersionInfo } from './registry-strategy.interface.js';
+import {
+  RegistryInvalidPackageFormatException,
+  RegistryPackageNotFoundException,
+} from '../../../domain/exceptions/index.js';
 import { isMavenPrerelease } from '../../utils/dependency/version.utils.js';
 import { isTrustedRepositoryUrl } from '../../utils/dependency/repository-url.utils.js';
 
@@ -13,11 +17,11 @@ export class MavenRegistryStrategy extends RegistryStrategy {
   async fetchLatestVersion(packageName: string, stableOnly?: boolean): Promise<RegistryVersionInfo> {
     const shouldFilterStable = stableOnly !== undefined ? stableOnly : this.stableOnly;
 
-    try {
+    return this.withRegistryErrorHandling('Maven Central', packageName, async () => {
       const [groupId, artifactId] = packageName.split(':');
       
       if (!groupId || !artifactId) {
-        throw new Error('Invalid Maven package format. Expected groupId:artifactId');
+        throw new RegistryInvalidPackageFormatException('Invalid Maven package format. Expected groupId:artifactId');
       }
 
       // Fetch more results to filter for stable versions if needed
@@ -34,7 +38,7 @@ export class MavenRegistryStrategy extends RegistryStrategy {
       const docs = data.response?.docs;
       
       if (!docs || docs.length === 0) {
-        throw new Error(`Package ${packageName} not found in Maven Central`);
+        throw new RegistryPackageNotFoundException('Maven Central', packageName);
       }
 
       let latestDoc = docs[0];
@@ -44,7 +48,7 @@ export class MavenRegistryStrategy extends RegistryStrategy {
       }
       
       if (!latestDoc.v) {
-        throw new Error(`Version not found for package ${packageName}`);
+        throw new RegistryPackageNotFoundException('Maven Central', packageName);
       }
       
       return {
@@ -52,12 +56,7 @@ export class MavenRegistryStrategy extends RegistryStrategy {
         repositoryUrl: this.extractRepositoryUrl(latestDoc.p),
         changelog: latestDoc.p || '',
       };
-    } catch (error) {
-      if (error instanceof Error && error.message.startsWith('Maven Central request timeout')) {
-        throw error;
-      }
-      throw new Error(`Maven registry fetch failed for ${packageName}: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    });
   }
 
   private extractRepositoryUrl(projectUrl?: string): string {

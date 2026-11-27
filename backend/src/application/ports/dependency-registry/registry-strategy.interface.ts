@@ -1,3 +1,9 @@
+import {
+  AppException,
+  RegistryFetchException,
+  RegistryTimeoutException,
+} from '../../../domain/exceptions/index.js';
+
 export type RegistryVersionInfo = {
   version: string;
   changelog?: string;
@@ -10,12 +16,27 @@ export interface RegistryFetchOptions {
   packageName: string;
   timeoutMs: number;
   buildStatusError?: (response: Response) => string;
-  buildParseError?: () => string;
 }
 
 export abstract class RegistryStrategy {
   abstract ecosystem: string;
   abstract fetchLatestVersion(packageName: string, stableOnly?: boolean): Promise<RegistryVersionInfo>;
+
+  protected async withRegistryErrorHandling(
+    registryName: string,
+    packageName: string,
+    task: () => Promise<RegistryVersionInfo>,
+  ): Promise<RegistryVersionInfo> {
+    try {
+      return await task();
+    } catch (error) {
+      if (error instanceof AppException) {
+        throw error;
+      }
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new RegistryFetchException(registryName, packageName, detail, { cause: error });
+    }
+  }
 
   protected async fetchRegistryJson<T>(url: string, options: RegistryFetchOptions): Promise<T> {
     const controller = new AbortController();
@@ -33,22 +54,18 @@ export abstract class RegistryStrategy {
       if (!response.ok) {
         const message = options.buildStatusError
           ? options.buildStatusError(response)
-          : `Failed to fetch package info from ${options.registryName}: ${response.status}`;
-        throw new Error(message);
+          : `HTTP ${response.status}`;
+        throw new RegistryFetchException(options.registryName, options.packageName, message, { status: response.status });
       }
 
       try {
         return await response.json() as T;
-      } catch {
-        throw new Error(
-          options.buildParseError
-            ? options.buildParseError()
-            : `Failed to parse ${options.registryName} response for ${options.packageName}`,
-        );
+      } catch (parseError) {
+        throw new RegistryFetchException(options.registryName, options.packageName, 'invalid JSON response', { cause: parseError });
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(`${options.registryName} request timeout for ${options.packageName}`);
+        throw new RegistryTimeoutException(options.registryName, options.packageName, error);
       }
       throw error;
     } finally {

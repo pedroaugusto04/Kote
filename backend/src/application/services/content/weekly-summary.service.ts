@@ -11,6 +11,7 @@ import { WeeklySummaryRepository, type WeeklySummaryNoteRow } from '../../ports/
 import { WeeklySummaryEmailMapper } from '../../mappers/weekly-summary-email.mapper.js';
 import { AiProvider, IntegrationProvider } from '../../../contracts/enums.js';
 import type { WeeklySummaryAnalysis } from '../../../contracts/weekly-summary.js';
+import { UserNotFoundException } from '../../../domain/exceptions/index.js';
 import { extractAppNameFromEmail } from '../../../domain/strings.js';
 
 @Injectable()
@@ -164,7 +165,7 @@ export class WeeklySummaryService {
 
     const user = await this.users.findUserById(userId);
     if (!user || !user.email) {
-      throw new Error(`User with id ${userId} not found or has no email`);
+      throw new UserNotFoundException();
     }
 
     return this.sendWeeklySummaryToUser(user, userNotesByProject);

@@ -1,6 +1,7 @@
 import {
   AuthenticationException,
   DomainRuleException,
+  ExternalServiceException,
   ResourceConflictException,
   ResourceNotFoundException,
 } from './app.exception.js';
@@ -143,5 +144,67 @@ export class JobAlreadyFinishedException extends DomainRuleException {
 export class TelegramNotConfiguredException extends DomainRuleException {
   constructor() {
     super(AppErrorCode.TelegramBotTokenNotConfigured);
+  }
+}
+
+export class RegistryException extends ExternalServiceException {
+  constructor(
+    code:
+      | typeof AppErrorCode.RegistryRequestTimeout
+      | typeof AppErrorCode.RegistryPackageNotFound
+      | typeof AppErrorCode.RegistryFetchFailed,
+    metadata: { registryName: string; packageName: string; status?: number; endpoint?: string },
+    options: { clientMessage: string; cause?: unknown },
+  ) {
+    super(
+      code,
+      {
+        provider: metadata.registryName,
+        endpoint: metadata.endpoint ?? metadata.packageName,
+        status: metadata.status,
+      },
+      options,
+    );
+  }
+}
+
+export class RegistryTimeoutException extends RegistryException {
+  constructor(registryName: string, packageName: string, cause?: unknown) {
+    super(
+      AppErrorCode.RegistryRequestTimeout,
+      { registryName, packageName },
+      { clientMessage: `${registryName} request timeout for ${packageName}`, cause },
+    );
+  }
+}
+
+export class RegistryPackageNotFoundException extends RegistryException {
+  constructor(registryName: string, packageName: string) {
+    super(
+      AppErrorCode.RegistryPackageNotFound,
+      { registryName, packageName, status: 404 },
+      { clientMessage: `Package ${packageName} not found in ${registryName}` },
+    );
+  }
+}
+
+export class RegistryFetchException extends RegistryException {
+  constructor(
+    registryName: string,
+    packageName: string,
+    detail: string,
+    options: { status?: number; cause?: unknown } = {},
+  ) {
+    super(
+      AppErrorCode.RegistryFetchFailed,
+      { registryName, packageName, status: options.status },
+      { clientMessage: `${registryName} fetch failed for ${packageName}: ${detail}`, cause: options.cause },
+    );
+  }
+}
+
+export class RegistryInvalidPackageFormatException extends DomainRuleException {
+  constructor(clientMessage: string) {
+    super(AppErrorCode.RegistryInvalidPackageFormat, { clientMessage });
   }
 }

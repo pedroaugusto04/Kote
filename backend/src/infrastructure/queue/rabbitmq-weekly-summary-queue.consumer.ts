@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { type Channel, type Message } from 'amqplib';
 
 import { WeeklySummaryService } from '../../application/services/content/weekly-summary.service.js';
+import { UserNotFoundException } from '../../domain/exceptions/index.js';
 import { AppLogger } from '../../observability/logger.js';
 import { BaseRabbitMqConsumer } from './base-rabbitmq.consumer.js';
 import { type WeeklySummaryJobMessage } from '../../application/ports/weekly-summary/weekly-summary-queue.publisher.js';
@@ -85,8 +86,7 @@ export class RabbitMqWeeklySummaryQueueConsumer extends BaseRabbitMqConsumer {
         return;
       }
 
-      const isPermanentError = typeof errorMessage === 'string' && errorMessage.includes('not found or has no email');
-      if (isPermanentError) {
+      if (error instanceof UserNotFoundException) {
         channel.ack(msg);
         return;
       }

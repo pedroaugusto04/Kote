@@ -1,4 +1,5 @@
 import { RegistryStrategy, type RegistryVersionInfo } from './registry-strategy.interface.js';
+import { RegistryPackageNotFoundException } from '../../../domain/exceptions/index.js';
 
 export class CargoRegistryStrategy extends RegistryStrategy {
   ecosystem = 'cargo';
@@ -11,7 +12,7 @@ export class CargoRegistryStrategy extends RegistryStrategy {
   async fetchLatestVersion(packageName: string, stableOnly?: boolean): Promise<RegistryVersionInfo> {
     const shouldFilterStable = stableOnly !== undefined ? stableOnly : this.stableOnly;
 
-    try {
+    return this.withRegistryErrorHandling('crates.io', packageName, async () => {
       const data = await this.fetchRegistryJson<{ crate?: { max_stable_version?: string; max_version?: string; repository?: string; description?: string } }>(
         `https://crates.io/api/v1/crates/${encodeURIComponent(packageName)}`,
         {
@@ -22,29 +23,19 @@ export class CargoRegistryStrategy extends RegistryStrategy {
       );
 
       const crate = data.crate;
-      
-      if (!crate) {
-        throw new Error(`Package ${packageName} not found in crates.io`);
-      }
-
-      const latestVersion = shouldFilterStable
-        ? (crate.max_stable_version || crate.max_version)
-        : crate.max_version;
+      const latestVersion = crate
+        ? (shouldFilterStable ? (crate.max_stable_version || crate.max_version) : crate.max_version)
+        : undefined;
       
       if (!latestVersion) {
-        throw new Error(`Version not found for package ${packageName}`);
+        throw new RegistryPackageNotFoundException('crates.io', packageName);
       }
 
       return {
         version: latestVersion,
-        repositoryUrl: crate.repository || '',
-        changelog: crate.description || '',
+        repositoryUrl: crate?.repository || '',
+        changelog: crate?.description || '',
       };
-    } catch (error) {
-      if (error instanceof Error && error.message.startsWith('crates.io request timeout')) {
-        throw error;
-      }
-      throw new Error(`Cargo registry fetch failed for ${packageName}: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    });
   }
 }
