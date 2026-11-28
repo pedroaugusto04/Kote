@@ -1,8 +1,21 @@
 import { convertHtmlToMarkdown, formatNoteWithFrontmatter, type ClipPayload } from './parser.js';
 
+interface ExtensionConfig {
+  apiUrl?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  connectionToken?: string;
+  defaultProject?: string;
+  authMethod?: 'token' | 'email';
+}
+
+async function getStoredConfig<K extends keyof ExtensionConfig>(keys: K[]): Promise<Pick<ExtensionConfig, K>> {
+  return chrome.storage.local.get(keys) as Promise<Pick<ExtensionConfig, K>>;
+}
+
 // Proactively refresh access token on extension startup
 async function initializeSession(apiUrl: string): Promise<void> {
-  const config = await chrome.storage.local.get(['refreshToken', 'authMethod', 'accessToken', 'connectionToken']);
+  const config = await getStoredConfig(['refreshToken', 'authMethod', 'accessToken', 'connectionToken']);
   
   // Handle email auth: refresh using refresh token
   if (config.authMethod === 'email' && config.refreshToken && !config.accessToken) {
@@ -49,7 +62,7 @@ async function initializeSession(apiUrl: string): Promise<void> {
 }
 
 async function refreshAccessToken(apiUrl: string): Promise<string> {
-  const config = await chrome.storage.local.get(['refreshToken', 'authMethod']);
+  const config = await getStoredConfig(['refreshToken', 'authMethod']);
   
   if (!config.refreshToken) {
     throw new Error('No refresh token available');
@@ -82,7 +95,7 @@ async function refreshAccessToken(apiUrl: string): Promise<string> {
 }
 
 async function fetchWithAuth(url: string, options: RequestInit = {}, apiUrl: string): Promise<Response> {
-  const config = await chrome.storage.local.get(['accessToken', 'authMethod']);
+  const config = await getStoredConfig(['accessToken', 'authMethod']);
   const headers: Record<string, string> = { 
     ...options.headers as Record<string, string>,
     'Content-Type': 'application/json',
@@ -122,7 +135,7 @@ function normalizeApiUrl(raw?: string): string {
 }
 
 async function initSessionFromStorage(): Promise<void> {
-  const config = await chrome.storage.local.get(['apiUrl']);
+  const config = await getStoredConfig(['apiUrl']);
   await initializeSession(normalizeApiUrl(config.apiUrl));
 }
 
@@ -270,7 +283,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Helper function to save note via backend API
 async function saveClippedNote(clip: ClipPayload, tags: string[] = [], projectSlugOverride?: string): Promise<{ noteId: string }> {
-  const { apiUrl, connectionToken, defaultProject, authMethod, accessToken: storedAccessToken } = await chrome.storage.local.get([
+  const { apiUrl, connectionToken, defaultProject, authMethod, accessToken: storedAccessToken } = await getStoredConfig([
     'apiUrl',
     'connectionToken',
     'defaultProject',
